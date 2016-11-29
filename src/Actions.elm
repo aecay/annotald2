@@ -1,26 +1,44 @@
-module Actions exposing (clearSelection, changeLabel, Action)
+module Actions exposing ( clearSelection
+                        , changeLabel
+                        , Action
+                        )
 
 import Maybe exposing (withDefault)
 --import List.Extra exposing (singleton)
 --import List exposing (head, tail)
 
+import Tree exposing (Path, Tree)
+
+import Utils exposing ((?>), (?>?), zip)
+
 import Dict exposing (Dict)
 
-import Utils exposing ((?>), zip)
+import TreeExts as TX
 
 import Model exposing (Model, refresh)
 import Selection
 
-import ZipperExts as ZX
-import Tree exposing (TreeZipper)
 
 type alias Action = Model -> Maybe Model
 
-doSelected : (TreeZipper -> TreeZipper) -> Model -> Maybe Model
-doSelected f m =
-    m.selected |>
-    Selection.doOne f ?>
-    refresh m
+doOneSelected : (Tree -> Tree) -> Model -> Maybe Model
+doOneSelected f model =
+    let
+        path = model.selected |>
+               Selection.first
+    in path ?>?
+    \x -> doAt x f model
+
+doAt : Path -> (Tree -> Tree) -> Model -> Maybe Model
+doAt path f model =
+    let
+        root = model.root
+    in
+        root |>
+        Tree.get path ?>
+        f ?>?
+        \x -> Tree.set path x root ?>?
+        refresh model >> Just
 
 clearSelection : Action
 clearSelection m = Just { m | selected = Selection.empty }
@@ -37,9 +55,9 @@ changeLabel labels =
                 repls = Dict.fromList pairs
                 change : String -> String
                 change s = Dict.get s repls |> withDefault head
-                update : TreeZipper -> TreeZipper
-                update z = ZX.updateDatum (\d -> { d | label = change d.label }) z
-            in doSelected update
+                update : Tree -> Tree
+                update z = TX.updateDatum (\d -> { d | label = change d.label }) z
+            in doOneSelected update
 
 -- coIndex : Action
 -- coIndex m =

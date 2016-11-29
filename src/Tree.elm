@@ -1,13 +1,17 @@
-module Tree exposing (l, t, Tree, TreeZipper, either, Index,
+module Tree exposing (l, t, Tree, either, Index,
                           IndexVariety(..),
                           -- TODO: exporting all this internal stuff is not
                           -- the best...
-                          TreeDatum)
+                          TreeDatum, get, Path, set)
 
 import List
+import List.Extra exposing ((!!))
+import Maybe
+
+import Utils exposing ((?>?))
 
 import MultiwayTree as T
-import MultiwayTreeZipper as Z
+import TreeExts as TX
 
 -- Can partially unify these types by making a text: Maybe String key -> but
 -- then the type system does not enforce the invariant that only children have
@@ -44,7 +48,7 @@ type alias TreeDatum = { text: Maybe String
 
 type alias Tree = T.Tree TreeDatum
 
-type alias TreeZipper = Z.Zipper TreeDatum
+type alias Path = List Int
 
 l : String -> String -> Tree
 l label text = T.Tree { label = label
@@ -63,16 +67,25 @@ t label children = T.Tree { label = label
 mapChildren : (Tree -> a) -> Tree -> List a
 mapChildren f t = List.map f (T.children t)
 
-either : (TreeDatum -> a) -> (TreeDatum -> a) -> TreeZipper -> a
+either : (TreeDatum -> a) -> (TreeDatum -> a) -> Tree -> a
 either nt t zipper =
     let
-        d = Z.datum zipper
+        d = T.datum zipper
         txt = d |> .text
     in
     case txt of
         Just _ -> t d
         Nothing -> nt d
 
--- TODO: we have to manually write all these...is there a better way?  idea
--- which may not work: destructure both the type constructor and contents:
--- case d of (x y) -> x { y | y.selected = ... }
+get : Path -> Tree -> Maybe Tree
+get path tree = case path of
+                    [] -> Just tree
+                    i :: is -> T.children tree |> flip (!!) i |> Maybe.andThen (get is)
+
+set : Path -> Tree -> Tree -> Maybe Tree
+set path newChild tree = case path of
+                             [] -> Nothing
+                             i :: [] -> TX.setChild i newChild tree
+                             i :: is -> (T.children tree) !! i ?>?
+                                        set is newChild ?>?
+                                        \x -> TX.setChild i x tree

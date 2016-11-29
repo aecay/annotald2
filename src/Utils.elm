@@ -1,4 +1,4 @@
-module Utils exposing (enumerate, zip, fromJust, (?>))
+module Utils exposing (enumerate, zip, fromJust, (?>), (?>?))
 
 import List
 
@@ -98,6 +98,11 @@ fromJust x = case x of
 (?>) x f = Maybe.map f x
 
 infixl 0 ?>
+
+(?>?) : Maybe a -> (a -> Maybe b) -> Maybe b
+(?>?) = flip Maybe.andThen
+
+infixl 0 ?>?
 
 -- This is just Maybe.andThen
 -- (?>>) : Maybe a -> (a -> Maybe b) -> Maybe b

@@ -7,14 +7,12 @@ import Html.Events as Ev
 import Json.Decode as Json
 
 import Model exposing (Model)
-import Tree exposing (Tree, TreeZipper, either, IndexVariety(..), Index, TreeDatum)
-import Selection
+import Tree exposing (Tree, IndexVariety(..), Index, TreeDatum, Path, either)
+import MultiwayTree as T
+import Selection exposing (Selection)
 import Update exposing (Msg(..))
 
 import Utils exposing (fromJust, (?>))
-
-import ZipperExts as ZX
--- import MultiwayTreeZipper as Z
 
 -- TODO: use html.keyed for speed
 
@@ -34,8 +32,8 @@ labelText {label, index} =
     flip (++) label
 
 
-snode : TreeZipper -> TreeDatum -> Bool -> List (Html Msg) -> Html Msg
-snode zipper datum selected children =
+snode : Path -> TreeDatum -> Bool -> List (Html Msg) -> Html Msg
+snode self datum selected children =
     div
     [ Attr.class "snode"
     , Attr.style [ ("margin-left", "20px")
@@ -51,7 +49,7 @@ snode zipper datum selected children =
     , Ev.onWithOptions "click" { stopPropagation = True
                                , preventDefault = True
                                } <|
-        Json.succeed <| ToggleSelect zipper
+        Json.succeed <| ToggleSelect self
     ] <| text (labelText datum) :: children
 
 wnode : String -> Html Msg
@@ -67,19 +65,22 @@ wnode txt = span
              ]
              [text txt]
 
-viewTree : List TreeZipper -> TreeZipper -> Html Msg
-viewTree selected zipper =
+viewTree : Selection -> Path -> Tree -> Html Msg
+viewTree selected selfPath tree =
     let
-        isSelected = List.member zipper selected
+        d = T.datum tree
+        isSelected = List.member selfPath (Selection.get selected)
         viewT d =
-            snode zipper d isSelected [wnode (fromJust d.text)]
+            snode selfPath d isSelected [wnode (fromJust d.text)]
         viewNt d =
             -- TODO: I suspect this of being a performance hotspot.  We can
             -- use Html.lazy here, but not above
-            snode zipper d isSelected <|
-                List.map (viewTree selected) <| ZX.childZippers zipper
+            T.children tree |>
+            Utils.enumerate |>
+            List.map (\(i, c) -> viewTree selected (selfPath ++ [i]) c) |>
+            snode selfPath d isSelected
     in
-        either viewNt viewT zipper
+        either viewNt viewT tree
 
 -- viewTree1 : Maybe TreeZipper -> TreeZipper -> Html Msg
 -- viewTree1 selected target =
@@ -93,12 +94,12 @@ viewTree selected zipper =
 viewRoot : Model -> List (Html Msg)
 viewRoot model =
     let
-        selectedTrees = Selection.get model.selected
+        selectedTrees = model.selected
     in
         model.root |>
-        ZX.zipper |>
-        ZX.childZippers |>
-        List.map (viewTree selectedTrees)
+        T.children |>
+        Utils.enumerate |>
+        List.map (\(i, c) -> viewTree selectedTrees ([i]) c)
 
 view : Model -> Html Msg
 view m =

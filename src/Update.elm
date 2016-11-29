@@ -1,7 +1,7 @@
 module Update exposing (update, Msg(..), subscriptions)
 
 import Model exposing (Model)
-import Tree exposing (Tree, TreeZipper)
+import Tree exposing (Tree, Path)
 import Selection
 
 import Bindings exposing (bindings)
@@ -14,7 +14,7 @@ import Keyboard
 
 -- import ZipperExts as ZX
 
-type Msg = ToggleSelect TreeZipper |
+type Msg = ToggleSelect Path |
     KeyMsg Keyboard.KeyCode
 
 update : Msg -> Model -> Return Msg Model
