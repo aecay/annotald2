@@ -12,10 +12,22 @@ import Dict
 
 import Keyboard
 
+import Result as R
+
+import Actions
+
 -- import ZipperExts as ZX
 
 type Msg = ToggleSelect Path |
     KeyMsg Keyboard.KeyCode
+
+handleResult : Model -> Actions.Result -> Model
+handleResult model result =
+    case result of
+        R.Ok m -> { m | lastMessage = "OK" }
+        R.Err e -> case e of
+                       Actions.Msg msg -> { model | lastMessage = msg }
+                       Actions.Silent -> { model | lastMessage = "Silent failure" }
 
 update : Msg -> Model -> Return Msg Model
 update msg model =
@@ -29,8 +41,9 @@ update msg model =
                     Dict.get k bindings |>
                     (\y m ->
                          y |>
-                         Maybe.andThen (\x -> x m) |>
-                         Maybe.withDefault m)
+                         Actions.liftMaybe (Actions.Msg "Key is not bound") |>
+                         R.andThen (\x -> x m) |>
+                         handleResult m)
     in
         singleton model |>
         Return.map update

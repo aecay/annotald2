@@ -99,6 +99,7 @@ fromJust x = case x of
 
 infixl 0 ?>
 
+-- TODO: remove
 (?>?) : Maybe a -> (a -> Maybe b) -> Maybe b
 (?>?) = flip Maybe.andThen
 

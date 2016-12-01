@@ -2,13 +2,16 @@ module Tree exposing (l, t, Tree, either, Index,
                           IndexVariety(..),
                           -- TODO: exporting all this internal stuff is not
                           -- the best...
-                          TreeDatum, get, Path, set)
+                          TreeDatum, get, Path, set,
+                          highestIndex
+                     --, sameRoot
+                     , root)
 
 import List
 import List.Extra exposing ((!!))
 import Maybe
 
-import Utils exposing ((?>?))
+import Utils exposing ((?>?), (?>))
 
 import MultiwayTree as T
 import TreeExts as TX
@@ -89,3 +92,17 @@ set path newChild tree = case path of
                              i :: is -> (T.children tree) !! i ?>?
                                         set is newChild ?>?
                                         \x -> TX.setChild i x tree
+
+-- sameRoot : Path -> Path -> Bool
+-- sameRoot a b = (root a) == (root b)
+
+root : Path -> Path
+root a = [Utils.fromJust (a !! 0)]
+
+highestIndex : Tree -> Int
+highestIndex t =
+    let
+        fold : TreeDatum -> Int -> Int
+        fold d i = Maybe.withDefault 0 (d.index ?> .number) |> max i
+    in
+        T.foldl fold 0 t

@@ -22,14 +22,14 @@ indexString {number, variety} =
         vstr = case variety of
                    Normal -> "-"
                    Gap -> "+"
-    in toString number ++ vstr
+    in vstr ++ toString number
 
 labelText : TreeDatum -> String
 labelText {label, index} =
     index ?>
     indexString |>
     Maybe.withDefault "" |>
-    flip (++) label
+    (++) label
 
 
 snode : Path -> TreeDatum -> Bool -> List (Html Msg) -> Html Msg

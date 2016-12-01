@@ -5,11 +5,13 @@ import Selection
 
 type alias Model = { root: Tree
                    , selected: Selection.Selection
+                   , lastMessage: String
                    }
 
 withTrees : List Tree -> Model
 withTrees trees = { root = t "WTF" trees
                   , selected = Selection.empty
+                  , lastMessage = "Init"
                   }
 
 refresh : Model -> Tree -> Model
