@@ -1,5 +1,8 @@
 module TreeExts exposing (setChild, updateDatum)
 
+-- TODO: Wrap all necessary fns from MultiwayTree so that files in this
+-- project only need to import this library
+
 import MultiwayTree exposing (Tree(..))
 
 setChild : Int -> Tree a -> Tree a -> Maybe (Tree a)
