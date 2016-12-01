@@ -27,7 +27,7 @@ handleResult model result =
         R.Ok m -> { m | lastMessage = "OK" }
         R.Err e -> case e of
                        Actions.Msg msg -> { model | lastMessage = msg }
-                       Actions.Silent -> { model | lastMessage = "Silent failure" }
+                       Actions.Silent msg -> { model | lastMessage = "Failure in " ++ msg }
 
 update : Msg -> Model -> Return Msg Model
 update msg model =
