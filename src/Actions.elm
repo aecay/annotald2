@@ -18,7 +18,9 @@ functions that respond to user input.
 
 # TODO
 
- -}
+@docs changeLabel, clearSelection, coIndex
+
+-}
 
 -- Standard library
 
@@ -112,6 +114,8 @@ bind f result =
 
 -- The rest of the file
 
+{-| TODO
+-}
 type alias Action = Model -> Result
 
 doOneSelected : (Tree -> Tree) -> Model -> Result
@@ -135,9 +139,13 @@ doAt path f model =
         flattenMaybe (Silent "doAt 2") |>
         fmap (refresh model)
 
+{-| TODO
+-}
 clearSelection : Action
 clearSelection m = succeed { m | selected = Selection.empty }
 
+{-| TODO
+-}
 changeLabel : List String -> Action
 changeLabel labels =
     case labels of
@@ -154,7 +162,8 @@ changeLabel labels =
                 update z = TX.updateDatum (\d -> { d | label = change d.label }) z
             in doOneSelected update
 
--- TODO: with one node selected, remove index
+{-| TODO
+-}
 coIndex : Action
 coIndex model =
     let
