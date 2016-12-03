@@ -174,33 +174,55 @@ coIndex model =
         case (first, second) of
             (Just f, Just s) ->
                 coIndex2 f s model
+            (Just f, Nothing) -> coIndex1 f model
             otherwise -> fail (Silent "coIndex")
 
+coIndex1: Path -> Model -> Result
+coIndex1 = removeIndexAt
+
 coIndex2 : Path -> Path -> Model -> Result
-coIndex2 f s model =
-    case Tree.root f == Tree.root s of
+coIndex2 path1 path2 model =
+    case Tree.root path1 == Tree.root path2 of
         False -> fail (Msg "Can't coindex nodes in two different roots")
         True ->
             let
                 root = model.root
-                ft = Tree.get f root
-                st = Tree.get s root
-                fi = ft ?> MT.datum ?> .index |> Maybe.Extra.join ?> .number
-                si = st ?> MT.datum ?> .index |> Maybe.Extra.join ?> .number
-                ind = Tree.get (Tree.root f) root ?>
+                tree1 = Tree.get path1 root
+                tree2 = Tree.get path2 root
+                index1 = tree1 ?> MT.datum ?> .index |> Maybe.Extra.join
+                index2 = tree2 ?> MT.datum ?> .index |> Maybe.Extra.join
+                ind = Tree.get (Tree.root path1) root ?>
                       Tree.highestIndex |>
                       Maybe.withDefault 0 |>
                       (+) 1
             in
-                case (fi, si) of
+                case (index1, index2) of
                     -- One of the nodes has an index, the other does not: set
                     -- the index of the unindexed node to match
-                    (Nothing, Just x) -> setIndexAt f x model
-                    (Just x, Nothing) -> setIndexAt s x model
+                    (Nothing, Just x) -> setIndexAt path1 x.number model
+                    (Just x, Nothing) -> setIndexAt path2 x.number model
                     -- Both of the nodes have an index: remove both indices
                     -- (TODO: toggle index types)
-                    (Just x, Just y) -> removeIndexAt f model |> bind (removeIndexAt s)
-                    (Nothing, Nothing) ->  setIndexAt f ind model |> bind (setIndexAt s ind)
+                    (Just x, Just y) ->
+                        case (x.variety, y.variety) of
+                            -- Normal coindexing -> gap
+                            (Tree.Normal, Tree.Normal) ->
+                                setIndexVarietyAt path2 Tree.Gap model
+                            -- Gap -> backwards gap
+                            (Tree.Normal, Tree.Gap) ->
+                                setIndexVarietyAt path1 Tree.Gap model |>
+                                bind (setIndexVarietyAt path2 Tree.Normal)
+                            -- Backwards gap -> remove indexes
+                            (Tree.Gap, Tree.Normal) ->
+                                removeIndexAt path1 model |>
+                                bind (removeIndexAt path2)
+                            -- Something weird -> remove indexes (TODO: is
+                            -- this right?)
+                            otherwise -> removeIndexAt path1 model |>
+                                         bind (removeIndexAt path2)
+                    -- Neither node has an index -> coindex them
+                    (Nothing, Nothing) -> setIndexAt path1 ind model |>
+                                          bind (setIndexAt path2 ind)
 
 setIndexAt: Path -> Int -> Action
 setIndexAt path index =
@@ -209,7 +231,15 @@ setIndexAt path index =
     in
         doAt path (TX.updateDatum f)
 
-removeIndexAt: Path -> Action
+setIndexVarietyAt : Path -> Tree.IndexVariety -> Action
+setIndexVarietyAt path newVariety =
+    let
+        setVariety x = { x | variety = newVariety }
+        f x = { x | index = Maybe.map setVariety x.index }
+    in
+        doAt path (TX.updateDatum f)
+
+removeIndexAt : Path -> Action
 removeIndexAt path =
     let
         f x = { x | index = Nothing }
