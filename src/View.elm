@@ -31,6 +31,10 @@ labelText {label, index} =
     Maybe.withDefault "" |>
     (++) label
 
+blockAll : Ev.Options
+blockAll = { stopPropagation = True
+           , preventDefault = True
+           }
 
 snode : Path -> TreeDatum -> Bool -> List (Html Msg) -> Html Msg
 snode self datum selected children =
@@ -46,10 +50,9 @@ snode self datum selected children =
                  , ("cursor", "pointer")
                  , ("color", "black")
                  ]
-    , Ev.onWithOptions "click" { stopPropagation = True
-                               , preventDefault = True
-                               } <|
-        Json.succeed <| ToggleSelect self
+    , Ev.onWithOptions "click" blockAll <|
+          Json.succeed <| ToggleSelect self
+    , Ev.onWithOptions "contextmenu" blockAll <| Json.succeed <| RightClick self
     ] <| text (labelText datum) :: children
 
 wnode : String -> Html Msg

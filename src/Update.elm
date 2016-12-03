@@ -19,7 +19,8 @@ import Actions
 -- import ZipperExts as ZX
 
 type Msg = ToggleSelect Path |
-    KeyMsg Keyboard.KeyCode
+    KeyMsg Keyboard.KeyCode |
+    RightClick Path
 
 handleResult : Model -> Actions.Result -> Model
 handleResult model result =
@@ -44,6 +45,9 @@ update msg model =
                          Actions.liftMaybe (Actions.Msg "Key is not bound") |>
                          R.andThen (\x -> x m) |>
                          handleResult m)
+                RightClick p ->
+                    -- TODO: context menu
+                    \m -> Actions.doMove p m |> handleResult m
     in
         singleton model |>
         Return.map update

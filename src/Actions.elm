@@ -3,7 +3,7 @@ module Actions exposing ( clearSelection
                         , coIndex
                         , Action
                         , liftMaybe, Failure(..), Result -- TODO: don't want to export
-                        )
+                        , doMove)
 
 {-| This module contains the types and functions for creating *actions*, or
 functions that respond to user input.
@@ -245,3 +245,21 @@ removeIndexAt path =
         f x = { x | index = Nothing }
     in
         doAt path (TX.updateDatum f)
+
+doMove : Path -> Model -> Result
+doMove dest model =
+    let
+        src = model.selected |>
+              Selection.first
+        -- rightward will have a bogus value if src is Nothing, but in that
+        -- case we're going to fail when we try to lift it below, so it
+        -- doesn't matter
+        rightward = (Maybe.withDefault [] src) < dest
+        dest1 = src ?>? \x -> Tree.destPath x dest model.root
+    in
+        Maybe.map2 (,) (Debug.log "src" src) (Debug.log "dest1" dest1) |>
+        liftMaybe (Silent "doMove") |>
+        fmap (\(s,d) -> Tree.moveTo s d model.root) |>
+        flattenMaybe (Silent "doMove2") |>
+        fmap (refresh model) |>
+        fmap (\m -> { m | selected = Utils.fromJust dest1 |> Selection.one })
