@@ -1,4 +1,4 @@
-module Utils exposing (enumerate, zip, fromJust, (?>), (?>?))
+module Utils exposing (enumerate, zip, fromJust, (?>), (?>?), all, remove, insert)
 
 import List
 
@@ -15,6 +15,14 @@ zip = List.map2 (,)
 
 enumerate : List a -> List (Int, a)
 enumerate a = zip (List.range 0 <| List.length a - 1) a
+
+remove : Int -> List a -> List a
+remove i list =
+    List.take i list ++ List.drop (i+1) list
+
+insert : Int -> a -> List a -> List a
+insert i x list =
+    List.take i list ++ x :: List.drop i list
 
 -- toList : Array a -> List a
 -- toList = foldr (::) []
@@ -104,6 +112,9 @@ infixl 0 ?>
 (?>?) = flip Maybe.andThen
 
 infixl 0 ?>?
+
+all : (a -> Bool) -> List a -> Bool
+all f l = List.foldl (&&) True <| List.map f l
 
 -- This is just Maybe.andThen
 -- (?>>) : Maybe a -> (a -> Maybe b) -> Maybe b
