@@ -8,7 +8,10 @@ module Tree exposing (l, t, Tree, either, Index,
                      , root
                      , moveTo
                      , internals
-                     , destPath)
+                     , destPath
+                     , insertAt
+                     , fixPathForMovt -- TODO: marginal on exporting this
+                     )
 
 import List
 import List.Extra exposing ((!!))
@@ -194,24 +197,25 @@ isOnlyChildAt t p = isFirstAt t p && isLastAt t p
 
 destPath : Path -> Path -> Tree -> Maybe Path
 destPath src newParent tree =
-    case removeCommon src newParent of
+    case Debug.log "rc" <| removeCommon (Debug.log "src" src) (Debug.log "np" newParent) of
         -- Movement to own child disallowed
-        (_, [], _) -> Nothing
+        (_, [], _) -> Debug.log "whoops" Nothing
         -- Movement to own parent
-        (_, p :: _, []) -> case (isFirstAt tree src, isLastAt tree src) of
+        (_, p :: _, []) -> case Debug.log "first/last" (isFirstAt tree src, isLastAt tree src) of
                                -- Land to parent's left
                                (True, False) -> Just <| newParent ++ [p]
                                -- Land to parent's right
                                (False, True) -> Just <| newParent ++ [p+1]
                                otherwise -> Nothing
-        (common, _, dest) -> let
-            rightward = src < newParent
-            dest1 = dest ++
-                    if rightward
-                    then [0]
-                    else [get newParent tree ?> T.children ?> List.length |> Utils.fromJust]
-       in
-           Just <| common ++ dest1
+        (common, _, dest) ->
+            let
+                rightward = src < newParent
+                dest1 = dest ++
+                        if rightward
+                        then [0]
+                        else [get newParent tree ?> T.children ?> List.length |> Utils.fromJust]
+            in
+                Just <| common ++ dest1
 
 -- It is allowed to move SRC to DEST without affecting the word order in the
 -- tree if the following conditions are met: remove the common elementes on

@@ -1,6 +1,8 @@
-module Selection exposing (Selection, first, second, one, two, empty,
+module Selection exposing (Selection(..) -- TODO: don't want to export contsructors
+                          , first, second, one, two, empty,
                                -- doOne,
-                          updateWith, get)
+                          updateWith, get
+                          , perform)
 
 import Tree exposing (Path)
 
@@ -43,3 +45,10 @@ get s = case s of
             None -> []
             One x -> [x]
             Two x y -> [x, y]
+
+perform : Selection -> a -> (Path -> a) -> (Path -> Path -> a) -> a
+perform sel none one two =
+    case sel of
+        None -> none
+        One x -> one x
+        Two x y -> two x y

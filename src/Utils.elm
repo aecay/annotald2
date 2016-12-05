@@ -1,10 +1,20 @@
-module Utils exposing (enumerate, zip, fromJust, (?>), (?>?), all, remove, insert)
+module Utils exposing (enumerate
+                      , zip
+                      , fromJust
+                      , (?>)
+                      , (?>?)
+                      , all
+                      , remove
+                      , insert
+                      , do
+                      , maybeDo
+                      )
 
 import List
 
 import Debug
 
--- import Monocle.Optional exposing (Optional)
+import Monocle.Lens exposing (Lens)
 -- import Monocle.Common exposing (array, (=>))
 
 -- import Tree exposing (Tree)
@@ -23,6 +33,13 @@ remove i list =
 insert : Int -> a -> List a -> List a
 insert i x list =
     List.take i list ++ x :: List.drop i list
+
+do : Lens a b -> (b -> b) -> a -> a
+do lens f a = lens.get a |> f |> flip lens.set a
+
+maybeDo : Lens a b -> (b -> Maybe b) -> a -> a
+maybeDo lens f a =
+    lens.get a |> f |> Maybe.withDefault (lens.get a) |> flip lens.set a
 
 -- toList : Array a -> List a
 -- toList = foldr (::) []

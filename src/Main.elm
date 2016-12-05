@@ -6,7 +6,8 @@ import Platform.Cmd as Cmd
 import Tree exposing (l, t, Tree)
 import Model exposing (Model, withTrees)
 import View exposing (view)
-import Update exposing (update, Msg, subscriptions)
+import Update exposing (update, subscriptions)
+import Msg exposing (Msg)
 
 testTree : Tree
 testTree = t "IP-MAT"

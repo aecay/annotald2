@@ -10,9 +10,12 @@ import Model exposing (Model)
 import Tree exposing (Tree, IndexVariety(..), Index, TreeDatum, Path, either)
 import MultiwayTree as T
 import Selection exposing (Selection)
-import Update exposing (Msg(..))
+import Msg exposing (Msg(..))
 
 import Utils exposing (fromJust, (?>))
+import ViewUtils exposing (onClick, blockAll)
+
+import ContextMenu
 
 -- TODO: use html.keyed for speed
 
@@ -36,6 +39,11 @@ blockAll = { stopPropagation = True
            , preventDefault = True
            }
 
+decodeMouse : Json.Decoder ContextMenu.Position
+decodeMouse = Json.map2 (\x y -> { x = x, y = y })
+              (Json.field "x" Json.int)
+              (Json.field "y" Json.int)
+
 snode : Path -> TreeDatum -> Bool -> List (Html Msg) -> Html Msg
 snode self datum selected children =
     div
@@ -50,9 +58,8 @@ snode self datum selected children =
                  , ("cursor", "pointer")
                  , ("color", "black")
                  ]
-    , Ev.onWithOptions "click" blockAll <|
-          Json.succeed <| ToggleSelect self
-    , Ev.onWithOptions "contextmenu" blockAll <| Json.succeed <| RightClick self
+    , onClick <| ToggleSelect self
+    , Ev.onWithOptions "contextmenu" blockAll (Json.map (\x -> RightClick self x) decodeMouse)
     ] <| text (labelText datum) :: children
 
 wnode : String -> Html Msg
@@ -104,8 +111,9 @@ viewRoot model =
         Utils.enumerate |>
         List.map (\(i, c) -> viewTree selectedTrees ([i]) c)
 
-view : Model -> Html Msg
-view m =
+-- TODO: ame name
+viewRoot1 : Model -> Html Msg
+viewRoot1 m =
     viewRoot m |>
     div [ Attr.class "sn0"
         , Attr.style [ ("background-color", "#D2B48C")
@@ -115,3 +123,9 @@ view m =
                      , ("display", "inline-block")
                      ]
         ]
+
+view : Model -> Html Msg
+view model =
+    div [] [ viewRoot1 model
+           , map Context <| ContextMenu.view model.contextMenu
+           ]

@@ -246,20 +246,23 @@ removeIndexAt path =
     in
         doAt path (TX.updateDatum f)
 
-doMove : Path -> Model -> Result
-doMove dest model =
+doMove : Path -> Path -> Model -> Result
+doMove src dest model =
     let
-        src = model.selected |>
-              Selection.first
         -- rightward will have a bogus value if src is Nothing, but in that
         -- case we're going to fail when we try to lift it below, so it
         -- doesn't matter
-        rightward = (Maybe.withDefault [] src) < dest
-        dest1 = src ?>? \x -> Tree.destPath x dest model.root
+        rightward = src < dest
+        dest1 : Maybe Path
+        dest1 = src |> \x -> Tree.destPath x dest model.root
     in
-        Maybe.map2 (,) (Debug.log "src" src) (Debug.log "dest1" dest1) |>
+        Maybe.map2 (,) (Debug.log "src" (Just src)) (Debug.log "dest1" dest1) |>
         liftMaybe (Silent "doMove") |>
         fmap (\(s,d) -> Tree.moveTo s d model.root) |>
         flattenMaybe (Silent "doMove2") |>
         fmap (refresh model) |>
-        fmap (\m -> { m | selected = Utils.fromJust dest1 |> Selection.one })
+        fmap (\m -> { m | selected = dest1 ?>
+                          Tree.fixPathForMovt src |>
+                          Utils.fromJust |>
+                          Selection.one
+                    })
