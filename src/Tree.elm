@@ -1,16 +1,15 @@
-module Tree exposing (l, t, Tree, either, Index,
-                          IndexVariety(..),
+module Tree exposing (l, t, Tree, either,
                           -- TODO: exporting all this internal stuff is not
                           -- the best...
-                          TreeDatum, get, Path, set,
+                          TreeDatum, get, set,
                           highestIndex
                      --, sameRoot
-                     , root
                      , moveTo
                      , internals
                      , destPath
                      , insertAt
                      , fixPathForMovt -- TODO: marginal on exporting this
+                     , do
                      )
 
 import List
@@ -21,6 +20,8 @@ import Utils exposing ((?>?), (?>))
 
 import MultiwayTree as T
 import TreeExts as TX
+import Index
+import Path exposing (Path(..), PathFragment)
 
 -- Functions we expose for testing only
 internals :
@@ -29,36 +30,26 @@ internals :
     , extractAt : Path -> Tree -> Maybe ( Tree, Tree )
     , fixPathForMovt : Path -> Path -> Path
     , isLastAt : Tree -> Path -> Bool
-    , removeCommon : Path -> Path -> ( Path, PathFragment, PathFragment )
     }
 internals = { allLast = allLast
             , canMove = canMove
             , isLastAt = isLastAt
-            , removeCommon = removeCommon
             , extractAt = extractAt
             , fixPathForMovt = fixPathForMovt
             }
-
-type IndexVariety = Normal | Gap
-
-type alias Index = { number: Int
-                   , variety: IndexVariety
-                   }
 
 type alias TreeDatum = { text: Maybe String
                              -- TODO: we are relying on the code and not the
                              -- typechecker to maintain the invariant that
                              -- only terminal nodes have text
                        , label: String
-                       , index: Maybe Index
+                       , index: Maybe Index.Index
                        }
 
 type alias Tree = T.Tree TreeDatum
 
-type alias Path = List Int
--- TODO: paths should have a foot (last elt) and leg (everything else).  Make
--- get and friends (non-tail!) recursive:
--- get p tree = getNthChild (foot path) (get (leg path) tree)
+-- TODO: Make get and friends (non-tail!) recursive: get p tree = getNthChild
+-- (foot path) (get (leg path) tree)
 
 -- Convenience functions for generating trees for testing
 l : String -> String -> Tree
@@ -91,19 +82,30 @@ either nt t zipper =
 
 get : Path -> Tree -> Maybe Tree
 get path tree = case path of
-                    [] -> Just tree
-                    i :: is -> T.children tree |> flip (!!) i |> Maybe.andThen (get is)
+                    Path.RootPath -> Just tree
+                    Path.Path foot [] -> T.children tree |> flip (!!) foot
+                    Path.Path foot (l :: ls) ->
+                        (Path.Path l ls) |>
+                        flip get tree ?>
+                        T.children ?>?
+                        flip (!!) foot
 
 set : Path -> Tree -> Tree -> Maybe Tree
 set path newChild tree = case path of
-                             [] -> Just newChild
-                             i :: [] -> TX.setChild i newChild tree
-                             i :: is -> (T.children tree) !! i ?>?
-                                        set is newChild ?>?
-                                        \x -> TX.setChild i x tree
+                             Path.RootPath -> Just newChild
+                             Path.Path i [] -> TX.setChild i newChild tree
+                             Path.Path foot (l :: ls) ->
+                                 let
+                                     parentPath = Path.Path l ls
+                                     parent = get parentPath tree
+                                 in
+                                     parent ?>?
+                                     TX.setChild foot newChild ?>?
+                                     \x -> set parentPath x tree
 
-root : Path -> Path
-root a = [Utils.fromJust (a !! 0)]
+do : Path.Path -> (Tree -> Tree) -> Tree -> Tree
+do path f tree =
+    Debug.crash "TODO"
 
 highestIndex : Tree -> Int
 highestIndex t =
@@ -115,81 +117,40 @@ highestIndex t =
 
 -- Movement
 
--- TODO: use the typechecker to guarantee that we never use a fragment as a
--- path in dumb ways
--- type PathFragment = Fragment Path
-type alias PathFragment = List Int
-
--- For when we use the typechecker as above
--- joinFragment : Path -> PathFragment -> Path
--- joinFragment path frag =
---     path ++ frag
-
-removeCommon : Path -> Path -> (Path, PathFragment, PathFragment)
-removeCommon p1 p2 =
-    let
-        go p1 p2 accum = case (p1, p2) of
-                             (h1 :: t1, h2 :: t2) -> if h1 == h2
-                                                     then go t1 t2 <| accum ++ [h1]
-                                                     else (accum, p1, p2)
-                             otherwise -> (accum, p1, p2)
-    in
-        go p1 p2 []
-
--- isParent : Path -> Path -> Bool
--- isParent parent child =
---     let
---         (_, _, x) = removeCommon
-
 isFirstAt : Tree -> Path -> Bool
 isFirstAt _ p =
-    List.Extra.last p == Just 0
+    case p of
+        Path.RootPath -> False
+        Path.Path foot _ -> foot == 0
 
 allFirst : Path -> PathFragment -> Tree -> Bool
-allFirst _ frag _ =
-    Utils.all ((==) 0) frag
+allFirst path frag tree =
+    Utils.all (isFirstAt tree) (Path.allCombos path frag)
 
 isLastAt : Tree -> Path -> Bool
 isLastAt tree path =
-    case path of
-        [] -> True
-        x :: [] -> (List.length (T.children tree)) == (x + 1)
-        otherwise ->
-            let
-                path1 = List.Extra.init path |> Utils.fromJust
-                tail = List.Extra.last path |> Utils.fromJust
-                test : Tree -> Bool
-                test x = List.length (T.children x) == tail + 1
-            in
-                get path1 tree ?>
-                test |>
-                Maybe.withDefault False
+    Debug.log "tree" (get (Path.parent path) tree) ?>
+    T.children |> Debug.log "kids" ?>
+    List.length |> Debug.log "length" ?>
+    (==) (Debug.log "target" (Path.foot path + 1)) |> Debug.log "result" |>
+    Maybe.withDefault False |>
+    Debug.log ("isLastAt " ++ toString path)
 
 allLast : Path -> PathFragment -> Tree -> Bool
 allLast path frag tree =
-    let
-        paths : List Path
-        paths = List.Extra.inits frag |>
-                -- Remove the empty list
-                List.tail |>
-                Utils.fromJust |>
-                List.map ((++) path)
-    in
-        Utils.all (isLastAt tree) paths
+    Utils.all (isLastAt tree) (Path.allCombos path frag)
 
 allLastForDest : Path -> PathFragment -> Tree -> Bool
 allLastForDest path frag =
     case path of
-        [] -> \_ -> True
+        Path.RootPath -> \_ -> True -- TODO: is this correct??
         otherwise ->
             let
                 -- When speaking of a movement destination, the last element
                 -- of frag should actually be pointing one after the end of
                 -- the list, so we retract it by one here to simplify the
                 -- testing logic in allLast
-                newFrag = (List.Extra.init frag |> Utils.fromJust) ++
-                          (List.Extra.last frag |> Utils.fromJust |> (\x -> x - 1) |>
-                               List.Extra.singleton)
+                newFrag = Path.moveLeft frag
             in allLast path newFrag
 
 isOnlyChildAt : Tree -> Path -> Bool
@@ -197,25 +158,42 @@ isOnlyChildAt t p = isFirstAt t p && isLastAt t p
 
 destPath : Path -> Path -> Tree -> Maybe Path
 destPath src newParent tree =
-    case Debug.log "rc" <| removeCommon (Debug.log "src" src) (Debug.log "np" newParent) of
+    case Debug.log "rc" <| Path.splitCommon (Debug.log "src" src) (Debug.log "np" newParent) of
         -- Movement to own child disallowed
-        (_, [], _) -> Debug.log "whoops" Nothing
+        (_, Path.PF [], _) -> Debug.log "whoops" Nothing
         -- Movement to own parent
-        (_, p :: _, []) -> case Debug.log "first/last" (isFirstAt tree src, isLastAt tree src) of
-                               -- Land to parent's left
-                               (True, False) -> Just <| newParent ++ [p]
-                               -- Land to parent's right
-                               (False, True) -> Just <| newParent ++ [p+1]
-                               otherwise -> Nothing
+        (_, Path.PF l, Path.PF []) -> case Debug.log "first/last"
+                                      (isFirstAt tree src, isLastAt tree src)
+                                      of
+                                          -- Land to parent's left
+                                          (True, False) -> List.Extra.last l |>
+                                                           Utils.fromJust |>
+                                                           List.Extra.singleton |>
+                                                           Path.PF |>
+                                                           Path.join newParent |>
+                                                           Just
+                                          -- Land to parent's right
+                                          (False, True) -> List.Extra.last l |>
+                                                           Utils.fromJust |>
+                                                          (+) 1 |>
+                                                          List.Extra.singleton |>
+                                                          Path.PF |>
+                                                          Path.join newParent |>
+                                                          Just
+                                          otherwise -> Nothing
         (common, _, dest) ->
             let
-                rightward = src < newParent
-                dest1 = dest ++
-                        if rightward
-                        then [0]
-                        else [get newParent tree ?> T.children ?> List.length |> Utils.fromJust]
+                rightward = Path.lessThan src newParent
+                dest1 = Path.PF <| (if rightward
+                                    then [0]
+                                    else [ get newParent tree ?>
+                                               T.children ?>
+                                               List.length |>
+                                               Utils.fromJust
+                                         ])
+                        ++ Path.unwrap dest
             in
-                Just <| common ++ dest1
+                Just <| Path.join common dest1
 
 -- It is allowed to move SRC to DEST without affecting the word order in the
 -- tree if the following conditions are met: remove the common elementes on
@@ -228,25 +206,25 @@ destPath src newParent tree =
 canMove : Path -> Path -> Tree -> Bool
 canMove src dest tree =
     let
-        (common, src1, dest1) = removeCommon src dest
-        rightward = src < dest
+        (common, src1, dest1) = Debug.log "csd" <| Path.splitCommon src dest
+        rightward = Debug.log "rightward" <| Path.lessThan src dest
         testFnSrc = if rightward then allLast else allFirst
         testFnDest = if rightward then allFirst else allLastForDest
     in
         Debug.log (toString (common, src1, dest1)) <|
-        case (src1, dest1) of
-            ((hsrc :: tsrc), (hdest :: tdest)) ->
+        case (Path.isFragEmpty src1, Path.isFragEmpty dest1) of
+            (False, False) ->
                 Debug.log "a" (if rightward
-                 then hsrc == hdest - 1
-                 else hsrc == hdest + 1) &&
-                Debug.log "b" (testFnSrc (common ++ [hsrc]) tsrc tree) &&
-                Debug.log "c" (testFnDest (common ++ [hdest]) tdest tree) &&
+                 then Path.areFragsAdjacent src1 dest1
+                 else Path.areFragsAdjacent dest1 src1) &&
+                Debug.log "b" (uncurry testFnSrc (Debug.log "s1s" <| Path.shiftOne common src1) tree) &&
+                Debug.log "c" (uncurry testFnDest (Path.shiftOne common dest1) tree) &&
                 Debug.log "d" (not (isOnlyChildAt tree src))
-            ((hsrc :: tsrc), []) ->
+            (False, True) ->
                 -- Movement to parent leftward
                 if rightward
                 then False
-                else Debug.log "b'" (testFnSrc (common ++ [hsrc]) tsrc tree) &&
+                else Debug.log "b'" (uncurry testFnSrc (Path.shiftOne common src1) tree) &&
                 Debug.log "d'" (not (isOnlyChildAt tree src))
 
             otherwise -> False
@@ -254,12 +232,12 @@ canMove src dest tree =
 extractAt : Path -> Tree -> Maybe (Tree, Tree)
 extractAt path tree =
     case path of
-        [] -> Nothing
+        RootPath -> Nothing
         otherwise ->
             let
                 -- TODO: all this fromJust cries out for a nonempty list type
-                path1 = List.Extra.init path |> Utils.fromJust
-                idx = List.Extra.last path |> Utils.fromJust
+                path1 = Path.parent path
+                idx = Path.foot path
                 child = get path tree
             in
                 get path1 tree ?>
@@ -270,11 +248,11 @@ extractAt path tree =
 insertAt : Path -> Tree -> Tree -> Maybe Tree
 insertAt path newChild tree =
     case path of
-        [] -> Nothing
+        RootPath -> Just newChild
         otherwise ->
             let
-                path1 = List.Extra.init path |> Utils.fromJust
-                idx = List.Extra.last path |> Utils.fromJust
+                path1 = Path.parent path
+                idx = Path.foot path
                 child = get path tree
             in
                 get path1 tree ?>
@@ -284,14 +262,11 @@ insertAt path newChild tree =
 fixPathForMovt : Path -> Path -> Path
 fixPathForMovt src dest =
     let
-        (common, src1, dest1) = removeCommon src dest
-        rightward = src < dest
+        (common, src1, dest1) = Path.splitCommon src dest
+        rightward = Path.lessThan src dest
     in
-        if rightward && List.length src1 == 1
-        then common ++ (List.head dest1 ?>
-                            flip (-) 1 |>
-                            Maybe.map2 (flip (::)) (List.tail dest1) |>
-                            Maybe.withDefault [])
+        if rightward && Path.isFragSingleton src1
+        then Path.join common <| Path.moveLeft dest1
         else dest
 
 moveTo : Path -> Path -> Tree -> Maybe Tree
@@ -302,5 +277,5 @@ moveTo source dest tree =
             tree |>
             extractAt source |>
             Debug.log "extract" ?>?
-            uncurry (insertAt (fixPathForMovt source dest)) |>
+            uncurry (insertAt (Debug.log "fpm" <| fixPathForMovt source dest)) |>
             Debug.log "insert"

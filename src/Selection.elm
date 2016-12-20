@@ -4,7 +4,7 @@ module Selection exposing (Selection(..) -- TODO: don't want to export contsruct
                           updateWith, get
                           , perform)
 
-import Tree exposing (Path)
+import Path exposing (Path)
 
 -- import Utils exposing ((?>))
 

@@ -7,10 +7,12 @@ import Html.Events as Ev
 import Json.Decode as Json
 
 import Model exposing (Model)
-import Tree exposing (Tree, IndexVariety(..), Index, TreeDatum, Path, either)
+import Tree exposing (Tree, TreeDatum, either)
+import Path exposing (Path)
 import MultiwayTree as T
 import Selection exposing (Selection)
 import Msg exposing (Msg(..))
+import Index
 
 import Utils exposing (fromJust, (?>))
 import ViewUtils exposing (onClick, blockAll)
@@ -19,18 +21,10 @@ import ContextMenu
 
 -- TODO: use html.keyed for speed
 
-indexString : Index -> String
-indexString {number, variety} =
-    let
-        vstr = case variety of
-                   Normal -> "-"
-                   Gap -> "+"
-    in vstr ++ toString number
-
 labelText : TreeDatum -> String
 labelText {label, index} =
     index ?>
-    indexString |>
+    Index.string |>
     Maybe.withDefault "" |>
     (++) label
 
@@ -87,7 +81,7 @@ viewTree selected selfPath tree =
             -- use Html.lazy here, but not above
             T.children tree |>
             Utils.enumerate |>
-            List.map (\(i, c) -> viewTree selected (selfPath ++ [i]) c) |>
+            List.map (\(i, c) -> viewTree selected (Path.childPath i selfPath) c) |>
             snode selfPath d isSelected
     in
         either viewNt viewT tree
@@ -109,7 +103,7 @@ viewRoot model =
         model.root |>
         T.children |>
         Utils.enumerate |>
-        List.map (\(i, c) -> viewTree selectedTrees ([i]) c)
+        List.map (\(i, c) -> viewTree selectedTrees (Path.singleton i) c)
 
 -- TODO: ame name
 viewRoot1 : Model -> Html Msg
@@ -127,5 +121,5 @@ viewRoot1 m =
 view : Model -> Html Msg
 view model =
     div [] [ viewRoot1 model
-           , map Context <| ContextMenu.view model.contextMenu
+           , map Msg.Context <| ContextMenu.view model Model.contextMenu
            ]

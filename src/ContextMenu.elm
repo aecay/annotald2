@@ -1,4 +1,4 @@
-module ContextMenu exposing (Model
+module ContextMenu exposing ( Model
                             , emptyModel
                             , Position
                             , Msg
@@ -12,14 +12,16 @@ import ViewUtils exposing (onClick)
 
 import Html as H exposing (Html)
 import Html.Attributes as Attr
+import Mouse
 
-import Tree exposing (Path)
+import Path exposing (Path)
+import Tree
 
-import Utils exposing ((?>), (?>?))
+import Utils exposing (modifyMaybe)
 
 import TreeExts as TX
 
-import Monocle.Lens exposing (Lens)
+import Monocle.Lens exposing (Lens, modify)
 
 type alias Position = { x: Int
                       , y: Int
@@ -30,12 +32,13 @@ type alias Model = { position : Position
                    , target : Maybe Path
                    }
 
-type Msg =
+type Msg a =
     LeafBefore Path String String |
     LeafAfter Path String String |
     SetLabel Path String |
     ToggleExtension Path String |
-    Ignore
+    Ignore |
+    Hide (Lens a Model)
 
 show : Position -> Path -> Lens a Model -> (a -> a)
 show position path lens =
@@ -47,7 +50,7 @@ hide lens = lens.set emptyModel
 emptyModel : Model
 emptyModel = { position = { x = 0, y = 0 }, target = Nothing }
 
-entry : List (H.Attribute Msg) -> String -> Html Msg
+entry : List (H.Attribute (Msg a)) -> String -> Html (Msg a)
 entry attrs s = H.div [] [ H.a ([ Attr.style [ ("color", "#333")
                                              , ("text-decoration", "none")
                                              , ("line-height", "20px")
@@ -58,22 +61,24 @@ entry attrs s = H.div [] [ H.a ([ Attr.style [ ("color", "#333")
                                 ] ++ attrs) [ H.text s ]
                          ]
 
-leaf : String -> (Path -> String -> String -> Msg) -> Path -> String -> String -> Html Msg
+leaf : String ->
+       (Path -> String -> String -> Msg a) ->
+       Path -> String -> String -> Html (Msg a)
 leaf arrow ctor path label text =
     entry [onClick <| ctor path label text] <|
         arrow ++ " (" ++ label ++ " " ++ text ++ ")"
 
-leafBefore : Path -> String -> String -> Html Msg
+leafBefore : Path -> String -> String -> Html (Msg a)
 leafBefore = leaf "<" LeafBefore
 
-leafAfter : Path -> String -> String -> Html Msg
+leafAfter : Path -> String -> String -> Html (Msg a)
 leafAfter = leaf ">" LeafAfter
 
-toggleExtension : Path -> String -> Html Msg
+toggleExtension : Path -> String -> Html (Msg a)
 toggleExtension path ext =
     entry [ onClick <| ToggleExtension path ext ] ext
 
-heading : String -> Html Msg
+heading : String -> Html (Msg a)
 heading title = H.div [ Attr.style [ ("color", "#FEEDD5")
                                    , ("background-color", "black")
                                    , ("padding", "2px")
@@ -84,7 +89,7 @@ heading title = H.div [ Attr.style [ ("color", "#FEEDD5")
                                    ]
                       ] [ H.text title ]
 
-column : String -> List (Html Msg) -> Html Msg
+column : String -> List (Html (Msg a)) -> Html (Msg a)
 column headingText children = H.div [ Attr.class "conMenuColumn"
                                     , Attr.style [ ("width", "115px")
                                                  , ("float", "left")
@@ -92,56 +97,66 @@ column headingText children = H.div [ Attr.class "conMenuColumn"
                                     ] <|
                           [ heading headingText ] ++ children
 
-view : Model -> Html Msg
-view model =
-    case model.target of
-        Nothing -> H.div [] []
-        Just path ->
-            let
-                lb = leafBefore path
-                la = leafAfter path
-                tx = toggleExtension path
-            in
-                H.div [ Attr.id "conMenu"
-                      , Attr.style [ ("position", "absolute")
-                                   , ("width", "345px")
-                                   , ("z-index", "9999")
-                                   , ("border" , "1px solid black")
-                                   , ("background-color", "#efefef")
-                                   , ("padding", "0px")
-                                   , ("margin", "0px")
-                                   , ("left", toString model.position.x ++ "px")
-                                   , ("top", toString model.position.y ++ "px")
-                                   ]
-                      , ViewUtils.onClick Ignore
-                      ]
-                    [ column "Label" []
-                    , column "Add leaf" [ lb "NP-SBJ" "*con*"
-                                        , lb "NP-SBJ" "*pro*"
-                                        , lb "C" "0"
-                                        , lb "CODE" "{COM:XXX}"
-                                        , la "CODE" "{COM:XXX}"
-                             ]
-                    , column "Toggle ext." [ tx "SPE"
-                                           , tx "XXX"
-                                           ] -- TODO: real list of extensions to toggle
-                    ]
+view : a -> Lens a Model -> Html (Msg a)
+view parent lens =
+    let
+        model = lens.get parent
+    in
+        case model.target of
+            Nothing -> H.div [] []
+            Just path ->
+                let
+                    lb = leafBefore path
+                    la = leafAfter path
+                    tx = toggleExtension path
+                in
+                    H.div [ Attr.id "conMenu"
+                          , Attr.style [ ("position", "absolute")
+                                       , ("width", "345px")
+                                       , ("z-index", "9999")
+                                       , ("border" , "1px solid black")
+                                       , ("background-color", "#efefef")
+                                       , ("padding", "0px")
+                                       , ("margin", "0px")
+                                       , ("left", toString model.position.x ++ "px")
+                                       , ("top", toString model.position.y ++ "px")
+                                       ]
+                          , ViewUtils.onClick Ignore
+                          ]
+                        [ column "Label" []
+                        , column "Add leaf" [ lb "NP-SBJ" "*con*"
+                                            , lb "NP-SBJ" "*pro*"
+                                            , lb "C" "0"
+                                            , lb "CODE" "{COM:XXX}"
+                                            , la "CODE" "{COM:XXX}"
+                                 ]
+                        , column "Toggle ext." [ tx "SPE"
+                                               , tx "XXX"
+                                               ] -- TODO: real list of extensions to toggle
+                        ]
 
-update : Msg -> Tree.Tree -> Maybe Tree.Tree
-update msg =
+update : Msg a -> Lens a Tree.Tree -> a -> a
+update msg rootLens parent =
     case msg of
         LeafBefore path label text ->
-            Tree.l label text |>
-            Tree.insertAt path
-        LeafAfter path label text -> \x -> Debug.crash "foo" -- TODO: write path+1
+            modifyMaybe rootLens
+                (Tree.l label text |>
+                 Tree.insertAt path)
+                parent
+        LeafAfter path label text -> Debug.crash "foo" -- TODO: write path+1
                                                  -- function
         SetLabel path newLabel ->
-            -- TODO: use doAt from Actions.elm
-            \m ->
-                Tree.get path m ?>
-                TX.updateDatum (\x -> {x | label = newLabel }) ?>?
-                \x -> Tree.set path x m
-        ToggleExtension path ext -> \x -> Debug.crash "foo"
-        Ignore -> \_ -> Nothing
+            modify rootLens
+                (Tree.do path (TX.updateDatum (\x -> {x | label = newLabel })))
+                parent
+        ToggleExtension path ext -> Debug.crash "foo"
+        Ignore -> parent
+        -- TODO: need to take model as a parameter, as well as two lenses: to
+        -- the root and to the configuration
+        Hide lens -> hide lens parent
 
--- TODO: hide context menu when appropriate START HERE
+subscriptions : (Lens a Model) -> a -> Sub (Msg a)
+subscriptions l m =
+    case .target (l.get m) of
+        Nothing -> Sub.batch []
+        Just _ -> Mouse.clicks (\_ -> Hide l)

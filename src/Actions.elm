@@ -5,22 +5,8 @@ module Actions exposing ( clearSelection
                         , liftMaybe, Failure(..), Result -- TODO: don't want to export
                         , doMove)
 
-{-| This module contains the types and functions for creating *actions*, or
-functions that respond to user input.
-
-# The Result type
-
-@docs Failure, Result, Action
-
-## Operations on Results
-
-@docs succeed, fail, fmap, bind, liftMaybe, flattenMaybe
-
-# TODO
-
-@docs changeLabel, clearSelection, coIndex
-
--}
+-- This module contains the types and functions for creating *actions*, or
+-- functions that respond to user input.
 
 -- Standard library
 
@@ -35,47 +21,47 @@ import MultiwayTree as MT
 
 -- Annotald packages
 
-import Tree exposing (Path, Tree)
+import Tree exposing (Tree)
+import Path exposing (Path)
 import Utils exposing ((?>), (?>?), zip)
 import TreeExts as TX
-import Model exposing (Model, refresh)
+import Model exposing (Model)
 import Selection
+import Index exposing (normal, Variety(..))
 
 -- Result types and functions
 
-{-| This type represents failures during the execution of a user command.
+-- This type represents failures during the execution of a user command.
 
-The `Silent` failure type comes with a message, which is counterintuitive but
-useful for debugging.  (Unlike for the `Msg` type, `Silent` failures are not
-displayed to the user.)
+-- The `Silent` failure type comes with a message, which is counterintuitive
+-- but useful for debugging.  (Unlike for the `Msg` type, `Silent` failures
+-- are not displayed to the user.)
 
--}
 type Failure = Silent String | Msg String
 
-{-| This type represents the result of applying a user command.
+-- This type represents the result of applying a user command.
 
-The command can succeed with a new model (which replaces the old one), or fail
-with a `Failure`.
--}
+-- The command can succeed with a new model (which replaces the old one), or
+-- fail with a `Failure`.
+
 type alias Result = R.Result Failure Model
 
-{-| Other sections of Annotald are written as functions operating on trees,
-not in a user interaction context.  These signal success or failure with
-`Maybe`.  This function "lifts" those values into the `Result` context, making
-them suitable for use in user interaction functions.
--}
+-- Other sections of Annotald are written as functions operating on trees,
+-- not in a user interaction context.  These signal success or failure with
+-- `Maybe`.  This function "lifts" those values into the `Result` context, making
+-- them suitable for use in user interaction functions.
+
 liftMaybe : Failure -> Maybe a -> R.Result Failure a
 liftMaybe f m =
     case m of
         Just m -> R.Ok m
         Nothing -> R.Err f
 
-{-| A similar problem occurs when we already have a `Result` and wish to apply
-one of the non-user functions to it, but we get the `Maybe` inside the
-`Result` (rather than instead of it, as in the case where we want to
-`liftMaybe`).  This function takes a `Maybe` embedded inside a `Result` and
-turns it into just a result.
--}
+-- A similar problem occurs when we already have a `Result` and wish to apply
+-- one of the non-user functions to it, but we get the `Maybe` inside the
+-- `Result` (rather than instead of it, as in the case where we want to
+-- `liftMaybe`).  This function takes a `Maybe` embedded inside a `Result` and
+-- turns it into just a result.
 flattenMaybe : Failure -> R.Result Failure (Maybe a) -> R.Result Failure a
 flattenMaybe failure resultMaybe =
     case resultMaybe of
@@ -90,22 +76,20 @@ succeed = R.Ok
 fail : Failure -> Result
 fail = R.Err
 
-{-| Fmap for `Result`.
+-- Fmap for `Result`.
+-- See also the [Functor typeclass](https://wiki.haskell.org/Typeclassopedia#Functor).
 
-See also the [Functor typeclass](https://wiki.haskell.org/Typeclassopedia#Functor).
--}
 fmap : (a -> b) -> R.Result Failure a -> R.Result Failure b
 fmap f result =
     case result of
         R.Ok m -> R.Ok (f m)
         R.Err e -> R.Err e
 
-{-| Monadic bind for `Result`.
+-- Monadic bind for `Result`.
 
-See also the [Monad
-typeclass](https://wiki.haskell.org/Typeclassopedia#Monad).  (`return` is
-given by `succeed`.)
--}
+-- See also the [Monad
+-- typeclass](https://wiki.haskell.org/Typeclassopedia#Monad).  (`return` is
+-- given by `succeed`.)
 bind : (a -> R.Result Failure b) -> R.Result Failure a -> R.Result Failure b
 bind f result =
     case result of
@@ -114,8 +98,6 @@ bind f result =
 
 -- The rest of the file
 
-{-| TODO
--}
 type alias Action = Model -> Result
 
 doOneSelected : (Tree -> Tree) -> Model -> Result
@@ -128,24 +110,12 @@ doOneSelected f model =
 
 doAt : Path -> (Tree -> Tree) -> Model -> Result
 doAt path f model =
-    let
-        root = model.root
-    in
-        root |>
-        Tree.get path |>
-        liftMaybe (Silent "doAt 1") |>
-        fmap f |>
-        fmap (\x -> Tree.set path x root) |>
-        flattenMaybe (Silent "doAt 2") |>
-        fmap (refresh model)
+    -- TODO: we've removed some useful debugging messages
+    succeed <| Model.doRoot (Tree.do path f) model
 
-{-| TODO
--}
 clearSelection : Action
 clearSelection m = succeed { m | selected = Selection.empty }
 
-{-| TODO
--}
 changeLabel : List String -> Action
 changeLabel labels =
     case labels of
@@ -162,8 +132,6 @@ changeLabel labels =
                 update z = TX.updateDatum (\d -> { d | label = change d.label }) z
             in doOneSelected update
 
-{-| TODO
--}
 coIndex : Action
 coIndex model =
     let
@@ -182,7 +150,7 @@ coIndex1 = removeIndexAt
 
 coIndex2 : Path -> Path -> Model -> Result
 coIndex2 path1 path2 model =
-    case Tree.root path1 == Tree.root path2 of
+    case Path.root path1 == Path.root path2 of
         False -> fail (Msg "Can't coindex nodes in two different roots")
         True ->
             let
@@ -191,7 +159,7 @@ coIndex2 path1 path2 model =
                 tree2 = Tree.get path2 root
                 index1 = tree1 ?> MT.datum ?> .index |> Maybe.Extra.join
                 index2 = tree2 ?> MT.datum ?> .index |> Maybe.Extra.join
-                ind = Tree.get (Tree.root path1) root ?>
+                ind = Tree.get (Path.root path1) root ?>
                       Tree.highestIndex |>
                       Maybe.withDefault 0 |>
                       (+) 1
@@ -202,18 +170,17 @@ coIndex2 path1 path2 model =
                     (Nothing, Just x) -> setIndexAt path1 x.number model
                     (Just x, Nothing) -> setIndexAt path2 x.number model
                     -- Both of the nodes have an index: remove both indices
-                    -- (TODO: toggle index types)
                     (Just x, Just y) ->
                         case (x.variety, y.variety) of
                             -- Normal coindexing -> gap
-                            (Tree.Normal, Tree.Normal) ->
-                                setIndexVarietyAt path2 Tree.Gap model
+                            (Index.Normal, Index.Normal) ->
+                                setIndexVarietyAt path2 Index.Gap model
                             -- Gap -> backwards gap
-                            (Tree.Normal, Tree.Gap) ->
-                                setIndexVarietyAt path1 Tree.Gap model |>
-                                bind (setIndexVarietyAt path2 Tree.Normal)
+                            (Index.Normal, Index.Gap) ->
+                                setIndexVarietyAt path1 Index.Gap model |>
+                                bind (setIndexVarietyAt path2 Index.Normal)
                             -- Backwards gap -> remove indexes
-                            (Tree.Gap, Tree.Normal) ->
+                            (Index.Gap, Index.Normal) ->
                                 removeIndexAt path1 model |>
                                 bind (removeIndexAt path2)
                             -- Something weird -> remove indexes (TODO: is
@@ -227,11 +194,11 @@ coIndex2 path1 path2 model =
 setIndexAt: Path -> Int -> Action
 setIndexAt path index =
     let
-        f x = { x | index = Just { number = index, variety = Tree.Normal } }
+        f x = { x | index = Just <| Index.normal index }
     in
-        doAt path (TX.updateDatum f)
+        doAt path <| TX.updateDatum f
 
-setIndexVarietyAt : Path -> Tree.IndexVariety -> Action
+setIndexVarietyAt : Path -> Index.Variety -> Action
 setIndexVarietyAt path newVariety =
     let
         setVariety x = { x | variety = newVariety }
@@ -252,7 +219,7 @@ doMove src dest model =
         -- rightward will have a bogus value if src is Nothing, but in that
         -- case we're going to fail when we try to lift it below, so it
         -- doesn't matter
-        rightward = src < dest
+        rightward = Path.lessThan src dest
         dest1 : Maybe Path
         dest1 = src |> \x -> Tree.destPath x dest model.root
     in
@@ -260,7 +227,7 @@ doMove src dest model =
         liftMaybe (Silent "doMove") |>
         fmap (\(s,d) -> Tree.moveTo s d model.root) |>
         flattenMaybe (Silent "doMove2") |>
-        fmap (refresh model) |>
+        fmap ((flip (.set Model.root)) model) |>
         fmap (\m -> { m | selected = dest1 ?>
                           Tree.fixPathForMovt src |>
                           Utils.fromJust |>

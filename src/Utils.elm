@@ -6,8 +6,7 @@ module Utils exposing (enumerate
                       , all
                       , remove
                       , insert
-                      , do
-                      , maybeDo
+                      , modifyMaybe
                       )
 
 import List
@@ -34,11 +33,8 @@ insert : Int -> a -> List a -> List a
 insert i x list =
     List.take i list ++ x :: List.drop i list
 
-do : Lens a b -> (b -> b) -> a -> a
-do lens f a = lens.get a |> f |> flip lens.set a
-
-maybeDo : Lens a b -> (b -> Maybe b) -> a -> a
-maybeDo lens f a =
+modifyMaybe : Lens a b -> (b -> Maybe b) -> a -> a
+modifyMaybe lens f a =
     lens.get a |> f |> Maybe.withDefault (lens.get a) |> flip lens.set a
 
 -- toList : Array a -> List a
