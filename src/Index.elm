@@ -25,5 +25,5 @@ string { number, variety } =
     let
         vstr = case variety of
                    Normal -> "-"
-                   Gap -> "+"
+                   Gap -> "="
     in vstr ++ toString number
