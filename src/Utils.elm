@@ -115,17 +115,6 @@ fromJust x = case x of
     Just y -> y
     Nothing -> Debug.crash "error: fromJust Nothing"
 
-(?>) : Maybe a -> (a -> b) -> Maybe b
-(?>) x f = Maybe.map f x
-
-infixl 0 ?>
-
--- TODO: remove
-(?>?) : Maybe a -> (a -> Maybe b) -> Maybe b
-(?>?) = flip Maybe.andThen
-
-infixl 0 ?>?
-
 all : (a -> Bool) -> List a -> Bool
 all f l = List.foldl (&&) True <| List.map f l
 

@@ -14,7 +14,7 @@ import Selection exposing (Selection)
 import Msg exposing (Msg(..))
 import Index
 
-import Utils exposing (fromJust, (?>))
+import Utils exposing (fromJust)
 import ViewUtils exposing (onClick, blockAll)
 
 import ContextMenu
@@ -23,8 +23,8 @@ import ContextMenu
 
 labelText : TreeDatum -> String
 labelText {label, index} =
-    index ?>
-    Index.string |>
+    index |>
+    Maybe.map Index.string |>
     Maybe.withDefault "" |>
     (++) label
 
