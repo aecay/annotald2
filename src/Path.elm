@@ -18,36 +18,13 @@ module Path exposing ( Path(..)
                      , unwrap
                      )
 
--- import Monocle.Lens exposing (Lens, compose)
 import List.Extra
 
--- import Tree exposing (Tree)
 import Utils exposing (fromJust)
 
 type Path = Path Int (List Int) | RootPath
 
 type PathFragment = PF (List Int)
-
--- checkLength : Int -> Tree -> Tree
--- checkLength i tree =
---     if List.length tree.children < i - 1
---     then Debug.crash "Bad list index"
---     else tree
-
--- unsafeGet : Int -> List a -> a
--- unsafeGet i list =
---     list !! i |> fromJust
-
--- childPath : Int -> Path a -> Path a
--- childPath idx { path, root } =
---     let
---         get tree = (checkLength tree).children !! idx
---         set newChild tree = { (checkLength tree) | children = insert idx newChild }
---     in
---         { path = compose path <| Lens get set
---         , root = root
---         , foot = idx
---         }
 
 childPath : Int -> Path -> Path
 childPath idx path =
