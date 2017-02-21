@@ -16,7 +16,7 @@ import List
 import List.Extra exposing ((!!))
 import Maybe
 
-import Utils exposing ((?>?), (?>))
+import Utils
 
 import MultiwayTree as T
 import TreeExts as TX
