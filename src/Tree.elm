@@ -10,10 +10,12 @@ module Tree exposing (l, t, Tree, either,
                      , insertAt
                      , fixPathForMovt -- TODO: marginal on exporting this
                      , do
+                     , terminalString
+                     , isTerminal
                      )
 
 import List
-import List.Extra exposing ((!!))
+import List.Extra exposing (getAt)
 import Maybe
 
 import Utils
@@ -40,7 +42,13 @@ internals = { allLast = allLast
             , fixPathForMovt = fixPathForMovt
             }
 
-type alias TreeDatum = { text: Maybe String
+type TraceType = Wh | Extraposition | Clitic | Misc
+
+-- Possible alternative: add (Nonterminal Children) to this enum.  Then
+-- type Children = C (List Tree), and rename TreeDatum to tree
+type Terminal = Text String | Trace TraceType | Comment String
+
+type alias TreeDatum = { contents: Maybe Terminal
                              -- TODO: we are relying on the code and not the
                              -- typechecker to maintain the invariant that
                              -- only terminal nodes have text
@@ -50,20 +58,17 @@ type alias TreeDatum = { text: Maybe String
 
 type alias Tree = T.Tree TreeDatum
 
--- TODO: Make get and friends (non-tail!) recursive: get p tree = getNthChild
--- (foot path) (get (leg path) tree)
-
 -- Convenience functions for generating trees for testing
 l : String -> String -> Tree
 l label text = T.Tree { label = label
-                      , text = Just text
+                      , contents = Just <| Text text
                       , index = Nothing
                       }
                []
 
 t : String -> List Tree -> Tree
 t label children = T.Tree { label = label
-                          , text = Nothing
+                          , contents = Nothing
                           , index = Nothing
                           }
                    children
@@ -76,7 +81,7 @@ either : (TreeDatum -> a) -> (TreeDatum -> a) -> Tree -> a
 either nt t zipper =
     let
         d = T.datum zipper
-        txt = d |> .text
+        txt = d |> .contents
     in
     case txt of
         Just _ -> t d
@@ -177,7 +182,7 @@ allLastForDest path frag =
                 -- of frag should actually be pointing one after the end of
                 -- the list, so we retract it by one here to simplify the
                 -- testing logic in allLast
-                newFrag = Path.moveLeft frag
+                newFrag = Path.moveFragLeft frag
             in allLast path newFrag
 
 isOnlyChildAt : Tree -> Path -> Bool
@@ -226,13 +231,13 @@ destPath src newParent tree =
                           ) x
 
 -- It is allowed to move SRC to DEST without affecting the word order in the
--- tree if the following conditions are met: remove the common elementes on
--- the path from the root to SRC and the path from root to DEST.  Then, the
--- first elements on the remaining path should be immediately adjacent (in the
--- appropriate direction for the intended movement, i.e. S >> D for rightward
--- movt and vice versa).  And, the reamining elements on each path must be the
--- left/rightmost (appropriately valued for the path to SRC and DEST and
--- whether the movement is leftward or rightward)
+-- tree if the following conditions are met: remove the common elements on the
+-- path from the root to SRC and the path from root to DEST.  Then, the first
+-- elements on the remaining path should be immediately adjacent (in the
+-- appropriate direction for the intended movement, i.e. Src >> Dest for
+-- rightward movt and vice versa).  And, the remaining elements on each path
+-- must be the left/rightmost children (appropriately valued for the path to
+-- SRC and DEST and whether the movement is leftward or rightward)
 canMove : Path -> Path -> Tree -> Bool
 canMove src dest tree =
     let
@@ -266,7 +271,7 @@ fixPathForMovt src dest =
         rightward = Path.lessThan src dest
     in
         if rightward && Path.isFragSingleton src1
-        then Path.join common <| Path.moveLeft dest1
+        then Path.join common <| Path.moveFragLeft dest1
         else dest
 
 moveTo : Path -> Path -> Tree -> R.Result Tree
@@ -278,3 +283,22 @@ moveTo source dest tree =
             extractAt source |>
             R.andThen (uncurry (insertAt (Debug.log "fpm" <| fixPathForMovt source dest))) |>
             Debug.log "insert"
+
+terminalString : Terminal -> String
+terminalString contents =
+    case contents of
+        Text x -> x
+        Trace x -> case x of
+                       Wh -> "*T*"
+                       Extraposition -> "*ICH*"
+                       Clitic -> "*CL*"
+                       Misc -> "*"
+        Comment _ -> "{COM}"
+
+isTerminal : Tree -> Bool
+isTerminal t = case t |> T.datum |> .contents of
+                   Nothing -> False
+                   Just x -> case x of
+                                 Text _ -> False
+                                 Trace _ -> True
+                                 Comment _ -> True

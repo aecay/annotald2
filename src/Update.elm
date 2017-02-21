@@ -42,7 +42,7 @@ update msg model =
         KeyMsg k ->
             Return.map <| \model ->
                 Dict.get k bindings |>
-                Actions.liftMaybe (Actions.Msg "Key is not bound") |>
+                Res.liftWarn "Key is not bound" |>
                 R.andThen (\x -> x model) |>
                 handleResult model
         RightClick path position ->
