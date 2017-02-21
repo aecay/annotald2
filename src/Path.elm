@@ -7,7 +7,7 @@ module Path exposing ( Path(..)
                      , splitCommon
                      , lessThan
                      , moveRight
-                     , moveLeft
+                     , moveFragLeft
                      , isFragSingleton
                      , join
                      , isFragEmpty
@@ -98,17 +98,23 @@ lessThan p1 p2 = List.reverse (toList p1) < List.reverse (toList p2)
 
 -- All these functions are for implementing movement
 
-moveRight : PathFragment -> PathFragment
-moveRight (PF pf) =
-    let
-        len = List.length pf - 1
-        init = List.take len pf
-        tail = List.map ((+) 1) <| List.drop len pf
-    in
-        PF <| init ++ tail
+-- moveRight : PathFragment -> PathFragment
+-- moveRight (PF pf) =
+--     let
+--         len = List.length pf - 1
+--         init = List.take len pf
+--         tail = List.map ((+) 1) <| List.drop len pf
+--     in
+--         PF <| init ++ tail
 
-moveLeft : PathFragment -> PathFragment
-moveLeft (PF pf) =
+moveRight : Path -> Path
+moveRight path =
+    case path of
+        RootPath -> Debug.crash "Can't move the root path right"
+        Path foot leg -> Path (foot + 1) leg
+
+moveFragLeft : PathFragment -> PathFragment
+moveFragLeft (PF pf) =
     let
         len = List.length pf - 1
         init = List.take len <| Debug.log "pf" pf

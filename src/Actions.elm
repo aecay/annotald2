@@ -18,14 +18,14 @@ import Result
 
 -- Third party
 
-import Maybe.Extra
 import MultiwayTree as MT
+import List.Extra exposing (zip)
 
 -- Annotald packages
 
 import Tree exposing (Tree)
 import Path exposing (Path)
-import Utils exposing ((?>), (?>?), zip)
+import Utils
 import TreeExts as TX
 import Model exposing (Model)
 import Selection
@@ -169,3 +169,53 @@ doMove src dest model =
         R.map ((flip (.set Model.root)) model) |>
         R.map2 (\s m -> { m | selected = s }) newSel
 
+
+createParent2 : String -> Path -> Path -> Model -> Result
+createParent2 label one two model =
+    let
+        parent1 = Path.parent one
+        parent2 = Path.parent two
+        (foot1, foot2) = Utils.sort2 (Path.foot one) (Path.foot two)
+    in
+        if parent1 /= parent2
+        then R.fail "parents are different for createParent2"
+        else doAt parent1 (TX.updateChildren (\c -> let (x, y, z) = Utils.splice foot1 (foot2+1) c
+                                                    in x ++ [Tree.t label y] ++ z))
+            model
+
+createParent : String -> Model -> Result
+createParent label model =
+    let
+        none : Model -> Result
+        none = \x -> R.succeed x
+        one : Path -> Model -> Result
+        one path = doAt path (\x -> Tree.t label [x])
+    in
+        model |> Selection.perform model.selected none one (createParent2 label)
+
+leafBefore : String -> String -> Model -> Result
+leafBefore label text model =
+    let
+        do path =
+            let
+                parent = Path.parent path
+                foot = Path.foot path
+                update c = List.take foot c ++ [Tree.l label text] ++ List.drop foot c
+            in
+                doAt parent (TX.updateChildren update)
+        quit _ = R.fail "leafBefore"
+        quit2 _ _ _ = R.fail "leafBefore" -- TODO: magic movement trace creator
+    in
+        model |> Selection.perform model.selected quit do quit2
+
+deleteNode : Model -> Result
+deleteNode model =
+    let
+        delete path =
+            let
+                node = Tree.get path model.root
+                isTerminal = node |> R.map Tree.isTerminal
+            in
+                Debug.crash "foo" -- TODO
+    in
+        Debug.crash "bar"
