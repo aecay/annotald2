@@ -1,5 +1,5 @@
 module Path exposing ( Path(..)
-                     , PathFragment(..)
+                     , PathFragment
                      , singleton
                      , childPath
                      , root
@@ -15,7 +15,6 @@ module Path exposing ( Path(..)
                      , shiftOne
                      , foot
                      , allCombos
-                     , unwrap
                      )
 
 import List.Extra
@@ -153,10 +152,3 @@ allCombos path1 frag1 =
         case frag1 of
             PF [] -> [] -- TODO: testing the base case twice = code smell
             otherwise -> go path1 frag1 []
-
--- TODO: this is a code smell, and also redundant if we're exporting PF anyway
--- (smellier)
-unwrap : PathFragment -> List Int
-unwrap p =
-    case p of
-        PF x -> x
