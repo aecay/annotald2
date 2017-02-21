@@ -56,8 +56,8 @@ snode self datum selected children =
     , Ev.onWithOptions "contextmenu" blockAll (Json.map (\x -> RightClick self x) decodeMouse)
     ] <| text (labelText datum) :: children
 
-wnode : String -> Html Msg
-wnode txt = span
+wnode : TreeDatum -> Html Msg
+wnode t = span
              [ Attr.class "wnode"
              , Attr.style [ ("margin-left", "20px")
                           , ("padding-left", "4px")
@@ -67,7 +67,7 @@ wnode txt = span
                           , ("color", "black")
                           ]
              ]
-             [text txt]
+             [text <| Tree.terminalString <| fromJust t.contents]
 
 viewTree : Selection -> Path -> Tree -> Html Msg
 viewTree selected selfPath tree =
@@ -75,7 +75,7 @@ viewTree selected selfPath tree =
         d = T.datum tree
         isSelected = List.member selfPath (Selection.get selected)
         viewT d =
-            snode selfPath d isSelected [wnode (fromJust d.text)]
+            snode selfPath d isSelected [wnode d]
         viewNt d =
             -- TODO: I suspect this of being a performance hotspot.  We can
             -- use Html.lazy here, but not above
