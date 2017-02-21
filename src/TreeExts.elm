@@ -5,15 +5,17 @@ module TreeExts exposing (setChild, updateDatum, updateChildren)
 
 import MultiwayTree exposing (Tree(..))
 
-setChild : Int -> Tree a -> Tree a -> Maybe (Tree a)
+import Res as R
+
+setChild : Int -> Tree a -> Tree a -> R.Result (Tree a)
 setChild i new parent =
     case parent of
         Tree datum children -> if List.length children > i
-                               then Just <| Tree datum <|
+                               then R.succeed <| Tree datum <|
                                    List.take i children ++
                                    [new] ++
                                    List.drop (i + 1) children
-                               else Nothing
+                               else R.fail "TX.setChild"
 
 updateDatum : (a -> a) -> Tree a -> Tree a
 updateDatum f t =

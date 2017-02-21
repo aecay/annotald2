@@ -16,19 +16,21 @@ import Dict
 
 import Result as R
 
+import Res
+
 import Actions
 
 import Keyboard
 
 -- import ZipperExts as ZX
 
-handleResult : Model -> Actions.Result -> Model
+handleResult : Model -> Res.Result Model -> Model
 handleResult model result =
     case result of
         R.Ok m -> { m | lastMessage = "OK" }
         R.Err e -> case e of
-                       Actions.Msg msg -> { model | lastMessage = msg }
-                       Actions.Silent msg -> { model | lastMessage = "Failure in " ++ msg }
+                       Res.Fail msg -> { model | lastMessage = msg }
+                       Res.Warn msg -> { model | lastMessage = "Failure in " ++ msg }
 
 update : Msg -> Model -> Return Msg Model
 update msg model =

@@ -23,11 +23,13 @@ import TreeExts as TX
 import Index
 import Path exposing (Path(..), PathFragment)
 
+import Res as R exposing (succeed, fail, Result)
+
 -- Functions we expose for testing only
 internals :
     { allLast : Path -> PathFragment -> Tree -> Bool
     , canMove : Path -> Path -> Tree -> Bool
-    , extractAt : Path -> Tree -> Maybe ( Tree, Tree )
+    , extractAt : Path -> Tree -> R.Result ( Tree, Tree )
     , fixPathForMovt : Path -> Path -> Path
     , isLastAt : Tree -> Path -> Bool
     }
@@ -80,38 +82,63 @@ either nt t zipper =
         Just _ -> t d
         Nothing -> nt d
 
-get : Path -> Tree -> Maybe Tree
+get : Path -> Tree -> R.Result Tree
 get path tree = case path of
-                    Path.RootPath -> Just tree
-                    Path.Path foot [] -> T.children tree |> flip (!!) foot
-                    Path.Path foot (l :: ls) ->
-                        (Path.Path l ls) |>
-                        flip get tree ?>
-                        T.children ?>?
-                        flip (!!) foot
+                    Path.RootPath -> succeed tree
+                    Path.Path foot _ ->
+                        get (Path.parent path) tree |>
+                        R.map T.children |>
+                        R.andThen (getAt foot >> R.lift "get")
 
-set : Path -> Tree -> Tree -> Maybe Tree
+set : Path -> Tree -> Tree -> R.Result Tree
 set path newChild tree = case path of
-                             Path.RootPath -> Just newChild
-                             Path.Path i [] -> TX.setChild i newChild tree
-                             Path.Path foot (l :: ls) ->
+                             Path.RootPath -> succeed newChild
+                             Path.Path foot _ ->
                                  let
-                                     parentPath = Path.Path l ls
-                                     parent = get parentPath tree
+                                     parentPath = Path.parent path
                                  in
-                                     parent ?>?
-                                     TX.setChild foot newChild ?>?
-                                     \x -> set parentPath x tree
+                                     get parentPath tree |>
+                                     R.andThen (TX.setChild foot newChild) |>
+                                     R.andThen (\x -> set parentPath x tree)
 
-do : Path.Path -> (Tree -> Tree) -> Tree -> Tree
+do : Path.Path -> (Tree -> Tree) -> Tree -> R.Result Tree
 do path f tree =
-    Debug.crash "TODO"
+    let
+        orig = get path tree
+    in
+        orig |> R.map f |> R.andThen (\x -> set path x tree)
+
+
+extractAt : Path -> Tree -> R.Result (Tree, Tree)
+extractAt path tree =
+    case path of
+        RootPath -> R.fail "extractAt"
+        otherwise ->
+            let
+                parent = Path.parent path
+                idx = Path.foot path
+                child = get path tree
+            in
+                do parent (TX.updateChildren (Utils.remove idx)) tree |>
+                R.map2 (,) child
+                -- get path1 tree ?>
+                -- TX.updateChildren (Utils.remove idx) ?>?
+                -- (\x -> set path1 x tree) |>
+                -- Maybe.map2 (,) child
+
+insertAt : Path -> Tree -> Tree -> R.Result Tree
+insertAt path newChild =
+    let
+        parent = Path.parent path
+        idx = Path.foot path
+    in
+        do parent (TX.updateChildren (Utils.insert idx newChild))
 
 highestIndex : Tree -> Int
 highestIndex t =
     let
         fold : TreeDatum -> Int -> Int
-        fold d i = Maybe.withDefault 0 (d.index ?> .number) |> max i
+        fold d i = Maybe.withDefault 0 (d.index |> Maybe.map .number) |> max i
     in
         T.foldl fold 0 t
 
@@ -120,25 +147,25 @@ highestIndex t =
 isFirstAt : Tree -> Path -> Bool
 isFirstAt _ p =
     case p of
-        Path.RootPath -> False
+        Path.RootPath -> False -- TODO: true?
         Path.Path foot _ -> foot == 0
 
 allFirst : Path -> PathFragment -> Tree -> Bool
 allFirst path frag tree =
-    Utils.all (isFirstAt tree) (Path.allCombos path frag)
+    List.all (isFirstAt tree) (Path.allCombos path frag)
 
 isLastAt : Tree -> Path -> Bool
 isLastAt tree path =
-    Debug.log "tree" (get (Path.parent path) tree) ?>
-    T.children |> Debug.log "kids" ?>
-    List.length |> Debug.log "length" ?>
-    (==) (Debug.log "target" (Path.foot path + 1)) |> Debug.log "result" |>
-    Maybe.withDefault False |>
+    Debug.log "tree" (get (Path.parent path) tree) |>
+    R.map T.children |> Debug.log "kids" |>
+    R.map List.length |> Debug.log "length" |>
+    R.map ((==) (Debug.log "target" (Path.foot path + 1))) |> Debug.log "result" |>
+    R.withDefault False |>
     Debug.log ("isLastAt " ++ toString path)
 
 allLast : Path -> PathFragment -> Tree -> Bool
 allLast path frag tree =
-    Utils.all (isLastAt tree) (Path.allCombos path frag)
+    List.all (isLastAt tree) (Path.allCombos path frag)
 
 allLastForDest : Path -> PathFragment -> Tree -> Bool
 allLastForDest path frag =
@@ -156,44 +183,47 @@ allLastForDest path frag =
 isOnlyChildAt : Tree -> Path -> Bool
 isOnlyChildAt t p = isFirstAt t p && isLastAt t p
 
-destPath : Path -> Path -> Tree -> Maybe Path
+destPath : Path -> Path -> Tree -> R.Result Path
 destPath src newParent tree =
-    case Debug.log "rc" <| Path.splitCommon (Debug.log "src" src) (Debug.log "np" newParent) of
-        -- Movement to own child disallowed
-        (_, Path.PF [], _) -> Debug.log "whoops" Nothing
-        -- Movement to own parent
-        (_, Path.PF l, Path.PF []) -> case Debug.log "first/last"
-                                      (isFirstAt tree src, isLastAt tree src)
-                                      of
-                                          -- Land to parent's left
-                                          (True, False) -> List.Extra.last l |>
-                                                           Utils.fromJust |>
-                                                           List.Extra.singleton |>
-                                                           Path.PF |>
-                                                           Path.join newParent |>
-                                                           Just
-                                          -- Land to parent's right
-                                          (False, True) -> List.Extra.last l |>
-                                                           Utils.fromJust |>
-                                                          (+) 1 |>
-                                                          List.Extra.singleton |>
-                                                          Path.PF |>
-                                                          Path.join newParent |>
-                                                          Just
-                                          otherwise -> Nothing
-        (common, _, dest) ->
-            let
-                rightward = Path.lessThan src newParent
-                dest1 = Path.PF <| (if rightward
-                                    then [0]
-                                    else [ get newParent tree ?>
-                                               T.children ?>
-                                               List.length |>
-                                               Utils.fromJust
-                                         ])
-                        ++ Path.unwrap dest
-            in
-                Just <| Path.join common dest1
+    let
+        (common, src1, dest1) = Path.splitCommon src newParent
+    in
+        case (Path.isFragEmpty src1, Path.isFragEmpty dest1) of
+            -- TODO: duplicates logic in canMove
+            -- Refactoring idea: make the tests from canMove into
+            -- locally-bound (let) functions.  Then return
+            -- pathWeNowCalc |> MyMaybe.guard theTestFn
+            -- where MyMaybe.guard : Bool -> Maybe a -> Maybe a
+            -- MyMaybe.guard flag val = if flag val else Nothing
+            -- Movement to own child disallowed
+            (True, False) -> R.fail "destPath"
+            -- Movement to own parent
+            (False, True) -> case Debug.log "first/last" (isFirstAt tree src,
+                                                          isLastAt tree src)
+                             of
+                                 -- Land to parent's left
+                                 (True, False) -> Path.shiftOne newParent src1 |>
+                                                  Tuple.first |>
+                                                  R.succeed
+                                 -- Land to parent's right
+                                 (False, True) -> Path.shiftOne newParent src1 |>
+                                                  Tuple.first |>
+                                                  Path.moveRight |>
+                                                  R.succeed
+                                 otherwise -> R.fail "destPath"
+            otherwise ->
+                let
+                    rightward = Path.lessThan src newParent
+                in
+                    Path.join common dest1 |>
+                    R.succeed |>
+                    \x -> R.map2 Path.childPath
+                          ( if rightward
+                            then succeed 0
+                            else get newParent tree |>
+                                R.map T.children |>
+                                R.map List.length
+                          ) x
 
 -- It is allowed to move SRC to DEST without affecting the word order in the
 -- tree if the following conditions are met: remove the common elementes on
@@ -229,36 +259,6 @@ canMove src dest tree =
 
             otherwise -> False
 
-extractAt : Path -> Tree -> Maybe (Tree, Tree)
-extractAt path tree =
-    case path of
-        RootPath -> Nothing
-        otherwise ->
-            let
-                -- TODO: all this fromJust cries out for a nonempty list type
-                path1 = Path.parent path
-                idx = Path.foot path
-                child = get path tree
-            in
-                get path1 tree ?>
-                TX.updateChildren (Utils.remove idx) ?>?
-                (\x -> set path1 x tree) |>
-                Maybe.map2 (,) child
-
-insertAt : Path -> Tree -> Tree -> Maybe Tree
-insertAt path newChild tree =
-    case path of
-        RootPath -> Just newChild
-        otherwise ->
-            let
-                path1 = Path.parent path
-                idx = Path.foot path
-                child = get path tree
-            in
-                get path1 tree ?>
-                TX.updateChildren (Utils.insert idx newChild) ?>?
-                (\x -> set path1 x tree)
-
 fixPathForMovt : Path -> Path -> Path
 fixPathForMovt src dest =
     let
@@ -269,13 +269,12 @@ fixPathForMovt src dest =
         then Path.join common <| Path.moveLeft dest1
         else dest
 
-moveTo : Path -> Path -> Tree -> Maybe Tree
+moveTo : Path -> Path -> Tree -> R.Result Tree
 moveTo source dest tree =
     case canMove source dest tree of
-        False -> Debug.log "can't move" Nothing
+        False -> R.fail "can't move: moveTo"
         True ->
             tree |>
             extractAt source |>
-            Debug.log "extract" ?>?
-            uncurry (insertAt (Debug.log "fpm" <| fixPathForMovt source dest)) |>
+            R.andThen (uncurry (insertAt (Debug.log "fpm" <| fixPathForMovt source dest))) |>
             Debug.log "insert"

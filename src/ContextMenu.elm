@@ -17,11 +17,11 @@ import Mouse
 import Path exposing (Path)
 import Tree
 
-import Utils exposing (modifyMaybe)
+import Res exposing (modify)
 
 import TreeExts as TX
 
-import Monocle.Lens exposing (Lens, modify)
+import Monocle.Lens exposing (Lens)
 
 type alias Position = { x: Int
                       , y: Int
@@ -139,7 +139,7 @@ update : Msg a -> Lens a Tree.Tree -> a -> a
 update msg rootLens parent =
     case msg of
         LeafBefore path label text ->
-            modifyMaybe rootLens
+            modify rootLens
                 (Tree.l label text |>
                  Tree.insertAt path)
                 parent
