@@ -52,7 +52,7 @@ update msg model =
                     (\sel model -> Actions.doMove sel path model |> handleResult model)
                     (\_ _ -> Debug.crash "can't right click wtih two selected")
         Context contextMsg ->
-            Return.map <| ContextMenu.update contextMsg Model.root
+            Return.map <| ContextMenu.update contextMsg Model.root Model.contextMenu
 
 subscriptions : Model -> Sub Msg
 subscriptions m = Sub.batch

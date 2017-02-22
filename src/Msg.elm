@@ -5,10 +5,10 @@ module Msg exposing (Msg(..))
 
 import Path exposing (Path)
 import Keyboard
-import ContextMenu
+import ContextMenuTypes
 import Model
 
 type Msg = ToggleSelect Path |
     KeyMsg Keyboard.KeyCode |
-    RightClick Path ContextMenu.Position |
-    Context (ContextMenu.Msg Model.Model)
+    RightClick Path ContextMenuTypes.Position |
+    Context (ContextMenuTypes.Msg Model.Model)

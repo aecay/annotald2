@@ -5,6 +5,8 @@ module Actions exposing ( clearSelection
                         , doMove
                         , createParent
                         , deleteNode
+                        , leafBefore
+                        , leafBeforeInner -- For ContextMenu
                         )
 
 -- This module contains the types and functions for creating *actions*, or
@@ -197,23 +199,22 @@ doMovement model src dest =
         R.andThen (\x -> leafBefore x model) trace |>
         R.andThen (coIndex2 src dest)
 
+leafBeforeInner : Tree -> Path -> Tree -> R.Result Tree
+leafBeforeInner newLeaf path tree =
+    let
+        parent = Path.parent path
+        foot = Path.foot path
+        update c = List.take foot c ++ [newLeaf] ++ List.drop foot c
+    in
+        Tree.do parent (Tree.updateChildren update) tree
 
 leafBefore : Tree -> Model -> Result
-leafBefore tree model =
-    let
-        do : Path -> Result
-        do path =
-            let
-                parent = Path.parent path
-                foot = Path.foot path
-                update c = List.take foot c ++ [tree] ++ List.drop foot c
-            in
-                doAt parent (Tree.updateChildren update) model
-    in
-        -- TODO: magic movement trace creator with two selected
-        R.succeed model |>
-        Selection.withOne model.selected do |>
-        Selection.withTwo model.selected (doMovement model)
+leafBefore newLeaf model =
+    R.succeed model |>
+    Selection.withOne model.selected (\x -> (leafBeforeInner newLeaf x model.root) |>
+                                          R.map (\x -> (.set Model.root) x model)) |>
+    -- TODO: test
+    Selection.withTwo model.selected (doMovement model)
 
 
 deleteNode : Model -> Result

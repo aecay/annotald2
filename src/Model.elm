@@ -8,24 +8,24 @@ module Model exposing (Model
 
 import Tree exposing (Tree, t)
 import Selection
-import ContextMenu
+import ContextMenuTypes
 import Monocle.Lens exposing (Lens, modify)
 import Res as R
 
 type alias Model = { root: Tree
                    , selected: Selection.Selection
                    , lastMessage: String
-                   , contextMenu: ContextMenu.Model
+                   , contextMenu: ContextMenuTypes.Model
                    }
 
 withTrees : List Tree -> Model
 withTrees trees = { root = t "WTF" trees
                   , selected = Selection.empty
                   , lastMessage = "Init"
-                  , contextMenu = ContextMenu.emptyModel
+                  , contextMenu = ContextMenuTypes.emptyModel
                   }
 
-contextMenu : Lens Model ContextMenu.Model
+contextMenu : Lens Model ContextMenuTypes.Model
 contextMenu = Lens .contextMenu (\c m -> { m | contextMenu = c })
 
 root : Lens Model Tree

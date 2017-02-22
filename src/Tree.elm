@@ -19,6 +19,8 @@ module Tree exposing (l, t, trace, Tree, either,
                      , removeIndex
                      , updateChildren
                      , children
+                     , constants
+                     , asLabeledBrackets
                      )
 
 import List
@@ -51,12 +53,12 @@ internals = { allLast = allLast
 
 type TraceType = Wh | Extraposition | Clitic
 
-type ECType = Pro | Con | Exp | Star
+type ECType = Pro | Con | Exp | Star | Zero
 
 type Node = Terminal String (Maybe Index.Index) |
     Trace TraceType Int |
     Comment String |
-    EmptyCat ECType (Maybe Int) |
+    EmptyCat ECType (Maybe Index.Index) |
     Nonterminal (List Tree) (Maybe Index.Index)
 
 type alias Label = String
@@ -75,6 +77,26 @@ trace : String -> Int -> Tree
 trace label index = { label = label
                     , contents = Trace Wh index
                     }
+constants :
+    { comment : Tree
+    , con : Tree
+    , czero : Tree
+    , pro : Tree
+    }
+constants =
+    { pro = { label = "NP-SBJ"
+            , contents = EmptyCat Pro Nothing
+            }
+    , con = { label = "NP-SBJ"
+            , contents = EmptyCat Con Nothing
+            }
+    , czero = { label = "C"
+              , contents = EmptyCat Zero Nothing
+              }
+    , comment = { label = "CODE"
+                , contents = Comment "XXX"
+                }
+    }
 
 t : String -> List Tree -> Tree
 t label children = { label = label
@@ -364,6 +386,7 @@ terminalString tree =
                             Con -> "*con*"
                             Exp -> "*exp*"
                             Star -> "*"
+                            Zero -> "0"
         Nonterminal _ _ -> Debug.crash "Can't get the terminalString of a nonterminal"
 
 isTerminal : Tree -> Bool
@@ -398,3 +421,22 @@ makeTrace x =
         { contents = Trace traceType 0 -- TODO: properly get an index
         , label = newLabel
         }
+
+asLabeledBrackets : Tree -> String
+asLabeledBrackets t = asLabeledBrax1 t 0
+
+asLabeledBrax1 : Tree -> Int -> String
+asLabeledBrax1 tree indent =
+    case tree.contents of
+        Nonterminal children index -> Debug.crash "not implemented yet"
+        Terminal _ index -> "(" ++ tree.label ++
+                               (Maybe.withDefault "" <| Maybe.map Index.string index) ++
+                               " " ++ terminalString tree ++
+                               ")"
+        EmptyCat ec index -> "(" ++ tree.label ++ " " ++ terminalString tree ++
+                             (Maybe.withDefault "" <| Maybe.map Index.string index) ++
+                             ")"
+        Trace typ index -> "(" ++ tree.label ++ " " ++ terminalString tree ++
+                           "-" ++ toString index ++
+                           ")"
+        Comment s -> "(CODE " ++ s ++ ")"
