@@ -247,4 +247,5 @@ deleteNode model =
                     (deleteNonTerminal ())
     in
         R.succeed model |>
-        Selection.withOne model.selected (delete >> R.map (flip (.set Model.root) model))
+        Selection.withOne model.selected (delete >> R.map (flip (.set Model.root) model)) |>
+        R.andThen clearSelection
