@@ -6,6 +6,8 @@ import Actions
 
 import Dict exposing (Dict)
 
+import Tree exposing (constants)
+
 bindings : Dict Keyboard.KeyCode Actions.Action
 bindings = Dict.fromList [ ( 32, Actions.clearSelection )
                          , ( 119, Actions.changeLabel
@@ -13,4 +15,5 @@ bindings = Dict.fromList [ ( 32, Actions.clearSelection )
                          , ( 99, Actions.coIndex)
                          , ( 120, Actions.createParent "XP" )
                          , ( 100, Actions.deleteNode )
+                         , ( 98 , Actions.leafBefore constants.con)
                          ]
