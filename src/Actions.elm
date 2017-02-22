@@ -4,6 +4,7 @@ module Actions exposing ( clearSelection
                         , Action
                         , doMove
                         , createParent
+                        , deleteNode
                         )
 
 -- This module contains the types and functions for creating *actions*, or
@@ -215,7 +216,25 @@ deleteNode model =
             let
                 node = Tree.get path model.root
                 isTerminal = node |> R.map Tree.isTerminal
+                isEmpty = node |> R.map Tree.isEmpty
+                kids = node |> R.map (MT.children)
+                newRoot = Tree.extractAt path model.root |> R.map Tuple.second
+                -- TODO: the then, else thing is ugly.  Need to find a more
+                -- syntactic sugary way of doing this.
+                isOnlyChild = path |> Path.parent |> flip Tree.get model.root |> R.map (MT.children >> List.length >> (==) 1) |> Debug.log "isOnlyCh"
+                thn = R.foldr (Tree.insertAt path) newRoot kids
+                els = R.ifThen isEmpty
+                    (R.ifThen
+                        isOnlyChild
+                        (R.failWarn "cannot delete an only child")
+                        (Tree.extractAt path model.root |> R.map Tuple.second))
+                    (R.fail "cannot delete a non-empty terminal")
+
             in
-                Debug.crash "foo" -- TODO
+                R.ifThen (R.map not isTerminal) thn els
+        -- TODO: this quit business is ugly
+        quit = R.fail "deleteNode"
+        quit2 _ _ = R.fail "deleteNode2"
+        update m r = { m | root = r }
     in
-        Debug.crash "bar"
+        Selection.perform model.selected quit delete quit2 |> R.map (update model)
