@@ -1,4 +1,4 @@
-module Tree exposing (l, t, Tree, either,
+module Tree exposing (l, t, trace, Tree, either,
                           -- TODO: exporting all this internal stuff is not
                           -- the best...
                           TreeDatum, get, set,
@@ -12,6 +12,8 @@ module Tree exposing (l, t, Tree, either,
                      , do
                      , terminalString
                      , isTerminal
+                     , isEmpty
+                     , extractAt
                      )
 
 import List
@@ -63,6 +65,13 @@ l : String -> String -> Tree
 l label text = T.Tree { label = label
                       , contents = Just <| Text text
                       , index = Nothing
+                      }
+               []
+
+trace : String -> Int -> Tree
+trace label index = T.Tree { label = label
+                           , contents = Just <| Trace Wh
+                           , index = Index.normal index |> Just
                       }
                []
 
@@ -284,6 +293,8 @@ moveTo source dest tree =
             R.andThen (uncurry (insertAt (Debug.log "fpm" <| fixPathForMovt source dest))) |>
             Debug.log "insert"
 
+-- Other
+
 terminalString : Terminal -> String
 terminalString contents =
     case contents of
@@ -302,3 +313,14 @@ isTerminal t = case t |> T.datum |> .contents of
                                  Text _ -> False
                                  Trace _ -> True
                                  Comment _ -> True
+
+isEmpty : Tree -> Bool
+isEmpty t = case t |> T.datum |> .contents of
+                Nothing -> False -- TODO: what notion of emptiness are we
+                                 -- working with?  Does it make more sense to
+                                 -- say True, or to check whehter all the
+                                 -- child nodes are empty?
+                Just x -> case x of
+                              Text _ -> False
+                              Trace _ -> True
+                              Comment _ -> True

@@ -14,7 +14,9 @@ testTree = t "IP-MAT"
            [ t "NP-SBJ"
                 [ l "D" "the"
                 , l "N" "dog" ]
-           , t "VP" [ l "VBD" "barked" , l "ADV" "loudly" ] ]
+           , t "VP" [ l "VBD" "barked" , l "ADV" "loudly" ]
+           , Tree.trace "NP" 1
+           ]
 
 main : Program Never Model Msg
 main = program
