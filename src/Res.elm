@@ -10,11 +10,14 @@ module Res exposing ( fail
                     , liftWarn
                     , modify
                     , Failure (..)
+                    , foldr
+                    , ifThen
                     )
 
 -- A thin wrapper over the core Result type, specialized for string errors
 
 import Result as R
+import Result.Extra
 
 import Monocle.Lens exposing (Lens)
 
@@ -51,11 +54,25 @@ map = R.map
 map2 : (a -> b -> c) -> Result a -> Result b -> Result c
 map2 = R.map2
 
+andMap : Result a -> Result (a -> b) -> Result b
+andMap = Result.Extra.andMap
+
+foldr : (a -> b -> Result b) -> Result b -> Result (List a) -> Result b
+foldr fn init list =
+    case list of
+        R.Err err -> R.Err err
+        R.Ok l -> case l of
+                      [] -> init
+                      h :: t ->
+                          let
+                              val = foldr fn init (succeed t)
+                          in
+                              case val of
+                                  R.Err err -> R.Err err
+                                  R.Ok val2 -> fn h val2
+
 withDefault : a -> Result a -> a
-withDefault default result =
-    case result of
-        R.Ok x -> x
-        R.Err _ -> default
+withDefault default result = Result.Extra.unwrap default (\x -> x) result
 
 lift : String -> Maybe a -> Result a
 lift err val = Maybe.Extra.unwrap (fail err) succeed val
@@ -69,3 +86,10 @@ modify lens f init =
         init1 = lens.get init
     in
         init1 |> f |> map (flip lens.set init) |> withDefault init
+
+ifThen : Result Bool -> Result a -> Result a -> Result a
+ifThen flag thn els =
+    case flag of
+        R.Err err -> R.Err err
+        R.Ok True -> thn
+        R.Ok False -> els
