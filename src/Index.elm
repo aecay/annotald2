@@ -3,7 +3,10 @@ module Index exposing (Index
                       , normal
                       , gap
                       , string
-                      , number)
+                      , number
+                      , variety)
+
+import Monocle.Lens as Lens exposing (Lens)
 
 type Variety = Normal | Gap
 
@@ -17,8 +20,11 @@ normal i = { number = i, variety = Normal }
 gap : Int -> Index
 gap i = { number = i, variety = Gap }
 
-number : Index -> Int
-number = .number
+number : Lens Index Int
+number = Lens .number (\i x -> { x | number = i })
+
+variety : Lens Index Variety
+variety = Lens .variety (\v x -> { x | variety = v })
 
 string : Index -> String
 string { number, variety } =

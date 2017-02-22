@@ -34,10 +34,6 @@ root = Lens .root (\t m -> { m | root = t })
 selected : Lens Model Selection.Selection
 selected = Lens .selected (\s m -> { m | selected = s })
 
--- doRoot : (Tree -> Tree) -> Model -> Model
--- doRoot f =
---     modify root f
-
 doRoot : (Tree -> R.Result Tree) -> Model -> Model
 doRoot f =
     R.modify root f

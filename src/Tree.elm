@@ -1,7 +1,7 @@
 module Tree exposing (l, t, trace, Tree, either,
                           -- TODO: exporting all this internal stuff is not
                           -- the best...
-                          TreeDatum, get, set,
+                          get, set,
                           highestIndex
                      --, sameRoot
                      , moveTo
@@ -14,6 +14,11 @@ module Tree exposing (l, t, trace, Tree, either,
                      , isTerminal
                      , isEmpty
                      , extractAt
+                     , index
+                     , makeTrace
+                     , removeIndex
+                     , updateChildren
+                     , children
                      )
 
 import List
@@ -22,10 +27,10 @@ import Maybe
 
 import Utils
 
-import MultiwayTree as T
-import TreeExts as TX
 import Index
 import Path exposing (Path(..), PathFragment)
+
+import Monocle.Optional as Optional exposing (Optional)
 
 import Res as R exposing (succeed, fail, Result)
 
@@ -44,64 +49,65 @@ internals = { allLast = allLast
             , fixPathForMovt = fixPathForMovt
             }
 
-type TraceType = Wh | Extraposition | Clitic | Misc
+type TraceType = Wh | Extraposition | Clitic
 
--- Possible alternative: add (Nonterminal Children) to this enum.  Then
--- type Children = C (List Tree), and rename TreeDatum to tree
-type Terminal = Text String | Trace TraceType | Comment String
+type ECType = Pro | Con | Exp | Star
 
-type alias TreeDatum = { contents: Maybe Terminal
-                             -- TODO: we are relying on the code and not the
-                             -- typechecker to maintain the invariant that
-                             -- only terminal nodes have text
-                       , label: String
-                       , index: Maybe Index.Index
-                       }
+type Node = Terminal String (Maybe Index.Index) |
+    Trace TraceType Int |
+    Comment String |
+    EmptyCat ECType (Maybe Int) |
+    Nonterminal (List Tree) (Maybe Index.Index)
 
-type alias Tree = T.Tree TreeDatum
+type alias Label = String
+
+type alias Tree = { contents: Node
+                  , label: Label
+                  }
 
 -- Convenience functions for generating trees for testing
 l : String -> String -> Tree
-l label text = T.Tree { label = label
-                      , contents = Just <| Text text
-                      , index = Nothing
-                      }
-               []
+l label text = { label = label
+               , contents = Terminal text Nothing
+               }
 
 trace : String -> Int -> Tree
-trace label index = T.Tree { label = label
-                           , contents = Just <| Trace Wh
-                           , index = Index.normal index |> Just
-                      }
-               []
+trace label index = { label = label
+                    , contents = Trace Wh index
+                    }
 
 t : String -> List Tree -> Tree
-t label children = T.Tree { label = label
-                          , contents = Nothing
-                          , index = Nothing
-                          }
-                   children
+t label children = { label = label
+                   , contents = Nonterminal children Nothing
+                   }
 
--- TODO: is it ever used?  Should be in TX anyway...
-mapChildren : (Tree -> a) -> Tree -> List a
-mapChildren f t = List.map f (T.children t)
+either : (Tree -> a) -> (Tree -> a) -> Tree -> a
+either nt t tree =
+    case tree.contents of
+        Nonterminal _ _ -> nt tree
+        _ -> t tree
 
-either : (TreeDatum -> a) -> (TreeDatum -> a) -> Tree -> a
-either nt t zipper =
+children : Tree -> List Tree
+children t =
+    case t.contents of
+        Nonterminal c _ -> c
+        _ -> []
+
+fold : (Tree -> a -> a) -> a -> Tree -> a
+fold fn init tree =
     let
-        d = T.datum zipper
-        txt = d |> .contents
+        c = children tree
     in
-    case txt of
-        Just _ -> t d
-        Nothing -> nt d
+        case c of
+            [] -> fn tree init
+            _ -> fn tree (List.foldl fn init c)
 
 get : Path -> Tree -> R.Result Tree
 get path tree = case path of
                     Path.RootPath -> succeed tree
                     Path.Path foot _ ->
                         get (Path.parent path) tree |>
-                        R.map T.children |>
+                        R.map children |>
                         R.andThen (getAt foot >> R.lift "get")
 
 set : Path -> Tree -> Tree -> R.Result Tree
@@ -112,7 +118,7 @@ set path newChild tree = case path of
                                      parentPath = Path.parent path
                                  in
                                      get parentPath tree |>
-                                     R.andThen (TX.setChild foot newChild) |>
+                                     R.andThen (setChild foot newChild) |>
                                      R.andThen (\x -> set parentPath x tree)
 
 do : Path.Path -> (Tree -> Tree) -> Tree -> R.Result Tree
@@ -122,6 +128,29 @@ do path f tree =
     in
         orig |> R.map f |> R.andThen (\x -> set path x tree)
 
+setChild : Int -> Tree -> Tree -> R.Result Tree
+setChild i new parent =
+    case parent.contents of
+        Nonterminal children index ->
+            if List.length children > i
+            then R.succeed <| (\x -> { parent | contents = x }) <|
+                flip Nonterminal index <|
+                List.take i children ++
+                [new] ++
+                List.drop (i + 1) children
+            else R.fail "setChild"
+        _ -> R.fail "setChild"
+
+-- updateDatum : (a -> a) -> Tree a -> Tree a
+-- updateDatum f t =
+--     case t of
+--         Tree datum children -> Tree (f datum) children
+
+updateChildren : (List Tree -> List Tree) -> Tree -> Tree
+updateChildren f t =
+    case t.contents of
+        Nonterminal children index -> { t | contents = Nonterminal (f children) index }
+        _ -> t -- TODO: fail somehow?
 
 extractAt : Path -> Tree -> R.Result (Tree, Tree)
 extractAt path tree =
@@ -133,7 +162,7 @@ extractAt path tree =
                 idx = Path.foot path
                 child = get path tree
             in
-                do parent (TX.updateChildren (Utils.remove idx)) tree |>
+                do parent (updateChildren (Utils.remove idx)) tree |>
                 R.map2 (,) child
                 -- get path1 tree ?>
                 -- TX.updateChildren (Utils.remove idx) ?>?
@@ -146,15 +175,41 @@ insertAt path newChild =
         parent = Path.parent path
         idx = Path.foot path
     in
-        do parent (TX.updateChildren (Utils.insert idx newChild))
+        do parent (updateChildren (Utils.insert idx newChild))
+
+getIndex : Tree -> Maybe Index.Index
+getIndex t =
+    case t.contents of
+        Terminal _ idx -> idx
+        Nonterminal _ idx -> idx
+        Trace _ idx -> Just <| Index.normal idx
+        _ -> Nothing
+
+setIndex : Index.Index -> Tree -> Tree
+setIndex idx tree =
+    case tree.contents of
+        Terminal s _ -> { tree | contents = Terminal s <| Just idx }
+        Nonterminal c _ -> { tree | contents = Nonterminal c <| Just idx }
+        Trace t _ -> {tree | contents = Trace t <| (.get Index.number) idx }
+        _ -> tree
+
+removeIndex : Tree -> Tree
+removeIndex tree =
+    case tree.contents of
+        Terminal s _ -> { tree | contents = Terminal s Nothing }
+        Nonterminal c _ -> { tree | contents = Nonterminal c Nothing }
+        _ -> tree -- TODO: fail noisily
+
+index : Optional Tree Index.Index
+index = Optional getIndex setIndex
 
 highestIndex : Tree -> Int
 highestIndex t =
     let
-        fold : TreeDatum -> Int -> Int
-        fold d i = Maybe.withDefault 0 (d.index |> Maybe.map .number) |> max i
+        lens = Optional.composeLens index Index.number |> .getOption
+        f d i = Maybe.withDefault 0 (lens t) |> max i
     in
-        T.foldl fold 0 t
+        fold f 0 t
 
 -- Movement
 
@@ -171,7 +226,7 @@ allFirst path frag tree =
 isLastAt : Tree -> Path -> Bool
 isLastAt tree path =
     Debug.log "tree" (get (Path.parent path) tree) |>
-    R.map T.children |> Debug.log "kids" |>
+    R.map children |> Debug.log "kids" |>
     R.map List.length |> Debug.log "length" |>
     R.map ((==) (Debug.log "target" (Path.foot path + 1))) |> Debug.log "result" |>
     R.withDefault False |>
@@ -235,7 +290,7 @@ destPath src newParent tree =
                           ( if rightward
                             then succeed 0
                             else get newParent tree |>
-                                R.map T.children |>
+                                R.map children |>
                                 R.map List.length
                           ) x
 
@@ -295,32 +350,51 @@ moveTo source dest tree =
 
 -- Other
 
-terminalString : Terminal -> String
-terminalString contents =
-    case contents of
-        Text x -> x
-        Trace x -> case x of
+terminalString : Tree -> String
+terminalString tree =
+    case tree.contents of
+        Terminal x _ -> x
+        Trace x _ -> case x of
                        Wh -> "*T*"
                        Extraposition -> "*ICH*"
                        Clitic -> "*CL*"
-                       Misc -> "*"
         Comment _ -> "{COM}"
+        EmptyCat x _ -> case x of
+                            Pro -> "*pro*"
+                            Con -> "*con*"
+                            Exp -> "*exp*"
+                            Star -> "*"
+        Nonterminal _ _ -> Debug.crash "Can't get the terminalString of a nonterminal"
 
 isTerminal : Tree -> Bool
-isTerminal t = case t |> T.datum |> .contents of
-                   Nothing -> False
-                   Just x -> case x of
-                                 Text _ -> False
-                                 Trace _ -> True
-                                 Comment _ -> True
+isTerminal t = case t.contents of
+                   Nonterminal _ _ -> False
+                   _ -> True
 
 isEmpty : Tree -> Bool
-isEmpty t = case t |> T.datum |> .contents of
-                Nothing -> False -- TODO: what notion of emptiness are we
-                                 -- working with?  Does it make more sense to
-                                 -- say True, or to check whehter all the
-                                 -- child nodes are empty?
-                Just x -> case x of
-                              Text _ -> False
-                              Trace _ -> True
-                              Comment _ -> True
+isEmpty t = case t.contents of
+                Terminal _ _ -> False
+                Trace _ _ -> True
+                Comment _ -> True
+                EmptyCat _ _ -> True
+                Nonterminal _ _ -> False
+
+hasDashTag : String -> Label -> Bool
+hasDashTag tag label =
+    List.member tag <| String.split "-" label
+
+makeTrace : Tree -> Tree
+makeTrace x =
+    let
+        label = x.label
+        (newLabel, traceType) =
+            if String.startsWith "W" label
+            then (String.dropLeft 1 label, Wh)
+            else if hasDashTag "CL" label
+            then (label, Clitic) -- TODO: drop the CL dashtag
+            else (label, Extraposition)
+            -- TODO: how to create misc traces?
+    in
+        { contents = Trace traceType 0 -- TODO: properly get an index
+        , label = newLabel
+        }

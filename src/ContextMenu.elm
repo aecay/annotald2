@@ -19,8 +19,6 @@ import Tree
 
 import Res exposing (modify)
 
-import TreeExts as TX
-
 import Monocle.Lens exposing (Lens)
 
 type alias Position = { x: Int
@@ -147,7 +145,7 @@ update msg rootLens parent =
                                                  -- function
         SetLabel path newLabel ->
             modify rootLens
-                (Tree.do path (TX.updateDatum (\x -> {x | label = newLabel })))
+                (Tree.do path (\x -> {x | label = newLabel }))
                 parent
         ToggleExtension path ext -> Debug.crash "foo"
         Ignore -> parent

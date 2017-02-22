@@ -7,9 +7,8 @@ import Html.Events as Ev
 import Json.Decode as Json
 
 import Model exposing (Model)
-import Tree exposing (Tree, TreeDatum, either)
+import Tree exposing (Tree)
 import Path exposing (Path)
-import MultiwayTree as T
 import Selection exposing (Selection)
 import Msg exposing (Msg(..))
 import Index
@@ -21,12 +20,20 @@ import ContextMenu
 
 -- TODO: use html.keyed for speed
 
-labelText : TreeDatum -> String
-labelText {label, index} =
-    index |>
-    Maybe.map Index.string |>
-    Maybe.withDefault "" |>
-    (++) label
+-- XXX: Seems to belong better in Tree or Index, but it's really a view
+-- function (about presentation) so it lives here.  Of course, so is
+-- terminalString, but that needs to know about internal types of Tree, so it
+-- lives there.
+labelText : Tree -> String
+labelText tree =
+    let
+        index = (.getOption Tree.index) tree
+        label = tree.label
+    in
+        index |>
+        Maybe.map Index.string |>
+        Maybe.withDefault "" |>
+        (++) label
 
 blockAll : Ev.Options
 blockAll = { stopPropagation = True
@@ -38,25 +45,29 @@ decodeMouse = Json.map2 (\x y -> { x = x, y = y })
               (Json.field "x" Json.int)
               (Json.field "y" Json.int)
 
-snode : Path -> TreeDatum -> Bool -> List (Html Msg) -> Html Msg
-snode self datum selected children =
-    div
-    [ Attr.class "snode"
-    , Attr.style [ ("margin-left", "20px")
-                 , ("border", "1px solid silver")
-                 , ("border-left", "4px solid #4682B4")
-                 , ("background-color", if selected
-                                        then "#4682B4"
-                                        else "#EFEFEF")
-                 , ("padding", "2px")
-                 , ("cursor", "pointer")
-                 , ("color", "black")
-                 ]
-    , onClick <| ToggleSelect self
-    , Ev.onWithOptions "contextmenu" blockAll (Json.map (\x -> RightClick self x) decodeMouse)
-    ] <| text (labelText datum) :: children
+snode : Path -> Tree -> Bool -> List (Html Msg) -> Html Msg
+snode self tree selected children =
+    let
+        rightClick = Ev.onWithOptions "contextmenu" blockAll <|
+                     Json.map (\x -> RightClick self x) decodeMouse
+    in
+        div
+        [ Attr.class "snode"
+        , Attr.style [ ("margin-left", "20px")
+                     , ("border", "1px solid silver")
+                     , ("border-left", "4px solid #4682B4")
+                     , ("background-color", if selected
+                                            then "#4682B4"
+                                            else "#EFEFEF")
+                     , ("padding", "2px")
+                     , ("cursor", "pointer")
+                     , ("color", "black")
+                     ]
+        , onClick <| ToggleSelect self
+        , rightClick
+        ] <| text (labelText tree) :: children
 
-wnode : TreeDatum -> Html Msg
+wnode : Tree -> Html Msg
 wnode t = span
              [ Attr.class "wnode"
              , Attr.style [ ("margin-left", "20px")
@@ -67,33 +78,23 @@ wnode t = span
                           , ("color", "black")
                           ]
              ]
-             [text <| Tree.terminalString <| fromJust t.contents]
+             [text <| Tree.terminalString <| t]
 
 viewTree : Selection -> Path -> Tree -> Html Msg
 viewTree selected selfPath tree =
     let
-        d = T.datum tree
         isSelected = List.member selfPath (Selection.get selected)
         viewT d =
             snode selfPath d isSelected [wnode d]
         viewNt d =
             -- TODO: I suspect this of being a performance hotspot.  We can
             -- use Html.lazy here, but not above
-            T.children tree |>
+            Tree.children tree |>
             Utils.enumerate |>
             List.map (\(i, c) -> viewTree selected (Path.childPath i selfPath) c) |>
             snode selfPath d isSelected
     in
-        either viewNt viewT tree
-
--- viewTree1 : Maybe TreeZipper -> TreeZipper -> Html Msg
--- viewTree1 selected target =
---     let isSelected =
---         case selected of
---             Nothing -> False
---             Just z -> target == z
---     in
---         L.lazy2 viewTree target isSelected
+        Tree.either viewNt viewT tree
 
 viewRoot : Model -> List (Html Msg)
 viewRoot model =
@@ -101,7 +102,7 @@ viewRoot model =
         selectedTrees = model.selected
     in
         model.root |>
-        T.children |>
+        Tree.children |>
         Utils.enumerate |>
         List.map (\(i, c) -> viewTree selectedTrees (Path.singleton i) c)
 

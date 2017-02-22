@@ -2,7 +2,10 @@ module Selection exposing (Selection(..) -- TODO: don't want to export contsruct
                           , first, second, one, two, empty,
                                -- doOne,
                           updateWith, get
-                          , perform)
+                          , perform
+                          , withOne
+                          , withTwo
+                          )
 
 import Path exposing (Path)
 
@@ -52,3 +55,18 @@ perform sel none one two =
         None -> none
         One x -> one x
         Two x y -> two x y
+
+-- TODO: does it make sense to pass default as an additional argument to fn?
+-- i.e. type singature becomes Selection -> (Path -> a -> a) -> a -> a, and
+-- the crucial bit is fn x default
+withOne : Selection -> (Path -> a) -> a -> a
+withOne sel fn default =
+    case sel of
+        One x -> fn x
+        _ -> default
+
+withTwo : Selection -> (Path -> Path -> a) -> a -> a
+withTwo sel fn default =
+    case sel of
+        Two x y -> fn x y
+        _ -> default

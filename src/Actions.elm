@@ -17,9 +17,10 @@ import Dict exposing (Dict)
 import Res as R
 import Result
 
+import Monocle.Optional as Optional
+
 -- Third party
 
-import MultiwayTree as MT
 import List.Extra exposing (zip)
 
 -- Annotald packages
@@ -27,7 +28,6 @@ import List.Extra exposing (zip)
 import Tree exposing (Tree)
 import Path exposing (Path)
 import Utils
-import TreeExts as TX
 import Model exposing (Model)
 import Selection
 import Index exposing (normal, Variety(..))
@@ -67,7 +67,7 @@ changeLabel labels =
                 change : String -> String
                 change s = Dict.get s repls |> withDefault head
                 update : Tree -> Tree
-                update z = TX.updateDatum (\d -> { d | label = change d.label }) z
+                update z = (\d -> { d | label = change d.label }) z
             in doOneSelected update
 
 coIndex : Action
@@ -95,8 +95,8 @@ coIndex2 path1 path2 model =
                 root = model.root
                 tree1 = Tree.get path1 root
                 tree2 = Tree.get path2 root
-                index1 = tree1 |> R.map (MT.datum >> .index) |> R.andThen (R.lift "index1")
-                index2 = tree2 |> R.map (MT.datum >> .index) |> R.andThen (R.lift "index2")
+                index1 = tree1 |> R.map (.getOption Tree.index) |> R.andThen (R.lift "index1")
+                index2 = tree2 |> R.map (.getOption Tree.index) |> R.andThen (R.lift "index2")
                 ind = Tree.get (Path.root path1) root |>
                       R.map Tree.highestIndex |>
                       R.withDefault 0 |>
@@ -129,28 +129,23 @@ coIndex2 path1 path2 model =
                     (Result.Err _, Result.Err _) -> setIndexAt path1 ind model |>
                                                     R.andThen (setIndexAt path2 ind)
 
+-- TODO: remove; trivial
 setIndexAt: Path -> Int -> Action
 setIndexAt path index =
-    let
-        f x = { x | index = Just <| Index.normal index }
-    in
-        doAt path <| TX.updateDatum f
+        doAt path (.set (Optional.composeLens Tree.index Index.number) index)
 
 setIndexVarietyAt : Path -> Index.Variety -> Action
 setIndexVarietyAt path newVariety =
-    let
-        setVariety x = { x | variety = newVariety }
-        f x = { x | index = Maybe.map setVariety x.index }
-    in
-        doAt path (TX.updateDatum f)
+    doAt path ((Optional.composeLens Tree.index Index.variety |> .set) newVariety)
 
 removeIndexAt : Path -> Action
 removeIndexAt path =
     let
         f x = { x | index = Nothing }
     in
-        doAt path (TX.updateDatum f)
+        doAt path Tree.removeIndex
 
+-- TODO: update the trace indices if we move one tree into another
 doMove : Path -> Path -> Model -> Result
 doMove src dest model =
     let
@@ -180,8 +175,8 @@ createParent2 label one two model =
     in
         if parent1 /= parent2
         then R.fail "parents are different for createParent2"
-        else doAt parent1 (TX.updateChildren (\c -> let (x, y, z) = Utils.splice foot1 (foot2+1) c
-                                                    in x ++ [Tree.t label y] ++ z))
+        else doAt parent1 (Tree.updateChildren (\c -> let (x, y, z) = Utils.splice foot1 (foot2+1) c
+                                                      in x ++ [Tree.t label y] ++ z))
             model
 
 createParent : String -> Model -> Result
@@ -194,47 +189,61 @@ createParent label model =
     in
         model |> Selection.perform model.selected none one (createParent2 label)
 
-leafBefore : String -> String -> Model -> Result
-leafBefore label text model =
+doMovement : Model -> Path -> Path -> Result
+doMovement model src dest =
     let
+        trace = Tree.get src model.root |> R.map Tree.makeTrace
+    in
+        R.andThen (\x -> leafBefore x model) trace |>
+        R.andThen (coIndex2 src dest)
+
+
+leafBefore : Tree -> Model -> Result
+leafBefore tree model =
+    let
+        do : Path -> Result
         do path =
             let
                 parent = Path.parent path
                 foot = Path.foot path
-                update c = List.take foot c ++ [Tree.l label text] ++ List.drop foot c
+                update c = List.take foot c ++ [tree] ++ List.drop foot c
             in
-                doAt parent (TX.updateChildren update)
-        quit _ = R.fail "leafBefore"
-        quit2 _ _ _ = R.fail "leafBefore" -- TODO: magic movement trace creator
+                doAt parent (Tree.updateChildren update) model
     in
-        model |> Selection.perform model.selected quit do quit2
+        -- TODO: magic movement trace creator with two selected
+        R.succeed model |>
+        Selection.withOne model.selected do |>
+        Selection.withTwo model.selected (doMovement model)
+
 
 deleteNode : Model -> Result
 deleteNode model =
     let
+        delete : Path -> R.Result Tree
         delete path =
             let
                 node = Tree.get path model.root
                 isTerminal = node |> R.map Tree.isTerminal
-                isEmpty = node |> R.map Tree.isEmpty
-                kids = node |> R.map (MT.children)
-                newRoot = Tree.extractAt path model.root |> R.map Tuple.second
-                -- TODO: the then, else thing is ugly.  Need to find a more
-                -- syntactic sugary way of doing this.
-                isOnlyChild = path |> Path.parent |> flip Tree.get model.root |> R.map (MT.children >> List.length >> (==) 1) |> Debug.log "isOnlyCh"
-                thn = R.foldr (Tree.insertAt path) newRoot kids
-                els = R.ifThen isEmpty
-                    (R.ifThen
-                        isOnlyChild
-                        (R.failWarn "cannot delete an only child")
-                        (Tree.extractAt path model.root |> R.map Tuple.second))
-                    (R.fail "cannot delete a non-empty terminal")
-
+                -- We make these functions of one ignored argument
+                -- (i.e. thunks) to avoid computing them both
+                deleteTerminal _ =
+                    let
+                        isNonEmpty = node |> R.map (Tree.isEmpty >> not)
+                        isOnlyChild = path |> Path.parent |> flip Tree.get model.root |> R.map (Tree.children >> List.length >> (==) 1)
+                    in
+                        R.ifThen isOnlyChild (R.fail "Cannot delete an only child") <|
+                            R.ifThen isNonEmpty (R.fail "Cannot delete a non-empty terminal") <|
+                            (Tree.extractAt path model.root |> R.map Tuple.second)
+                deleteNonTerminal _ =
+                    let
+                        kids = node |> R.map (Tree.children)
+                        newRoot = Tree.extractAt path model.root |> R.map Tuple.second
+                    in
+                        R.foldr (Tree.insertAt path) newRoot kids
             in
-                R.ifThen (R.map not isTerminal) thn els
-        -- TODO: this quit business is ugly
-        quit = R.fail "deleteNode"
-        quit2 _ _ = R.fail "deleteNode2"
-        update m r = { m | root = r }
+                R.ifThen isTerminal
+                    (deleteTerminal ())
+                    (deleteNonTerminal ())
     in
-        Selection.perform model.selected quit delete quit2 |> R.map (update model)
+        R.succeed model |>
+        Selection.withOne model.selected (delete >> R.map (flip (.set Model.root) model))
