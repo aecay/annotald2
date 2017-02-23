@@ -3,7 +3,8 @@ module View exposing (view)
 import Html exposing (..)
 import Html.Attributes as Attr
 -- import Html.Lazy as L
-
+import Json.Decode as Json
+import Html.Events as Ev
 
 import Model exposing (Model)
 import Tree exposing (Tree)
@@ -15,6 +16,7 @@ import Index
 import Utils exposing (fromJust)
 import ViewUtils exposing (onClick, blockAll)
 
+import ContextMenuTypes
 import ContextMenu
 
 -- TODO: use html.keyed for speed
@@ -34,23 +36,37 @@ labelText tree =
         Maybe.withDefault "" |>
         (++) label
 
+blockAll : Ev.Options
+blockAll = { stopPropagation = True
+           , preventDefault = True
+           }
+
+decodeMouse : Json.Decoder ContextMenuTypes.Position
+decodeMouse = Json.map2 (\x y -> { x = x, y = y })
+              (Json.field "x" Json.int)
+              (Json.field "y" Json.int)
+
 snode : Path -> Tree -> Bool -> List (Html Msg) -> Html Msg
 snode self tree selected children =
-    div
-    [ Attr.class "snode"
-    , Attr.style [ ("margin-left", "20px")
-                 , ("border", "1px solid silver")
-                 , ("border-left", "4px solid #4682B4")
-                 , ("background-color", if selected
-                                        then "#4682B4"
-                                        else "#EFEFEF")
-                 , ("padding", "2px")
-                 , ("cursor", "pointer")
-                 , ("color", "black")
-                 ]
-    , onClick <| ToggleSelect self
-    , Attr.map Context (ContextMenu.handler self)
-    ] <| text (labelText tree) :: children
+    let
+        rightClick = Ev.onWithOptions "contextmenu" blockAll <|
+                     Json.map (\x -> RightClick self x) decodeMouse
+    in
+        div
+        [ Attr.class "snode"
+        , Attr.style [ ("margin-left", "20px")
+                     , ("border", "1px solid silver")
+                     , ("border-left", "4px solid #4682B4")
+                     , ("background-color", if selected
+                                            then "#4682B4"
+                                            else "#EFEFEF")
+                     , ("padding", "2px")
+                     , ("cursor", "pointer")
+                     , ("color", "black")
+                     ]
+        , onClick <| ToggleSelect self
+        , rightClick
+        ] <| text (labelText tree) :: children
 
 wnode : Tree -> Html Msg
 wnode t = span

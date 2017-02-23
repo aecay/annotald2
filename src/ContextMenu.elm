@@ -2,13 +2,9 @@ module ContextMenu exposing ( show
                             , update
                             , view
                             , hide
-                            , handler
                             )
 
 import ViewUtils exposing (onClick)
-
-import Json.Decode as Json
-import Html.Events as Ev
 
 import Html as H exposing (Html)
 import Html.Attributes as Attr
@@ -143,18 +139,3 @@ subscriptions l m =
     case .target (l.get m) of
         Nothing -> Sub.batch []
         Just _ -> Mouse.clicks (\_ -> Hide)
-
-
-blockAll : Ev.Options
-blockAll = { stopPropagation = True
-           , preventDefault = True
-           }
-
-decodeMouse : Json.Decoder ContextMenuTypes.Position
-decodeMouse = Json.map2 (\x y -> { x = x, y = y })
-              (Json.field "x" Json.int)
-              (Json.field "y" Json.int)
-
-handler : Path -> H.Attribute (Msg a)
-handler path = Ev.onWithOptions "contextmenu" blockAll <|
-          Json.map (\x -> Show x path) decodeMouse
