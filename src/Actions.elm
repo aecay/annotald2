@@ -29,7 +29,7 @@ import List.Extra exposing (zip)
 
 import Tree exposing (Tree)
 import Path exposing (Path)
-import Utils
+import Utils exposing ((=>>), with)
 import Model exposing (Model)
 import Selection
 import Index exposing (normal, Variety(..))
@@ -40,6 +40,7 @@ type alias Result = R.Result Model
 
 type alias Action = Model -> Result
 
+-- TODO: remove
 doOneSelected : (Tree -> Tree) -> Model -> Result
 doOneSelected f model =
     let
@@ -72,18 +73,18 @@ changeLabel labels =
                 update z = (\d -> { d | label = change d.label }) z
             in doOneSelected update
 
-coIndex : Action
+coIndex : Model -> Result
 coIndex model =
     let
         sel = model.selected
-        first = Selection.first sel
-        second = Selection.second sel
+        one : Model -> Result
+        one = (Selection.withOne sel coIndex1 R.succeed)
+        two : Model -> Result
+        two = (Selection.withTwo sel coIndex2 R.succeed)
     in
-        case (first, second) of
-            (Just f, Just s) ->
-                coIndex2 f s model
-            (Just f, Nothing) -> coIndex1 f model
-            otherwise -> R.fail "coIndex"
+        R.succeed model |>
+        R.andThen one |>
+        R.andThen two
 
 coIndex1: Path -> Model -> Result
 coIndex1 = removeIndexAt
@@ -131,10 +132,12 @@ coIndex2 path1 path2 model =
                     (Result.Err _, Result.Err _) -> setIndexAt path1 ind model |>
                                                     R.andThen (setIndexAt path2 ind)
 
--- TODO: remove; trivial
 setIndexAt: Path -> Int -> Action
 setIndexAt path index =
-        doAt path (.set (Optional.composeLens Tree.index Index.number) index)
+    Tree.index =>> Index.number |>
+    .set |>
+    with index |>
+    doAt path
 
 setIndexVarietyAt : Path -> Index.Variety -> Action
 setIndexVarietyAt path newVariety =
@@ -147,23 +150,34 @@ removeIndexAt path =
     in
         doAt path Tree.removeIndex
 
--- TODO: update the trace indices if we move one tree into another
+incrementIndicesBy : Int -> Path -> Tree -> R.Result Tree
+incrementIndicesBy inc path tree =
+    Optional.modify (Tree.index =>> Index.number) ((+) inc) |>
+    Tree.map |>
+    (\x -> Tree.do path x tree)
+
 doMove : Path -> Path -> Model -> Result
 doMove src dest model =
     let
-        -- rightward will have a bogus value if src is Nothing, but in that
-        -- case we're going to fail when we try to lift it below, so it
-        -- doesn't matter
-        rightward = Path.lessThan src dest
         dest1 = Tree.destPath src dest model.root
         newSel = dest1 |>
-                 R.map (Tree.fixPathForMovt src) |>
-                 R.map Selection.one
+                 R.map (Tree.fixPathForMovt src >> Selection.one)
+        srcRoot = Debug.log "srcRoot" <| Path.root src
+        destRoot = Debug.log "destRoot" <| Path.root dest
+        newRoot = if srcRoot == destRoot
+                  then R.succeed model.root
+                  else
+                      let
+                          inc = Debug.log "tree" (Tree.get destRoot model.root) |> R.map Tree.highestIndex |> Debug.log "hi"
+                      in
+                          inc |>
+                          R.andThen (\x -> incrementIndicesBy x srcRoot model.root)
+
     in
         -- TODO: make moveTo (or a new fn) do the calculation of the dest
         -- path, so we don't have to worry about it here.
-        dest1 |>
-        R.andThen (\x -> Tree.moveTo src x model.root) |>
+        R.map2 (\x y -> (x, y)) newRoot dest1 |>
+        R.andThen (\(nr, d) -> Tree.moveTo src d nr) |>
         R.map ((flip (.set Model.root)) model) |>
         R.map2 (\s m -> { m | selected = s }) newSel
 
@@ -230,14 +244,18 @@ deleteNode model =
                 deleteTerminal _ =
                     let
                         isNonEmpty = node |> R.map (Tree.isEmpty >> not)
-                        isOnlyChild = path |> Path.parent |> flip Tree.get model.root |> R.map (Tree.children >> List.length >> (==) 1)
+                        isOnlyChild = path |>
+                                      Path.parent |>
+                                      flip Tree.get model.root |>
+                                      R.map (.getOption Tree.children) |>
+                                      R.map (\x -> Maybe.withDefault False <| Maybe.map (List.length >> (==) 1) x)
                     in
                         R.ifThen isOnlyChild (R.fail "Cannot delete an only child") <|
                             R.ifThen isNonEmpty (R.fail "Cannot delete a non-empty terminal") <|
                             (Tree.extractAt path model.root |> R.map Tuple.second)
                 deleteNonTerminal _ =
                     let
-                        kids = node |> R.map (Tree.children)
+                        kids = node |> R.map (.getOption Tree.children) |> R.map Utils.fromJust
                         newRoot = Tree.extractAt path model.root |> R.map Tuple.second
                     in
                         R.foldr (Tree.insertAt path) newRoot kids

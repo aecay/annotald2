@@ -12,6 +12,8 @@ module Res exposing ( fail
                     , Failure (..)
                     , foldr
                     , ifThen
+                    , andMap
+                    , map3
                     )
 
 -- A thin wrapper over the core Result type, specialized for string errors
@@ -53,6 +55,9 @@ map = R.map
 
 map2 : (a -> b -> c) -> Result a -> Result b -> Result c
 map2 = R.map2
+
+map3 : (a -> b -> c -> d) -> Result a -> Result b -> Result c -> Result d
+map3 = R.map3
 
 andMap : Result a -> Result (a -> b) -> Result b
 andMap = Result.Extra.andMap

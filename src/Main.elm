@@ -9,18 +9,21 @@ import View exposing (view)
 import Update exposing (update, subscriptions)
 import Msg exposing (Msg)
 
-testTree : Tree
-testTree = t "IP-MAT"
-           [ t "NP-SBJ"
-                [ l "D" "the"
-                , l "N" "dog" ]
-           , t "VP" [ l "VBD" "barked" , l "ADV" "loudly" ]
-           , Tree.trace "NP" 1
-           ]
+testTrees : List Tree
+testTrees = [ t "IP-MAT"
+                  [ t "NP-SBJ"
+                        [ l "D" "the"
+                        , l "N" "dog" ]
+                  , t "VP" [ l "VBD" "barked" , l "ADV" "loudly" ]
+                  , Tree.trace "NP" 1
+                  ]
+            , t "IP-MAT" [ Tree.trace "NP" 1 ]
+            , t "IP-MAT" [ Tree.trace "NP" 1 ]
+            ]
 
 main : Program Never Model Msg
 main = program
-       { init = (withTrees [testTree], Cmd.none)
+       { init = (withTrees testTrees, Cmd.none)
        , view = view
        , update = update
        , subscriptions = subscriptions

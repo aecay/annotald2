@@ -1,7 +1,11 @@
-module Selection exposing (Selection(..) -- TODO: don't want to export contsructors
-                          , first, second, one, two, empty,
-                               -- doOne,
-                          updateWith, get
+module Selection exposing ( Selection
+                          , first
+                          , second
+                          , one
+                          , two
+                          , empty
+                          , updateWith
+                          , get
                           , perform
                           , withOne
                           , withTwo

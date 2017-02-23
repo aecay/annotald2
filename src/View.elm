@@ -90,7 +90,7 @@ viewTree selected selfPath tree =
         viewNt d =
             -- TODO: I suspect this of being a performance hotspot.  We can
             -- use Html.lazy here, but not above
-            Tree.children tree |>
+            (.getOption Tree.children) tree |> Utils.fromJust |>
             Utils.enumerate |>
             List.map (\(i, c) -> viewTree selected (Path.childPath i selfPath) c) |>
             snode selfPath d isSelected
@@ -103,7 +103,7 @@ viewRoot model =
         selectedTrees = model.selected
     in
         model.root |>
-        Tree.children |>
+        (.getOption Tree.children) |> Utils.fromJust |>
         Utils.enumerate |>
         List.map (\(i, c) -> viewTree selectedTrees (Path.singleton i) c)
 

@@ -4,10 +4,15 @@ module Utils exposing ( enumerate
                       , splice
                       , insert
                       , sort2
+                      , (=>>)
+                      , with
                       )
 
 import List
 import List.Extra
+
+import Monocle.Lens exposing (Lens)
+import Monocle.Optional as Optional exposing (Optional)
 
 import Debug
 
@@ -38,3 +43,11 @@ fromJust x = case x of
 
 sort2 : comparable -> comparable -> (comparable, comparable)
 sort2 a b = if a < b then (a, b) else (b, a)
+
+(=>>) : Optional a b -> Lens b c -> Optional a c
+(=>>) = Optional.composeLens
+
+infixl 9 =>>
+
+with : a -> (a -> b) -> b
+with = (|>)
