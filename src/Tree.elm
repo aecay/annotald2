@@ -21,6 +21,7 @@ module Tree exposing (l, t, trace, Tree, either,
                      , children
                      , constants
                      , asLabeledBrackets
+                     , map
                      )
 
 import List
@@ -109,27 +110,51 @@ either nt t tree =
         Nonterminal _ _ -> nt tree
         _ -> t tree
 
-children : Tree -> List Tree
-children t =
-    case t.contents of
-        Nonterminal c _ -> c
-        _ -> []
+children : Optional Tree (List Tree)
+children =
+    let
+        getChildren t =
+            case t.contents of
+                Nonterminal c _ -> Just c
+                _ -> Nothing
+        setChildren newChildren tree =
+            case tree.contents of
+                Nonterminal _ index -> { tree | contents = Nonterminal newChildren index }
+                _ -> tree
+    in
+        Optional getChildren setChildren
 
 fold : (Tree -> a -> a) -> a -> Tree -> a
 fold fn init tree =
     let
-        c = children tree
+        c = children.getOption tree
     in
         case c of
-            [] -> fn tree init
-            _ -> fn tree (List.foldl fn init c)
+            Nothing -> fn tree init
+            Just ch ->
+                let
+                    v = fn tree init
+                in
+                    List.foldl (flip (fold fn)) v ch
+
+map : (Tree -> Tree) -> Tree -> Tree
+map fn tree =
+    let
+        newTree = fn tree
+        c = children.getOption newTree
+    in
+        case c of
+            Nothing -> newTree
+            Just ch -> children.set (List.map (\x -> map fn x) ch) newTree
+
 
 get : Path -> Tree -> R.Result Tree
 get path tree = case path of
                     Path.RootPath -> succeed tree
                     Path.Path foot _ ->
                         get (Path.parent path) tree |>
-                        R.map children |>
+                        R.map children.getOption |>
+                        R.andThen (R.lift "get") |>
                         R.andThen (getAt foot >> R.lift "get")
 
 set : Path -> Tree -> Tree -> R.Result Tree
@@ -150,6 +175,7 @@ do path f tree =
     in
         orig |> R.map f |> R.andThen (\x -> set path x tree)
 
+-- TODO: rewrite with children lens
 setChild : Int -> Tree -> Tree -> R.Result Tree
 setChild i new parent =
     case parent.contents of
@@ -163,11 +189,7 @@ setChild i new parent =
             else R.fail "setChild"
         _ -> R.fail "setChild"
 
--- updateDatum : (a -> a) -> Tree a -> Tree a
--- updateDatum f t =
---     case t of
---         Tree datum children -> Tree (f datum) children
-
+-- TODO: rewrite with children lens.  It it even needed?
 updateChildren : (List Tree -> List Tree) -> Tree -> Tree
 updateChildren f t =
     case t.contents of
@@ -186,10 +208,6 @@ extractAt path tree =
             in
                 do parent (updateChildren (Utils.remove idx)) tree |>
                 R.map2 (,) child
-                -- get path1 tree ?>
-                -- TX.updateChildren (Utils.remove idx) ?>?
-                -- (\x -> set path1 x tree) |>
-                -- Maybe.map2 (,) child
 
 insertAt : Path -> Tree -> Tree -> R.Result Tree
 insertAt path newChild =
@@ -215,6 +233,10 @@ setIndex idx tree =
         Trace t _ -> {tree | contents = Trace t <| (.get Index.number) idx }
         _ -> tree
 
+-- TODO: rewrite with let
+index : Optional Tree Index.Index
+index = Optional getIndex setIndex
+
 removeIndex : Tree -> Tree
 removeIndex tree =
     case tree.contents of
@@ -222,14 +244,11 @@ removeIndex tree =
         Nonterminal c _ -> { tree | contents = Nonterminal c Nothing }
         _ -> tree -- TODO: fail noisily
 
-index : Optional Tree Index.Index
-index = Optional getIndex setIndex
-
 highestIndex : Tree -> Int
 highestIndex t =
     let
         lens = Optional.composeLens index Index.number |> .getOption
-        f d i = Maybe.withDefault 0 (lens t) |> max i
+        f d i = Maybe.withDefault 0 (lens d) |> max i
     in
         fold f 0 t
 
@@ -248,7 +267,7 @@ allFirst path frag tree =
 isLastAt : Tree -> Path -> Bool
 isLastAt tree path =
     Debug.log "tree" (get (Path.parent path) tree) |>
-    R.map children |> Debug.log "kids" |>
+    R.map children.getOption |> R.andThen (R.lift "isLastAt") |>
     R.map List.length |> Debug.log "length" |>
     R.map ((==) (Debug.log "target" (Path.foot path + 1))) |> Debug.log "result" |>
     R.withDefault False |>
@@ -312,7 +331,7 @@ destPath src newParent tree =
                           ( if rightward
                             then succeed 0
                             else get newParent tree |>
-                                R.map children |>
+                                R.map children.getOption |> R.andThen (R.lift "destPath") |>
                                 R.map List.length
                           ) x
 
@@ -416,7 +435,6 @@ makeTrace x =
             else if hasDashTag "CL" label
             then (label, Clitic) -- TODO: drop the CL dashtag
             else (label, Extraposition)
-            -- TODO: how to create misc traces?
     in
         { contents = Trace traceType 0 -- TODO: properly get an index
         , label = newLabel
