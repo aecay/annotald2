@@ -1,0 +1,23 @@
+* Setting up
+
+#+begin_src sh
+npm install -g elm
+npm install -g elm-test
+#+end_src
+
+** Python
+
+#+begin_src sh
+cd python
+virtualenv venv
+cd venv
+. bin/activate
+pip install -r ../requirements.txt
+pip install -e /path/to/lovett
+#+end_src
+
+** Running tests
+
+#+begin_src sh
+elm-test
+#+end_src
