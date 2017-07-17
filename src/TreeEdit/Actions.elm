@@ -1,12 +1,12 @@
-module Actions exposing ( clearSelection
-                        , changeLabel
-                        , coIndex
-                        , Action
-                        , doMove
-                        , createParent
-                        , deleteNode
-                        , leafBefore
-                        , leafBeforeInner -- For ContextMenu
+module TreeEdit.Actions exposing ( clearSelection
+                                 , changeLabel
+                                 , coIndex
+                                 , Action
+                                 , doMove
+                                 , createParent
+                                 , deleteNode
+                                 , leafBefore
+                                 , leafBeforeInner -- For ContextMenu
                         )
 
 -- This module contains the types and functions for creating *actions*, or
@@ -16,7 +16,7 @@ module Actions exposing ( clearSelection
 
 import Maybe exposing (withDefault)
 import Dict exposing (Dict)
-import Res as R
+import TreeEdit.Res as R
 import Result
 
 import Monocle.Optional as Optional
@@ -27,12 +27,12 @@ import List.Extra exposing (zip)
 
 -- Annotald packages
 
-import Tree exposing (Tree)
-import Path exposing (Path)
-import Utils exposing ((=>>), with)
-import Model exposing (Model)
-import Selection
-import Index exposing (normal, Variety(..))
+import TreeEdit.Tree as Tree exposing (Tree)
+import TreeEdit.Path as Path exposing (Path)
+import TreeEdit.Utils as Utils exposing ((=>>), with)
+import TreeEdit.Model as Model exposing (Model)
+import TreeEdit.Selection as Selection
+import TreeEdit.Index as Index exposing (normal, Variety(..))
 
 type alias Result = R.Result Model
 
@@ -95,7 +95,7 @@ coIndex2 path1 path2 model =
         False -> R.failWarn "Can't coindex nodes in two different roots"
         True ->
             let
-                root = model.root
+                root = (.get Model.root model)
                 tree1 = Tree.get path1 root
                 tree2 = Tree.get path2 root
                 index1 = tree1 |> R.map (.getOption Tree.index) |> R.andThen (R.lift "index1")
@@ -159,19 +159,19 @@ incrementIndicesBy inc path tree =
 doMove : Path -> Path -> Model -> Result
 doMove src dest model =
     let
-        dest1 = Tree.destPath src dest model.root
+        dest1 = Tree.destPath src dest (.get Model.root model)
         newSel = dest1 |>
                  R.map (Tree.fixPathForMovt src >> Selection.one)
         srcRoot = Debug.log "srcRoot" <| Path.root src
         destRoot = Debug.log "destRoot" <| Path.root dest
         newRoot = if srcRoot == destRoot
-                  then R.succeed model.root
+                  then R.succeed (.get Model.root model)
                   else
                       let
-                          inc = Debug.log "tree" (Tree.get destRoot model.root) |> R.map Tree.highestIndex |> Debug.log "hi"
+                          inc = Debug.log "tree" (Tree.get destRoot (.get Model.root model)) |> R.map Tree.highestIndex |> Debug.log "hi"
                       in
                           inc |>
-                          R.andThen (\x -> incrementIndicesBy x srcRoot model.root)
+                          R.andThen (\x -> incrementIndicesBy x srcRoot (.get Model.root model))
 
     in
         -- TODO: make moveTo (or a new fn) do the calculation of the dest
@@ -208,7 +208,7 @@ createParent label model =
 doMovement : Model -> Path -> Path -> Result
 doMovement model src dest =
     let
-        trace = Tree.get src model.root |> R.map Tree.makeTrace
+        trace = Tree.get src (.get Model.root model) |> R.map Tree.makeTrace
     in
         R.andThen (\x -> leafBefore x model) trace |>
         R.andThen (coIndex2 src dest)
@@ -225,7 +225,7 @@ leafBeforeInner newLeaf path tree =
 leafBefore : Tree -> Model -> Result
 leafBefore newLeaf model =
     R.succeed model |>
-    Selection.withOne model.selected (\x -> (leafBeforeInner newLeaf x model.root) |>
+    Selection.withOne model.selected (\x -> (leafBeforeInner newLeaf x (.get Model.root model)) |>
                                           R.map (\x -> (.set Model.root) x model)) |>
     -- TODO: test
     Selection.withTwo model.selected (doMovement model)
@@ -237,7 +237,7 @@ deleteNode model =
         delete : Path -> R.Result Tree
         delete path =
             let
-                node = Tree.get path model.root
+                node = Tree.get path (.get Model.root model)
                 isTerminal = node |> R.map Tree.isTerminal
                 -- We make these functions of one ignored argument
                 -- (i.e. thunks) to avoid computing them both
@@ -246,17 +246,17 @@ deleteNode model =
                         isNonEmpty = node |> R.map (Tree.isEmpty >> not)
                         isOnlyChild = path |>
                                       Path.parent |>
-                                      flip Tree.get model.root |>
+                                      flip Tree.get (.get Model.root model) |>
                                       R.map (.getOption Tree.children) |>
                                       R.map (\x -> Maybe.withDefault False <| Maybe.map (List.length >> (==) 1) x)
                     in
                         R.ifThen isOnlyChild (R.fail "Cannot delete an only child") <|
                             R.ifThen isNonEmpty (R.fail "Cannot delete a non-empty terminal") <|
-                            (Tree.extractAt path model.root |> R.map Tuple.second)
+                            (Tree.extractAt path (.get Model.root model) |> R.map Tuple.second)
                 deleteNonTerminal _ =
                     let
                         kids = node |> R.map (.getOption Tree.children) |> R.map Utils.fromJust
-                        newRoot = Tree.extractAt path model.root |> R.map Tuple.second
+                        newRoot = Tree.extractAt path (.get Model.root model) |> R.map Tuple.second
                     in
                         R.foldr (Tree.insertAt path) newRoot kids
             in

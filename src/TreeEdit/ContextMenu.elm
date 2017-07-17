@@ -1,24 +1,24 @@
-module ContextMenu exposing ( show
-                            , update
-                            , view
-                            , hide
-                            )
+module TreeEdit.ContextMenu exposing ( show
+                                     , update
+                                     , view
+                                     , hide
+                                     )
 
-import ViewUtils exposing (onClick)
+import TreeEdit.ViewUtils as ViewUtils exposing (onClick)
 
 import Html as H exposing (Html)
 import Html.Attributes as Attr
 import Mouse
 
-import Path exposing (Path)
-import Tree exposing (constants, Tree)
-import Actions
+import TreeEdit.Path as Path exposing (Path)
+import TreeEdit.Tree as Tree exposing (constants, Tree)
+import TreeEdit.Actions as Actions
 
-import Res exposing (modify)
+import TreeEdit.Res exposing (modify)
 
 import Monocle.Lens exposing (Lens)
 
-import ContextMenuTypes exposing (..)
+import TreeEdit.ContextMenuTypes exposing (..)
 
 show : Position -> Path -> Lens a Model -> (a -> a)
 show position path lens =

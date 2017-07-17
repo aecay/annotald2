@@ -1,12 +1,12 @@
-module Bindings exposing (bindings)
+module TreeEdit.Bindings exposing (bindings)
 
 import Keyboard
 
-import Actions
+import TreeEdit.Actions as Actions
 
 import Dict exposing (Dict)
 
-import Tree exposing (constants)
+import TreeEdit.Tree exposing (constants)
 
 bindings : Dict Keyboard.KeyCode Actions.Action
 bindings = Dict.fromList [ ( 32, Actions.clearSelection )

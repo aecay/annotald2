@@ -1,10 +1,11 @@
-module Index exposing (Index
-                      , Variety(..)
-                      , normal
-                      , gap
-                      , string
-                      , number
-                      , variety)
+module TreeEdit.Index exposing ( Index
+                               , Variety(..)
+                               , normal
+                               , gap
+                               , string
+                               , number
+                               , variety
+                               )
 
 import Monocle.Lens as Lens exposing (Lens)
 

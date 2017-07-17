@@ -1,41 +1,44 @@
-module Tree exposing (l, t, trace, Tree, either,
-                          -- TODO: exporting all this internal stuff is not
-                          -- the best...
-                          get, set,
-                          highestIndex
-                     --, sameRoot
-                     , moveTo
-                     , internals
-                     , destPath
-                     , insertAt
-                     , fixPathForMovt -- TODO: marginal on exporting this
-                     , do
-                     , terminalString
-                     , isTerminal
-                     , isEmpty
-                     , extractAt
-                     , index
-                     , makeTrace
-                     , removeIndex
-                     , updateChildren
-                     , children
-                     , constants
-                     , asLabeledBrackets
-                     , map
-                     )
+module TreeEdit.Tree exposing (l, t, trace, Tree, either,
+                                   -- TODO: exporting all this internal stuff is not
+                                   -- the best...
+                                   get, set,
+                                   highestIndex
+                              --, sameRoot
+                              , moveTo
+                              , internals
+                              , destPath
+                              , insertAt
+                              , fixPathForMovt -- TODO: marginal on exporting this
+                              , do
+                              , terminalString
+                              , isTerminal
+                              , isEmpty
+                              , extractAt
+                              , index
+                              , makeTrace
+                              , removeIndex
+                              , updateChildren
+                              , children
+                              , constants
+                              , asLabeledBrackets
+                              , map
+                              , receiveTrees
+                              )
 
 import List
 import List.Extra exposing (getAt)
 import Maybe
+import Json.Decode as D exposing (list, string, Decoder, dict, field, lazy)
+import Dict exposing (Dict)
 
-import Utils
+import TreeEdit.Utils as Utils
 
-import Index
-import Path exposing (Path(..), PathFragment)
+import TreeEdit.Index as Index
+import TreeEdit.Path as Path exposing (Path(..), PathFragment)
 
 import Monocle.Optional as Optional exposing (Optional)
 
-import Res as R exposing (succeed, fail, Result)
+import TreeEdit.Res as R exposing (succeed, fail, Result)
 
 -- Functions we expose for testing only
 internals :
@@ -458,3 +461,86 @@ asLabeledBrax1 tree indent =
                            "-" ++ toString index ++
                            ")"
         Comment s -> "(CODE " ++ s ++ ")"
+
+type LeafDecoded = LeafDecoded String String (Dict String String)
+
+decodeLeaf : Decoder Tree
+decodeLeaf =
+    D.map3 LeafDecoded
+        (field "label" string)
+        (field "text" string)
+        (field "metadata" (dict string)) |>
+        D.map mungeLeaf
+
+extractIndex : Dict String String -> (Dict String String, Maybe Index.Index)
+extractIndex metadata =
+    let
+        index = Dict.get "index" metadata
+        idxtype = Dict.get "idx-type" metadata
+        getInt i = i |>
+                   Maybe.withDefault (Debug.crash "should never happen") |>
+                   String.toInt |>
+                   Result.withDefault (Debug.crash "bad index")
+        i = case (index, idxtype) of
+                (Just n, Just "gap") -> Just <| Index.gap <| getInt index
+                (Just n, Just "regular") -> Just <| Index.normal <| getInt index -- TODO: name mismatch
+                (Nothing, Nothing) -> Nothing
+                _ -> Debug.crash "bad index"
+    in
+        ( metadata |> Dict.remove "index" |> Dict.remove "idx-type"
+        , i
+        )
+
+mungeLeaf : LeafDecoded -> Tree
+mungeLeaf l =
+    case l of LeafDecoded label text metadata -> -- TODO: destructuring is
+                                                 -- ugly, use a type alias/
+                                                 -- object instead
+        case label of
+            "CODE" -> { label = "CODE", contents = Comment text }
+            _ ->
+                let
+                    (_, i) = extractIndex metadata
+                    trace typ = i |>
+                                Maybe.withDefault (Debug.crash "trace missing index") |>
+                                .get Index.number |>
+                                Trace typ
+                in
+                    case text of
+                        "*pro*" -> { label = label, contents = EmptyCat Pro i }
+                        "*con*" -> { label = label, contents = EmptyCat Con i }
+                        "*exp*" -> { label = label, contents = EmptyCat Exp i }
+                        "*" ->     { label = label, contents = EmptyCat Star i }
+                        -- TODO: causes problems if we have legitimately the
+                        -- text "0" in a document
+                        "0" ->     { label = label, contents = EmptyCat Zero i }
+                        "*T*" ->   { label = label , contents = trace Wh }
+                        "*ICH*" -> { label = label, contents = trace Extraposition }
+                        "*CL*" ->  { label = label, contents = trace Clitic }
+                        _ -> { label = label, contents = Terminal text i }
+
+type NTDecoded = NTDecoded String (List Tree) (Dict String String)
+
+decodeNonterminal : Decoder Tree
+decodeNonterminal = D.map3 NTDecoded
+                    (field "label" string )
+                    (field "children" (list <| lazy <| \_ -> decode))
+                    (field "metadata" (dict string)) |>
+                    D.map mungeNT
+
+mungeNT : NTDecoded -> Tree
+mungeNT n =
+    case n of NTDecoded label children metadata ->
+        let
+            (_, i) = extractIndex metadata
+        in
+            { label = label, contents = Nonterminal children i }
+
+decode : Decoder Tree
+decode =
+    D.oneOf [ decodeNonterminal
+            , decodeLeaf
+            ]
+
+receiveTrees : Decoder (List Tree)
+receiveTrees = (list decode)

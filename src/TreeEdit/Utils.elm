@@ -1,12 +1,12 @@
-module Utils exposing ( enumerate
-                      , fromJust
-                      , remove
-                      , splice
-                      , insert
-                      , sort2
-                      , (=>>)
-                      , with
-                      )
+module TreeEdit.Utils exposing ( enumerate
+                               , fromJust
+                               , remove
+                               , splice
+                               , insert
+                               , sort2
+                               , (=>>)
+                               , with
+                               )
 
 import List
 import List.Extra

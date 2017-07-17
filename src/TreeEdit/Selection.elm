@@ -1,17 +1,17 @@
-module Selection exposing ( Selection
-                          , first
-                          , second
-                          , one
-                          , two
-                          , empty
-                          , updateWith
-                          , get
-                          , perform
-                          , withOne
-                          , withTwo
-                          )
+module TreeEdit.Selection exposing ( Selection
+                                   , first
+                                   , second
+                                   , one
+                                   , two
+                                   , empty
+                                   , updateWith
+                                   , get
+                                   , perform
+                                   , withOne
+                                   , withTwo
+                                   )
 
-import Path exposing (Path)
+import TreeEdit.Path exposing (Path)
 
 -- import Utils exposing ((?>))
 

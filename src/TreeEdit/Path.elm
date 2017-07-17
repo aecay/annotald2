@@ -1,25 +1,25 @@
-module Path exposing ( Path(..)
-                     , PathFragment
-                     , singleton
-                     , childPath
-                     , root
-                     , parent
-                     , splitCommon
-                     , lessThan
-                     , moveRight
-                     , moveFragLeft
-                     , isFragSingleton
-                     , join
-                     , isFragEmpty
-                     , areFragsAdjacent
-                     , shiftOne
-                     , foot
-                     , allCombos
-                     )
+module TreeEdit.Path exposing ( Path(..)
+                              , PathFragment
+                              , singleton
+                              , childPath
+                              , root
+                              , parent
+                              , splitCommon
+                              , lessThan
+                              , moveRight
+                              , moveFragLeft
+                              , isFragSingleton
+                              , join
+                              , isFragEmpty
+                              , areFragsAdjacent
+                              , shiftOne
+                              , foot
+                              , allCombos
+                              )
 
 import List.Extra
 
-import Utils exposing (fromJust)
+import TreeEdit.Utils as Utils exposing (fromJust)
 
 type Path = Path Int (List Int) | RootPath
 

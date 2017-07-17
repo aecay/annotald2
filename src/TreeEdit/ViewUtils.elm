@@ -1,4 +1,4 @@
-module ViewUtils exposing (onClick, blockAll)
+module TreeEdit.ViewUtils exposing (onClick, blockAll)
 
 import Html as H
 import Html.Events as Ev

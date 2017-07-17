@@ -1,6 +1,6 @@
-module ZipperExts exposing (unzip, childZippers, updateDatum, zipper, goToRoot_)
+module TreeEdit.ZipperExts exposing (unzip, childZippers, updateDatum, zipper, goToRoot_)
 
-import Utils exposing (fromJust)
+import TreeEdit.Utils exposing (fromJust)
 
 import Maybe
 import List

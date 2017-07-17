@@ -1,24 +1,25 @@
-module Update exposing (update, subscriptions)
+module TreeEdit.Update exposing (update, subscriptions)
 
-import Model exposing (Model, root, selected, contextMenu)
-import Selection
-import ContextMenu
-import Msg exposing (Msg(..))
+import TreeEdit.Model as Model exposing (Model, root, selected, contextMenu)
+import TreeEdit.Selection as Selection
+import TreeEdit.ContextMenu as ContextMenu
+import TreeEdit.Msg as Msg exposing (Msg(..))
 
 -- import Utils exposing (do, maybeDo)
 
-import Bindings exposing (bindings)
+import TreeEdit.Bindings exposing (bindings)
 
 import Return exposing (Return, singleton)
 import Monocle.Lens as Lens
+import RemoteData exposing (RemoteData(..))
 
 import Dict
 
 import Result as R
 
-import Res
+import TreeEdit.Res as Res
 
-import Actions
+import TreeEdit.Actions as Actions
 
 import Keyboard
 
@@ -53,6 +54,13 @@ update msg model =
                     (\_ _ -> Debug.crash "can't right click wtih two selected")
         Context contextMsg ->
             Return.map <| ContextMenu.update contextMsg Model.root Model.contextMenu
+        GotTrees (Success trees) ->
+            let
+                _ = Debug.log (toString trees)
+            in
+                Return.map (\x -> Model.withTrees trees x.fileName)
+        GotTrees x ->
+            Debug.log ("fetch error: " ++ (toString x))
 
 subscriptions : Model -> Sub Msg
 subscriptions m = Sub.batch

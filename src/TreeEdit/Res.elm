@@ -1,20 +1,20 @@
-module Res exposing ( fail
-                    , succeed
-                    , failWarn
-                    , andThen
-                    , map
-                    , map2
-                    , Result
-                    , withDefault
-                    , lift
-                    , liftWarn
-                    , modify
-                    , Failure (..)
-                    , foldr
-                    , ifThen
-                    , andMap
-                    , map3
-                    )
+module TreeEdit.Res exposing ( fail
+                             , succeed
+                             , failWarn
+                             , andThen
+                             , map
+                             , map2
+                             , Result
+                             , withDefault
+                             , lift
+                             , liftWarn
+                             , modify
+                             , Failure (..)
+                             , foldr
+                             , ifThen
+                             , andMap
+                             , map3
+                             )
 
 -- A thin wrapper over the core Result type, specialized for string errors
 

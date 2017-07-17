@@ -1,4 +1,4 @@
-module View exposing (view)
+module TreeEdit.View exposing (view)
 
 import Html exposing (..)
 import Html.Attributes as Attr
@@ -6,18 +6,18 @@ import Html.Attributes as Attr
 import Json.Decode as Json
 import Html.Events as Ev
 
-import Model exposing (Model)
-import Tree exposing (Tree)
-import Path exposing (Path)
-import Selection exposing (Selection)
-import Msg exposing (Msg(..))
-import Index
+import TreeEdit.Model as Model exposing (Model)
+import TreeEdit.Tree as Tree exposing (Tree)
+import TreeEdit.Path as Path exposing (Path)
+import TreeEdit.Selection as Selection exposing (Selection)
+import TreeEdit.Msg as Msg exposing (Msg(..))
+import TreeEdit.Index as Index
 
-import Utils exposing (fromJust)
-import ViewUtils exposing (onClick, blockAll)
+import TreeEdit.Utils as Utils exposing (fromJust)
+import TreeEdit.ViewUtils exposing (onClick, blockAll)
 
-import ContextMenuTypes
-import ContextMenu
+import TreeEdit.ContextMenuTypes as ContextMenuTypes
+import TreeEdit.ContextMenu as ContextMenu
 
 -- TODO: use html.keyed for speed
 
@@ -102,7 +102,7 @@ viewRoot model =
     let
         selectedTrees = model.selected
     in
-        model.root |>
+        (.get Model.root model) |>
         (.getOption Tree.children) |> Utils.fromJust |>
         Utils.enumerate |>
         List.map (\(i, c) -> viewTree selectedTrees (Path.singleton i) c)
