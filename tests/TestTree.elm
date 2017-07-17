@@ -3,7 +3,7 @@ module TestTree exposing (..)
 import Test exposing (..)
 import Expect
 
-import Tree as T
+import TreeEdit.Tree as T
 
 t = T.t
 
