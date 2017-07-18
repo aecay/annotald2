@@ -161,13 +161,13 @@ doMove src dest model =
         dest1 = Tree.destPath src dest (.get Model.root model)
         newSel = dest1 |>
                  R.map (Tree.fixPathForMovt src >> Selection.one)
-        srcRoot = Debug.log "srcRoot" <| Path.root src
-        destRoot = Debug.log "destRoot" <| Path.root dest
+        srcRoot = Path.root src
+        destRoot = Path.root dest
         newRoot = if srcRoot == destRoot
                   then R.succeed (.get Model.root model)
                   else
                       let
-                          inc = Debug.log "tree" (Tree.get destRoot (.get Model.root model)) |> R.map Tree.highestIndex |> Debug.log "hi"
+                          inc = (Tree.get destRoot (.get Model.root model)) |> R.map Tree.highestIndex
                       in
                           inc |>
                           R.andThen (\x -> incrementIndicesBy x srcRoot (.get Model.root model))

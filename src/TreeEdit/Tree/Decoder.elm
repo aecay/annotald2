@@ -33,7 +33,6 @@ extractIndex metadata =
         idxtype = Dict.get "IDX-TYPE" metadata
         getInt i = i |>
                    Maybe.withDefault "0" |>
-                   Debug.log "the index" |>
                    String.toInt |>
                    Result.withDefault 0
         i = case (index, idxtype) of
