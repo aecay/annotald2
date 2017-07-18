@@ -175,8 +175,7 @@ doMove src dest model =
     in
         -- TODO: make moveTo (or a new fn) do the calculation of the dest
         -- path, so we don't have to worry about it here.
-        R.map2 (\x y -> (x, y)) newRoot dest1 |>
-        R.andThen (\(nr, d) -> Tree.moveTo src d nr) |>
+        R.andThen3 Tree.moveTo (Ok src) dest1 newRoot |>
         R.map ((flip (.set Model.root)) model) |>
         R.map2 (\s m -> { m | selected = s }) newSel
 

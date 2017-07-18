@@ -9,16 +9,17 @@ module TreeEdit.Res exposing ( fail
                              , lift
                              , liftWarn
                              , modify
-                             , Failure (..)
+                             , Failure(..)
                              , foldr
                              , ifThen
                              , andMap
                              , map3
+                             , andThen3
                              )
 
 -- A thin wrapper over the core Result type, specialized for string errors
 
-import Result as R
+import Result as R exposing (Result(..))
 import Result.Extra
 
 import Monocle.Lens exposing (Lens)
@@ -61,6 +62,17 @@ map3 = R.map3
 
 andMap : Result a -> Result (a -> b) -> Result b
 andMap = Result.Extra.andMap
+
+andThen3 : (a -> b -> c -> Result d) -> Result a -> Result b -> Result c -> Result d
+andThen3 fn a b c =
+    case a of
+        Ok a_ ->
+            case b of
+                Ok b_ -> case c of
+                             Ok c_ -> fn a_ b_ c_
+                             Err e -> Err e
+                Err e -> Err e
+        Err e -> Err e
 
 foldr : (a -> b -> Result b) -> Result b -> Result (List a) -> Result b
 foldr fn init list =
