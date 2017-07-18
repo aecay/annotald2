@@ -39,7 +39,7 @@ root =
                     Success tree -> tree
                     _ -> Debug.crash "Tried to get the root when no data was loaded"
         set tree m = case m.root of
-                         Success tree -> { m | root = Success tree }
+                         Success _ -> { m | root = Success tree }
                          _ -> Debug.crash "Tried to set the root when no data was loaded"
     in
         Lens get set
