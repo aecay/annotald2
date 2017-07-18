@@ -20,6 +20,7 @@ import Result as R
 import TreeEdit.Res as Res
 
 import TreeEdit.Actions as Actions
+import TreeEdit.Path as Path
 
 import Keyboard
 
@@ -51,14 +52,17 @@ update msg model =
                 Selection.perform model.selected
                     (ContextMenu.show position path Model.contextMenu)
                     (\sel model -> Actions.doMove sel path model |> handleResult model)
-                    (\_ _ -> Debug.crash "can't right click wtih two selected")
+                    (\_ _ model -> model) -- TODO: support moving multiple nodes
+        RightClickRoot ->
+            Return.map <|
+                Selection.perform model.selected
+                    (\model -> model)
+                    (\sel model -> Actions.doMove sel Path.RootPath model |> handleResult model)
+                    (\_ _ model -> model) -- TODO: support moving multiple nodes
         Context contextMsg ->
             Return.map <| ContextMenu.update contextMsg Model.root Model.contextMenu
         GotTrees (Success trees) ->
-            let
-                _ = Debug.log (toString trees)
-            in
-                Return.map (\x -> Model.withTrees trees x.fileName)
+            Return.map (\x -> Model.withTrees trees x.fileName)
         GotTrees x ->
             Debug.log ("fetch error: " ++ (toString x))
 

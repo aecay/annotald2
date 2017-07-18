@@ -15,6 +15,7 @@ module TreeEdit.Path exposing ( Path(..)
                               , shiftOne
                               , foot
                               , allCombos
+                              , toFragment
                               , internals
                               )
 
@@ -43,7 +44,7 @@ singleton idx =
 root : Path -> Path
 root path =
     case path of
-        RootPath -> Debug.crash "Can't get the root of the root!"
+        RootPath -> RootPath
         Path foot leg ->
             case leg of
                 [] -> singleton foot
@@ -67,6 +68,9 @@ fromList l =
     case l of
         [] -> RootPath
         l :: ls -> Path l ls
+
+toFragment : Path -> PathFragment
+toFragment = PF << toList
 
 foot : Path -> Int
 foot p =

@@ -129,18 +129,23 @@ viewRoot model =
                       in
                           lazy3 viewRootTree sel i c)
 
--- TODO: ame name
+-- TODO: lame name
 viewRoot1 : Model -> Html Msg
 viewRoot1 m =
-    viewRoot m |>
-    div [ Attr.class "sn0"
-        , Attr.style [ ("background-color", "#D2B48C")
-                     , ("border", "1px solid black")
-                     , ("margin-left", "10%")
-                     , ("margin-right", "5%")
-                     , ("display", "inline-block")
-                     ]
-        ]
+    let
+        rightClick = Ev.onWithOptions "contextmenu" blockAll <|
+                     Json.map (\_ -> RightClickRoot) decodeMouse
+    in
+        viewRoot m |>
+        div [ Attr.class "sn0"
+            , Attr.style [ ("background-color", "#D2B48C")
+                         , ("border", "1px solid black")
+                         , ("margin-left", "10%")
+                         , ("margin-right", "5%")
+                         , ("display", "inline-block")
+                         ]
+            , rightClick
+            ]
 
 view : Model -> Html Msg
 view model =

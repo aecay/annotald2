@@ -328,6 +328,12 @@ destPath src newParent tree =
                                 R.map List.length
                           ) x
 
+isRightwardMovt : Path -> Path -> Tree -> Bool
+isRightwardMovt src dest tree =
+    case dest of
+        RootPath -> allFirst RootPath (Path.toFragment src) tree
+        _ -> Path.lessThan src dest
+
 -- It is allowed to move SRC to DEST without affecting the word order in the
 -- tree if the following conditions are met: remove the common elements on the
 -- path from the root to SRC and the path from root to DEST.  Then, the first
@@ -340,19 +346,22 @@ canMove : Path -> Path -> Tree -> Bool
 canMove src dest tree =
     let
         (common, src1, dest1) = Path.splitCommon src dest
-        rightward = Path.lessThan src dest
+        rightward = isRightwardMovt src dest tree
         testFnSrc = if rightward then allLast else allFirst
         testFnDest = if rightward then allFirst else allLastForDest
     in
-        case (Path.isFragEmpty src1, Path.isFragEmpty dest1) of
-            (False, False) ->
+        case (dest == RootPath, Path.isFragEmpty src1, Path.isFragEmpty dest1) of
+            (True, _, _) -> if rightward
+                            then allLast RootPath (Path.toFragment src) tree
+                            else allFirst RootPath (Path.toFragment src) tree
+            (_, False, False) ->
                 (if rightward
                  then Path.areFragsAdjacent src1 dest1
                  else Path.areFragsAdjacent dest1 src1) &&
                 (uncurry testFnSrc (Path.shiftOne common src1) tree) &&
                 (uncurry testFnDest (Path.shiftOne common dest1) tree) &&
                 (not (isOnlyChildAt tree src))
-            (False, True) ->
+            (_, False, True) ->
                 -- Movement to parent leftward
                 if rightward
                 then False

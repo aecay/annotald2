@@ -14,5 +14,6 @@ import TreeEdit.Tree exposing (Tree)
 type Msg = ToggleSelect Path |
     KeyMsg Keyboard.KeyCode |
     RightClick Path ContextMenuTypes.Position |
+    RightClickRoot |
     Context (ContextMenuTypes.Msg Model.Model) |
     GotTrees (WebData (List Tree))
