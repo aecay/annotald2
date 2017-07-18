@@ -248,4 +248,13 @@ suite = describe "Tree"
             [ test "basic case" <|
                   \() -> Expect.equal (p [1, 0, 0]) <| fixPathForMovt (p [0,0]) (p [1, 1, 0])
             ]
+        , describe "destPath"
+            [ test "moving to parent" <|
+                  \() -> Expect.equal (Ok (p [1])) <|
+                  T.destPath (p [0, 1]) TreeEdit.Path.RootPath <|
+                  t "WTF" [ t "foo" [l "bar", l "baz"]
+                          , t "foo2" [l "bar2", l "baz2"]
+                          ]
+
+            ]
         ]
