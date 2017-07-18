@@ -89,8 +89,7 @@ viewTree selected selfPath tree =
             snode selfPath d isSelected [wnode d]
         viewNt d =
             (.getOption Tree.children) tree |> Utils.fromJust |>
-            Utils.enumerate |>
-            List.map (\(i, c) -> viewTree selected (Path.childPath i selfPath) c) |>
+            List.indexedMap (\i c -> viewTree selected (Path.childPath i selfPath) c) |>
             snode selfPath d isSelected
     in
         Tree.either viewNt viewT tree
@@ -116,18 +115,19 @@ viewRoot model =
         selectedTrees = if selectedTrees1 == [] then Nothing else Just selectedTrees1
     in
         (.get Model.root model) |>
+        -- Possibly can make this a Lens, if the children of a terminal are
+        -- defined as []
         (.getOption Tree.children) |>
         Utils.fromJust |>
-        Utils.enumerate |>
-        List.map (\(i, c) ->
-                      let
-                          sel = if Just True == Maybe.map
-                                (\x -> List.member (Path.singleton i) (List.map Path.root x))
-                                selectedTrees
-                                then selectedTrees
-                                else Nothing
-                      in
-                          lazy3 viewRootTree sel i c)
+        List.indexedMap (\i c ->
+                             let
+                                 sel = if Just True == Maybe.map
+                                       (\x -> List.member (Path.singleton i) (List.map Path.root x))
+                                       selectedTrees
+                                       then selectedTrees
+                                       else Nothing
+                             in
+                                 lazy3 viewRootTree sel i c)
 
 -- TODO: lame name
 viewRoot1 : Model -> Html Msg

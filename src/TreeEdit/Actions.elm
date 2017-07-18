@@ -28,7 +28,7 @@ import List.Extra exposing (zip)
 
 import TreeEdit.Tree as Tree exposing (Tree)
 import TreeEdit.Path as Path exposing (Path)
-import TreeEdit.Utils as Utils exposing ((=>>), with)
+import TreeEdit.Utils as Utils
 import TreeEdit.Model as Model exposing (Model)
 import TreeEdit.Selection as Selection
 import TreeEdit.Index as Index exposing (normal, Variety(..))
@@ -133,10 +133,7 @@ coIndex2 path1 path2 model =
 
 setIndexAt: Path -> Int -> Action
 setIndexAt path index =
-    Tree.index =>> Index.number |>
-    .set |>
-    with index |>
-    doAt path
+    doAt path ((Optional.composeLens Tree.index Index.number |> .set) index)
 
 setIndexVarietyAt : Path -> Index.Variety -> Action
 setIndexVarietyAt path newVariety =
@@ -144,14 +141,11 @@ setIndexVarietyAt path newVariety =
 
 removeIndexAt : Path -> Action
 removeIndexAt path =
-    let
-        f x = { x | index = Nothing }
-    in
-        doAt path Tree.removeIndex
+    doAt path Tree.removeIndex
 
 incrementIndicesBy : Int -> Path -> Tree -> R.Result Tree
 incrementIndicesBy inc path tree =
-    Optional.modify (Tree.index =>> Index.number) ((+) inc) |>
+    Optional.modify (Optional.composeLens Tree.index Index.number) ((+) inc) |>
     Tree.map |>
     (\x -> Tree.do path x tree)
 

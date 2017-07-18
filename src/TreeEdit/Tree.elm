@@ -26,7 +26,7 @@ module TreeEdit.Tree exposing (l, t, trace, Tree, either,
                               )
 
 import List
-import List.Extra exposing (getAt)
+import List.Extra exposing (getAt, removeAt)
 import Maybe
 import Json.Decode exposing (Decoder)
 
@@ -200,7 +200,7 @@ extractAt path tree =
                 idx = Path.foot path
                 child = get path tree
             in
-                do parent (updateChildren (Utils.remove idx)) tree |>
+                do parent (updateChildren (removeAt idx)) tree |>
                 R.map2 (,) child
 
 insertAt : Path -> Tree -> Tree -> R.Result Tree
