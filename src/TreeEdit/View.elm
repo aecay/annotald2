@@ -2,7 +2,7 @@ module TreeEdit.View exposing (view)
 
 import Html exposing (..)
 import Html.Attributes as Attr
--- import Html.Lazy as L
+import Html.Lazy exposing (lazy3)
 import Json.Decode as Json
 import Html.Events as Ev
 
@@ -81,15 +81,13 @@ wnode t = span
              ]
              [text <| Tree.terminalString <| t]
 
-viewTree : Selection -> Path -> Tree -> Html Msg
+viewTree : List Path -> Path -> Tree -> Html Msg
 viewTree selected selfPath tree =
     let
-        isSelected = List.member selfPath (Selection.get selected)
+        isSelected = List.member selfPath selected
         viewT d =
             snode selfPath d isSelected [wnode d]
         viewNt d =
-            -- TODO: I suspect this of being a performance hotspot.  We can
-            -- use Html.lazy here, but not above
             (.getOption Tree.children) tree |> Utils.fromJust |>
             Utils.enumerate |>
             List.map (\(i, c) -> viewTree selected (Path.childPath i selfPath) c) |>
@@ -97,15 +95,39 @@ viewTree selected selfPath tree =
     in
         Tree.either viewNt viewT tree
 
+viewRootTree : Maybe (List Path) -> Int -> Tree -> Html Msg
+viewRootTree selected selfIndex tree = viewTree (Maybe.withDefault [] selected) (Path.singleton selfIndex) tree
+
+-- Why do we go through all these contortions?  Html.lazy compares based on
+-- equality of reference, not equality per se (source:
+-- <https://groups.google.com/forum/#!topic/elm-discuss/AFnzfJtzfRA>).  Only
+-- primitive types and a few others (e.g. Nothing, I think) are necesarily
+-- referentially equal if they are also equal values.  The first problematic
+-- case is the Path that we construct from the enumeration index, so we have a
+-- special top-layer view function that takes an Int and constructs the path.
+-- The second problem is the list of selected paths: we condense this to
+-- Nothing if 1) nothing is selected or 2) the selection is not inside the
+-- current tree.  There might be further performance optimizations we could
+-- make here, but for now it's Good Enough™
 viewRoot : Model -> List (Html Msg)
 viewRoot model =
     let
-        selectedTrees = model.selected
+        selectedTrees1 = Selection.get model.selected
+        selectedTrees = if selectedTrees1 == [] then Nothing else Just selectedTrees1
     in
         (.get Model.root model) |>
-        (.getOption Tree.children) |> Utils.fromJust |>
+        (.getOption Tree.children) |>
+        Utils.fromJust |>
         Utils.enumerate |>
-        List.map (\(i, c) -> viewTree selectedTrees (Path.singleton i) c)
+        List.map (\(i, c) ->
+                      let
+                          sel = if Just True == Maybe.map
+                                (\x -> List.member (Path.singleton i) (List.map Path.root x))
+                                selectedTrees
+                                then selectedTrees
+                                else Nothing
+                      in
+                          lazy3 viewRootTree sel i c)
 
 -- TODO: ame name
 viewRoot1 : Model -> Html Msg
