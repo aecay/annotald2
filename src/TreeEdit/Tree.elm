@@ -28,8 +28,10 @@ module TreeEdit.Tree exposing (l, t, trace, Tree, either,
 import List
 import List.Extra exposing (getAt)
 import Maybe
-import Json.Decode as D exposing (list, string, Decoder, dict, field, lazy)
-import Dict exposing (Dict)
+import Json.Decode exposing (Decoder)
+
+import TreeEdit.Tree.Type as Type exposing (..)
+import TreeEdit.Tree.Decoder
 
 import TreeEdit.Utils as Utils
 
@@ -39,6 +41,11 @@ import TreeEdit.Path as Path exposing (Path(..), PathFragment)
 import Monocle.Optional as Optional exposing (Optional)
 
 import TreeEdit.Res as R exposing (succeed, fail, Result)
+
+type alias Tree = Type.Tree
+
+receiveTrees : Decoder (List Tree)
+receiveTrees = TreeEdit.Tree.Decoder.receiveTrees
 
 -- Functions we expose for testing only
 internals :
@@ -54,22 +61,6 @@ internals = { allLast = allLast
             , extractAt = extractAt
             , fixPathForMovt = fixPathForMovt
             }
-
-type TraceType = Wh | Extraposition | Clitic
-
-type ECType = Pro | Con | Exp | Star | Zero
-
-type Node = Terminal String (Maybe Index.Index) |
-    Trace TraceType Int |
-    Comment String |
-    EmptyCat ECType (Maybe Index.Index) |
-    Nonterminal (List Tree) (Maybe Index.Index)
-
-type alias Label = String
-
-type alias Tree = { contents: Node
-                  , label: Label
-                  }
 
 -- Convenience functions for generating trees for testing
 l : String -> String -> Tree
@@ -269,12 +260,11 @@ allFirst path frag tree =
 
 isLastAt : Tree -> Path -> Bool
 isLastAt tree path =
-    Debug.log "tree" (get (Path.parent path) tree) |>
+    get (Path.parent path) tree |>
     R.map children.getOption |> R.andThen (R.lift "isLastAt") |>
-    R.map List.length |> Debug.log "length" |>
-    R.map ((==) (Debug.log "target" (Path.foot path + 1))) |> Debug.log "result" |>
-    R.withDefault False |>
-    Debug.log ("isLastAt " ++ toString path)
+    R.map List.length |>
+    R.map ((==) (Path.foot path + 1)) |>
+    R.withDefault False
 
 allLast : Path -> PathFragment -> Tree -> Bool
 allLast path frag tree =
@@ -311,8 +301,8 @@ destPath src newParent tree =
             -- Movement to own child disallowed
             (True, False) -> R.fail "destPath"
             -- Movement to own parent
-            (False, True) -> case Debug.log "first/last" (isFirstAt tree src,
-                                                          isLastAt tree src)
+            (False, True) -> case (isFirstAt tree src,
+                                   isLastAt tree src)
                              of
                                  -- Land to parent's left
                                  (True, False) -> Path.shiftOne newParent src1 |>
@@ -349,26 +339,25 @@ destPath src newParent tree =
 canMove : Path -> Path -> Tree -> Bool
 canMove src dest tree =
     let
-        (common, src1, dest1) = Debug.log "csd" <| Path.splitCommon src dest
-        rightward = Debug.log "rightward" <| Path.lessThan src dest
+        (common, src1, dest1) = Path.splitCommon src dest
+        rightward = Path.lessThan src dest
         testFnSrc = if rightward then allLast else allFirst
         testFnDest = if rightward then allFirst else allLastForDest
     in
-        Debug.log (toString (common, src1, dest1)) <|
         case (Path.isFragEmpty src1, Path.isFragEmpty dest1) of
             (False, False) ->
-                Debug.log "a" (if rightward
+                (if rightward
                  then Path.areFragsAdjacent src1 dest1
                  else Path.areFragsAdjacent dest1 src1) &&
-                Debug.log "b" (uncurry testFnSrc (Debug.log "s1s" <| Path.shiftOne common src1) tree) &&
-                Debug.log "c" (uncurry testFnDest (Path.shiftOne common dest1) tree) &&
-                Debug.log "d" (not (isOnlyChildAt tree src))
+                (uncurry testFnSrc (Path.shiftOne common src1) tree) &&
+                (uncurry testFnDest (Path.shiftOne common dest1) tree) &&
+                (not (isOnlyChildAt tree src))
             (False, True) ->
                 -- Movement to parent leftward
                 if rightward
                 then False
-                else Debug.log "b'" (uncurry testFnSrc (Path.shiftOne common src1) tree) &&
-                Debug.log "d'" (not (isOnlyChildAt tree src))
+                else (uncurry testFnSrc (Path.shiftOne common src1) tree) &&
+                (not (isOnlyChildAt tree src))
 
             otherwise -> False
 
@@ -389,8 +378,7 @@ moveTo source dest tree =
         True ->
             tree |>
             extractAt source |>
-            R.andThen (uncurry (insertAt (Debug.log "fpm" <| fixPathForMovt source dest))) |>
-            Debug.log "insert"
+            R.andThen (uncurry (insertAt (fixPathForMovt source dest)))
 
 -- Other
 
@@ -461,86 +449,3 @@ asLabeledBrax1 tree indent =
                            "-" ++ toString index ++
                            ")"
         Comment s -> "(CODE " ++ s ++ ")"
-
-type LeafDecoded = LeafDecoded String String (Dict String String)
-
-decodeLeaf : Decoder Tree
-decodeLeaf =
-    D.map3 LeafDecoded
-        (field "label" string)
-        (field "text" string)
-        (field "metadata" (dict string)) |>
-        D.map mungeLeaf
-
-extractIndex : Dict String String -> (Dict String String, Maybe Index.Index)
-extractIndex metadata =
-    let
-        index = Dict.get "index" metadata
-        idxtype = Dict.get "idx-type" metadata
-        getInt i = i |>
-                   Maybe.withDefault (Debug.crash "should never happen") |>
-                   String.toInt |>
-                   Result.withDefault (Debug.crash "bad index")
-        i = case (index, idxtype) of
-                (Just n, Just "gap") -> Just <| Index.gap <| getInt index
-                (Just n, Just "regular") -> Just <| Index.normal <| getInt index -- TODO: name mismatch
-                (Nothing, Nothing) -> Nothing
-                _ -> Debug.crash "bad index"
-    in
-        ( metadata |> Dict.remove "index" |> Dict.remove "idx-type"
-        , i
-        )
-
-mungeLeaf : LeafDecoded -> Tree
-mungeLeaf l =
-    case l of LeafDecoded label text metadata -> -- TODO: destructuring is
-                                                 -- ugly, use a type alias/
-                                                 -- object instead
-        case label of
-            "CODE" -> { label = "CODE", contents = Comment text }
-            _ ->
-                let
-                    (_, i) = extractIndex metadata
-                    trace typ = i |>
-                                Maybe.withDefault (Debug.crash "trace missing index") |>
-                                .get Index.number |>
-                                Trace typ
-                in
-                    case text of
-                        "*pro*" -> { label = label, contents = EmptyCat Pro i }
-                        "*con*" -> { label = label, contents = EmptyCat Con i }
-                        "*exp*" -> { label = label, contents = EmptyCat Exp i }
-                        "*" ->     { label = label, contents = EmptyCat Star i }
-                        -- TODO: causes problems if we have legitimately the
-                        -- text "0" in a document
-                        "0" ->     { label = label, contents = EmptyCat Zero i }
-                        "*T*" ->   { label = label , contents = trace Wh }
-                        "*ICH*" -> { label = label, contents = trace Extraposition }
-                        "*CL*" ->  { label = label, contents = trace Clitic }
-                        _ -> { label = label, contents = Terminal text i }
-
-type NTDecoded = NTDecoded String (List Tree) (Dict String String)
-
-decodeNonterminal : Decoder Tree
-decodeNonterminal = D.map3 NTDecoded
-                    (field "label" string )
-                    (field "children" (list <| lazy <| \_ -> decode))
-                    (field "metadata" (dict string)) |>
-                    D.map mungeNT
-
-mungeNT : NTDecoded -> Tree
-mungeNT n =
-    case n of NTDecoded label children metadata ->
-        let
-            (_, i) = extractIndex metadata
-        in
-            { label = label, contents = Nonterminal children i }
-
-decode : Decoder Tree
-decode =
-    D.oneOf [ decodeNonterminal
-            , decodeLeaf
-            ]
-
-receiveTrees : Decoder (List Tree)
-receiveTrees = (list decode)

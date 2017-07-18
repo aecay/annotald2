@@ -15,6 +15,7 @@ module TreeEdit.Path exposing ( Path(..)
                               , shiftOne
                               , foot
                               , allCombos
+                              , internals
                               )
 
 import List.Extra
@@ -24,6 +25,10 @@ import TreeEdit.Utils as Utils exposing (fromJust)
 type Path = Path Int (List Int) | RootPath
 
 type PathFragment = PF (List Int)
+
+internals = { fromList = fromList
+            , pf = PF
+            }
 
 childPath : Int -> Path -> Path
 childPath idx path =
@@ -117,10 +122,10 @@ moveFragLeft : PathFragment -> PathFragment
 moveFragLeft (PF pf) =
     let
         len = List.length pf - 1
-        init = List.take len <| Debug.log "pf" pf
-        tail = List.map (flip (-) 1) <| Debug.log "tail" <| List.drop len pf
+        init = List.take len pf
+        tail = List.map (flip (-) 1) <| List.drop len pf
     in
-        Debug.log "left" <| PF <| init ++ tail
+        PF <| init ++ tail
 
 isFragSingleton : PathFragment -> Bool
 isFragSingleton (PF pf) = List.length pf == 1
