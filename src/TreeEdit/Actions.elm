@@ -17,7 +17,6 @@ module TreeEdit.Actions exposing ( clearSelection
 import Maybe exposing (withDefault)
 import Dict exposing (Dict)
 import TreeEdit.Res as R
-import Result
 
 import Monocle.Optional as Optional
 
@@ -108,10 +107,10 @@ coIndex2 path1 path2 model =
                 case (index1, index2) of
                     -- One of the nodes has an index, the other does not: set
                     -- the index of the unindexed node to match
-                    (Result.Err _, Result.Ok x) -> setIndexAt path1 x.number model
-                    (Result.Ok x, Result.Err _) -> setIndexAt path2 x.number model
+                    (Err _, Ok x) -> setIndexAt path1 x.number model
+                    (Ok x, Err _) -> setIndexAt path2 x.number model
                     -- Both of the nodes have an index: toggle index type
-                    (Result.Ok x, Result.Ok y) ->
+                    (Ok x, Ok y) ->
                         case (x.variety, y.variety) of
                             -- Normal coindexing -> gap
                             (Index.Normal, Index.Normal) ->
@@ -129,7 +128,7 @@ coIndex2 path1 path2 model =
                             otherwise -> removeIndexAt path1 model |>
                                          R.andThen (removeIndexAt path2)
                     -- Neither node has an index -> coindex them
-                    (Result.Err _, Result.Err _) -> setIndexAt path1 ind model |>
+                    (Err _, Err _) -> setIndexAt path1 ind model |>
                                                     R.andThen (setIndexAt path2 ind)
 
 setIndexAt: Path -> Int -> Action
