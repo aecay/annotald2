@@ -12,6 +12,7 @@ import Mouse
 
 import TreeEdit.Path as Path exposing (Path)
 import TreeEdit.Tree as Tree exposing (constants, Tree)
+import TreeEdit.Tree.View exposing (toPenn)
 import TreeEdit.Actions as Actions
 
 import TreeEdit.Res exposing (modify)
@@ -44,7 +45,7 @@ leaf : String ->
        Path -> Tree -> Html (Msg a)
 leaf arrow ctor path newLeaf =
     entry [onClick <| ctor path newLeaf] <|
-        arrow ++ Tree.asLabeledBrackets newLeaf
+        arrow ++ toPenn newLeaf
 
 leafBefore : Path -> Tree -> Html (Msg a)
 leafBefore = leaf "< " LeafBefore

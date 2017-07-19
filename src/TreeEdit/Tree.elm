@@ -10,7 +10,6 @@ module TreeEdit.Tree exposing (l, t, trace, Tree, either,
                               , insertAt
                               , fixPathForMovt -- TODO: marginal on exporting this
                               , do
-                              , terminalString
                               , isTerminal
                               , isEmpty
                               , extractAt
@@ -20,7 +19,6 @@ module TreeEdit.Tree exposing (l, t, trace, Tree, either,
                               , updateChildren
                               , children
                               , constants
-                              , asLabeledBrackets
                               , map
                               , receiveTrees
                               )
@@ -391,23 +389,6 @@ moveTo source dest tree =
 
 -- Other
 
-terminalString : Tree -> String
-terminalString tree =
-    case tree.contents of
-        Terminal x _ -> x
-        Trace x _ -> case x of
-                       Wh -> "*T*"
-                       Extraposition -> "*ICH*"
-                       Clitic -> "*CL*"
-        Comment _ -> "{COM}"
-        EmptyCat x _ -> case x of
-                            Pro -> "*pro*"
-                            Con -> "*con*"
-                            Exp -> "*exp*"
-                            Star -> "*"
-                            Zero -> "0"
-        Nonterminal _ _ -> Debug.crash "Can't get the terminalString of a nonterminal"
-
 isTerminal : Tree -> Bool
 isTerminal t = case t.contents of
                    Nonterminal _ _ -> False
@@ -439,22 +420,3 @@ makeTrace x =
         { contents = Trace traceType 0 -- TODO: properly get an index
         , label = newLabel
         }
-
-asLabeledBrackets : Tree -> String
-asLabeledBrackets t = asLabeledBrax1 t 0
-
-asLabeledBrax1 : Tree -> Int -> String
-asLabeledBrax1 tree indent =
-    case tree.contents of
-        Nonterminal children index -> Debug.crash "not implemented yet"
-        Terminal _ index -> "(" ++ tree.label ++
-                               (Maybe.withDefault "" <| Maybe.map Index.string index) ++
-                               " " ++ terminalString tree ++
-                               ")"
-        EmptyCat ec index -> "(" ++ tree.label ++ " " ++ terminalString tree ++
-                             (Maybe.withDefault "" <| Maybe.map Index.string index) ++
-                             ")"
-        Trace typ index -> "(" ++ tree.label ++ " " ++ terminalString tree ++
-                           "-" ++ toString index ++
-                           ")"
-        Comment s -> "(CODE " ++ s ++ ")"

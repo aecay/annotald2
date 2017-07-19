@@ -8,10 +8,10 @@ import Html.Events as Ev
 
 import TreeEdit.Model as Model exposing (Model)
 import TreeEdit.Tree as Tree exposing (Tree)
+import TreeEdit.Tree.View exposing (labelString, terminalString)
 import TreeEdit.Path as Path exposing (Path)
 import TreeEdit.Selection as Selection exposing (Selection)
 import TreeEdit.Msg as Msg exposing (Msg(..))
-import TreeEdit.Index as Index
 
 import TreeEdit.Utils as Utils exposing (fromJust)
 import TreeEdit.ViewUtils exposing (onClick, blockAll)
@@ -20,21 +20,6 @@ import TreeEdit.ContextMenuTypes as ContextMenuTypes
 import TreeEdit.ContextMenu as ContextMenu
 
 -- TODO: use html.keyed for speed
-
--- XXX: Seems to belong better in Tree or Index, but it's really a view
--- function (about presentation) so it lives here.  Of course, so is
--- terminalString, but that needs to know about internal types of Tree, so it
--- lives there.
-labelText : Tree -> String
-labelText tree =
-    let
-        index = (.getOption Tree.index) tree
-        label = tree.label
-    in
-        index |>
-        Maybe.map Index.string |>
-        Maybe.withDefault "" |>
-        (++) label
 
 blockAll : Ev.Options
 blockAll = { stopPropagation = True
@@ -66,7 +51,7 @@ snode self tree selected children =
                      ]
         , onClick <| ToggleSelect self
         , rightClick
-        ] <| text (labelText tree) :: children
+        ] <| text (labelString tree) :: children
 
 wnode : Tree -> Html Msg
 wnode t = span
@@ -79,14 +64,13 @@ wnode t = span
                           , ("color", "black")
                           ]
              ]
-             [text <| Tree.terminalString <| t]
+             [text <| terminalString t]
 
 viewTree : List Path -> Path -> Tree -> Html Msg
 viewTree selected selfPath tree =
     let
         isSelected = List.member selfPath selected
-        viewT d =
-            snode selfPath d isSelected [wnode d]
+        viewT d = snode selfPath d isSelected [wnode d]
         viewNt d =
             (.getOption Tree.children) tree |> Utils.fromJust |>
             List.indexedMap (\i c -> viewTree selected (Path.childPath i selfPath) c) |>
