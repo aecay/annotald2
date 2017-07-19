@@ -6,6 +6,8 @@ import Html.Lazy exposing (lazy3)
 import Json.Decode as Json
 import Html.Events as Ev
 
+import Toolkit.Helpers exposing (applyList)
+
 import TreeEdit.Model as Model exposing (Model)
 import TreeEdit.Tree as Tree exposing (Tree)
 import TreeEdit.Tree.View exposing (labelString, terminalString)
@@ -31,6 +33,19 @@ decodeMouse = Json.map2 (\x y -> { x = x, y = y })
               (Json.field "x" Json.int)
               (Json.field "y" Json.int)
 
+ipStyles : List (String, String)
+ipStyles = [ ("border-top", "1px solid black")
+           , ("border-bottom", "1px solid black")
+           , ("background-color", "#C5908E")
+           ]
+
+isIP : String -> Bool
+isIP label =
+    let
+        predicates = List.map String.startsWith ["IP-", "FRAG"] -- TODO: make configurable
+    in
+        List.any identity <| applyList predicates label
+
 snode : Path -> Tree -> Bool -> List (Html Msg) -> Html Msg
 snode self tree selected children =
     let
@@ -39,16 +54,16 @@ snode self tree selected children =
     in
         div
         [ Attr.class "snode"
-        , Attr.style [ ("margin-left", "20px")
-                     , ("border", "1px solid silver")
-                     , ("border-left", "4px solid #4682B4")
-                     , ("background-color", if selected
-                                            then "#4682B4"
-                                            else "#EFEFEF")
-                     , ("padding", "2px")
-                     , ("cursor", "pointer")
-                     , ("color", "black")
-                     ]
+        , Attr.style <| [ ("margin-left", "20px")
+                        , ("border", "1px solid silver")
+                        , ("border-left", "4px solid #4682B4")
+                        , ("background-color", if selected
+                                               then "#4682B4"
+                                               else "#EFEFEF")
+                        , ("padding", "2px")
+                        , ("cursor", "pointer")
+                        , ("color", "black")
+                        ] ++ if isIP tree.label then ipStyles else []
         , onClick <| ToggleSelect self
         , rightClick
         ] <| text (labelString tree) :: children
