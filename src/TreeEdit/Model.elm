@@ -19,6 +19,7 @@ type alias Model = { root: WebData Tree
                    , lastMessage: String
                    , contextMenu: ContextMenuTypes.Model
                    , fileName : String
+                   , message : String
                    }
 
 withTrees : List Tree -> String -> Model
@@ -27,6 +28,7 @@ withTrees trees s = { root = Success <| t "WTF" trees
                     , lastMessage = "Init"
                     , contextMenu = ContextMenuTypes.emptyModel
                     , fileName = s
+                    , message = ""
                     }
 
 contextMenu : Lens Model ContextMenuTypes.Model

@@ -9,6 +9,7 @@
     "exposed-modules": [],
     "dependencies": {
         "Fresheyeball/elm-return": "6.0.3 <= v < 7.0.0",
+        "GlobalWebIndex/cmd-extra": "1.0.0 <= v < 2.0.0",
         "arturopala/elm-monocle": "1.4.0 <= v < 2.0.0",
         "danielnarey/elm-toolkit": "5.1.0 <= v < 6.0.0",
         "elm-community/array-extra": "1.0.2 <= v < 2.0.0",

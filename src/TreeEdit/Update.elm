@@ -4,16 +4,22 @@ import TreeEdit.Model as Model exposing (Model, root, selected, contextMenu)
 import TreeEdit.Selection as Selection
 import TreeEdit.ContextMenu as ContextMenu
 import TreeEdit.Msg as Msg exposing (Msg(..))
+import TreeEdit.Tree.Json exposing (toJson)
+import TreeEdit.Tree exposing (children)
 
--- import Utils exposing (do, maybeDo)
+import TreeEdit.Utils as Utils
 
 import TreeEdit.Bindings exposing (bindings)
 
 import Return exposing (Return, singleton)
 import Monocle.Lens as Lens
 import RemoteData exposing (RemoteData(..))
+import RemoteData.Http
 
 import Dict
+import Json.Decode as D
+import Json.Encode as E
+import Cmd.Extra
 
 import Result as R
 
@@ -23,8 +29,7 @@ import TreeEdit.Actions as Actions
 import TreeEdit.Path as Path
 
 import Keyboard
-
--- import ZipperExts as ZX
+import Mouse
 
 handleResult : Model -> Res.Result Model -> Model
 handleResult model result =
@@ -65,8 +70,32 @@ update msg model =
             Return.map (\x -> Model.withTrees trees x.fileName)
         GotTrees x ->
             Debug.log ("fetch error: " ++ (toString x))
+        DoSave ->
+            let
+                handle : (RemoteData.WebData () -> Msg)
+                handle d = case d of
+                               Success _ -> LogMessage "Save success"
+                               f -> LogMessage <| "Save failure: " ++ toString f
+            in
+                Return.command <|
+                    case model.root of
+                        Success tree ->
+                            RemoteData.Http.post
+                                "/save"
+                                handle
+                                (D.succeed ())
+                                (E.object [ ("filename", E.string model.fileName)
+                                          , ("trees", toJson <| Utils.fromJust <| .getOption children tree)
+                                          ])
+
+                        _ -> Cmd.Extra.perform <| LogMessage "Trying to save unloaded trees"
+        LogMessage m ->
+            Return.map (\x -> { x | message = m })
+        CancelContext -> Return.map <| ContextMenu.hide contextMenu
 
 subscriptions : Model -> Sub Msg
-subscriptions m = Sub.batch
+subscriptions m = Sub.batch <|
                   [ Keyboard.presses KeyMsg
-                  ]
+                  ] ++ if m.contextMenu.target == Nothing
+                       then []
+                       else [ Mouse.clicks (\_ -> CancelContext) ]

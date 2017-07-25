@@ -14,6 +14,7 @@ import TreeEdit.Tree.View exposing (labelString, terminalString)
 import TreeEdit.Path as Path exposing (Path)
 import TreeEdit.Selection as Selection exposing (Selection)
 import TreeEdit.Msg as Msg exposing (Msg(..))
+import TreeEdit.View.ToolBar as ToolBar
 
 import TreeEdit.Utils as Utils exposing (fromJust)
 import TreeEdit.ViewUtils exposing (onClick, blockAll)
@@ -139,15 +140,15 @@ viewRoot1 m =
         div [ Attr.class "sn0"
             , Attr.style [ ("background-color", "#D2B48C")
                          , ("border", "1px solid black")
-                         , ("margin-left", "10%")
+                         , ("margin-left", "calc(15% + 12px)")
                          , ("margin-right", "5%")
-                         , ("display", "inline-block")
                          ]
             , rightClick
             ]
 
 view : Model -> Html Msg
 view model =
-    div [] [ viewRoot1 model
+    div [] [ ToolBar.view model.fileName
+           , viewRoot1 model
            , map Msg.Context <| ContextMenu.view model Model.contextMenu
            ]

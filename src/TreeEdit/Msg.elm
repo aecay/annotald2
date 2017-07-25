@@ -16,4 +16,7 @@ type Msg = ToggleSelect Path |
     RightClick Path ContextMenuTypes.Position |
     RightClickRoot |
     Context (ContextMenuTypes.Msg Model.Model) |
-    GotTrees (WebData (List Tree))
+    GotTrees (WebData (List Tree)) |
+    DoSave |
+    LogMessage String |
+    CancelContext
