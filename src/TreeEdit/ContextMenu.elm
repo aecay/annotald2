@@ -94,7 +94,7 @@ view parent lens =
                 in
                     H.div [ Attr.id "conMenu"
                           , Attr.style [ ("position", "absolute")
-                                       , ("width", toString (colWidth * 3 + 6) ++ "px")
+                                       , ("width", toString (colWidth * 3) ++ "px")
                                        , ("z-index", "9999")
                                        , ("border" , "1px solid black")
                                        , ("background-color", "#efefef")
