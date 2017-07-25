@@ -11,14 +11,20 @@
           background-color: #D2B48C;
           user-select: none;
       }
+
+      .sn0 > .snode {
+          border: 2px solid black !important;
+      }
     </style>
   </head>
   <body><div id="main"></div>
     <script>
       var node = document.getElementById('main');
       var app = Elm.Main.embed(node);
+      // We need to hack around the fact that it isnʼt easy to preventDefault
+      // from Elm.
       document.documentElement.addEventListener('keypress', function (e) {
-          if (e.which === 32) {
+          if (e.which === 32) { // Space
               e.preventDefault();
           }
       });
