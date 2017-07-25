@@ -152,9 +152,6 @@ incrementIndicesBy inc path tree =
 doMove : Path -> Path -> Model -> Result
 doMove src dest model =
     let
-        dest1 = Tree.destPath src dest (.get Model.root model)
-        newSel = dest1 |>
-                 R.map (Tree.fixPathForMovt src >> Selection.one)
         srcRoot = Path.root src
         destRoot = Path.root dest
         newRoot = if srcRoot == destRoot
@@ -165,13 +162,12 @@ doMove src dest model =
                       in
                           inc |>
                           R.andThen (\x -> incrementIndicesBy x srcRoot (.get Model.root model))
-
+        res = R.andThen3 Tree.moveTo (Ok src) (Ok dest) newRoot
+        newRoot1 = R.map Tuple.first res
+        newSel = R.map Tuple.second res
     in
-        -- TODO: make moveTo (or a new fn) do the calculation of the dest
-        -- path, so we don't have to worry about it here.
-        R.andThen3 Tree.moveTo (Ok src) dest1 newRoot |>
-        R.map ((flip (.set Model.root)) model) |>
-        R.map2 (\s m -> { m | selected = s }) newSel
+        R.map ((flip (.set Model.root)) model) newRoot1 |>
+        R.map2 (\s m -> { m | selected = (Selection.one s) }) newSel
 
 
 createParent2 : String -> Path -> Path -> Model -> Result

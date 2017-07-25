@@ -5,13 +5,9 @@ module TreeEdit.Path exposing ( Path(..)
                               , root
                               , parent
                               , splitCommon
-                              , lessThan
-                              , moveRight
-                              , moveFragLeft
-                              , isFragSingleton
                               , join
+                              , join3
                               , isFragEmpty
-                              , areFragsAdjacent
                               , shiftOne
                               , foot
                               , allCombos
@@ -86,62 +82,51 @@ join path (PF frag) =
                          [] -> path
                          ffoot :: fleg -> Path ffoot (fleg ++ (pfoot :: pleg))
 
-splitCommon : Path -> Path -> (Path, PathFragment, PathFragment)
+join3 : Path -> Int -> PathFragment -> Path
+join3 path step (PF frag) =
+    case path of
+        RootPath -> join (singleton step) (PF frag)
+        Path foot leg -> case frag of
+                         [] -> Path step (foot :: leg)
+                         ffoot :: fleg -> Path ffoot (fleg ++ (step :: foot :: leg))
+
+
+type alias SplitResult = { common : Path
+                         , sibFrom : Maybe Int
+                         , sibTo : Maybe Int
+                         , tailFrom : PathFragment
+                         , tailTo : PathFragment
+                         , fragFrom : PathFragment
+                         , fragTo : PathFragment
+                         }
+splitCommon : Path -> Path -> SplitResult
 splitCommon p1 p2 =
     let
-        go p1 p2 accum = case (p1, p2) of
-                             (h1 :: t1, h2 :: t2) -> if h1 == h2
-                                                     then go t1 t2 <| accum ++ [h1]
-                                                     else (accum, p1, p2)
-                             otherwise -> (accum, p1, p2)
-        finalize (head, t1, t2) = ( fromList (List.reverse head)
-                                  , PF (List.reverse t1)
-                                  , PF (List.reverse t2)
-                                  )
+        go p1 p2 accum = case (List.head p1, List.head p2) of
+                             (Just h1, Just h2) -> if h1 == h2
+                                                   then let
+                                                       t1 = List.tail p1 |> fromJust
+                                                       t2 = List.tail p2 |> fromJust
+                                                   in
+                                                       go t1 t2 <| accum ++ [h1]
+                                                   else { common = fromList <| List.reverse accum
+                                                        , sibFrom = Just h1
+                                                        , sibTo = Just h2
+                                                        , tailFrom = PF <| List.reverse <| fromJust <| List.tail p1
+                                                        , tailTo = PF <| List.reverse <| fromJust <| List.tail p2
+                                                        , fragFrom = PF <| List.reverse p1
+                                                        , fragTo = PF <| List.reverse p2
+                                                        }
+                             (h1, h2) -> { common = fromList <| List.reverse accum
+                                          , sibFrom = h1
+                                          , sibTo = h2
+                                          , tailFrom = PF <| List.reverse <| Maybe.withDefault [] <| List.tail p1
+                                          , tailTo = PF <| List.reverse <| Maybe.withDefault [] <| List.tail p2
+                                          , fragFrom = PF <| List.reverse p1
+                                          , fragTo = PF <| List.reverse p2
+                                          }
     in
-        finalize <| go (List.reverse (toList p1))
-            (List.reverse (toList p2)) []
-
-lessThan : Path -> Path -> Bool
-lessThan p1 p2 = List.reverse (toList p1) < List.reverse (toList p2)
-
--- All these functions are for implementing movement
-
--- moveRight : PathFragment -> PathFragment
--- moveRight (PF pf) =
---     let
---         len = List.length pf - 1
---         init = List.take len pf
---         tail = List.map ((+) 1) <| List.drop len pf
---     in
---         PF <| init ++ tail
-
-moveRight : Path -> Path
-moveRight path =
-    case path of
-        RootPath -> Debug.crash "Can't move the root path right"
-        Path foot leg -> Path (foot + 1) leg
-
-moveFragLeft : PathFragment -> PathFragment
-moveFragLeft (PF pf) =
-    let
-        len = List.length pf - 1
-        init = List.take len pf
-        tail = List.map (flip (-) 1) <| List.drop len pf
-    in
-        PF <| init ++ tail
-
-isFragSingleton : PathFragment -> Bool
-isFragSingleton (PF pf) = List.length pf == 1
-
-areFragsAdjacent : PathFragment -> PathFragment -> Bool
-areFragsAdjacent (PF f1) (PF f2) =
-    let
-        tail1 = List.Extra.last f1
-        tail2 = List.Extra.last f2
-        cmp a b = a == b - 1
-    in
-        Maybe.map2 cmp tail1 tail2 |> Maybe.withDefault False
+        go (List.reverse (toList p1)) (List.reverse (toList p2)) []
 
 isFragEmpty : PathFragment -> Bool
 isFragEmpty frag = frag == PF []
@@ -152,10 +137,10 @@ shiftOne p (PF pf) =
         [] -> (p, PF pf) -- TODO: this is a bogus case, should be a crash
         otherwise ->
             case p of
-                RootPath -> (Path (List.Extra.last pf |> Utils.fromJust) [],
-                             PF (List.Extra.init pf |> Utils.fromJust))
-                Path h2 t2 -> (Path (List.Extra.last pf |> Utils.fromJust) (h2 :: t2),
-                               PF (List.Extra.init pf |> Utils.fromJust))
+                RootPath -> (Path (List.Extra.last pf |> fromJust) [],
+                             PF (List.Extra.init pf |> fromJust))
+                Path h2 t2 -> (Path (List.Extra.last pf |> fromJust) (h2 :: t2),
+                               PF (List.Extra.init pf |> fromJust))
 
 allCombos : Path -> PathFragment -> List Path
 allCombos path1 frag1 =

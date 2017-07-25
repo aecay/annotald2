@@ -6,9 +6,7 @@ module TreeEdit.Tree exposing (l, t, trace, Tree, either,
                               --, sameRoot
                               , moveTo
                               , internals
-                              , destPath
                               , insertAt
-                              , fixPathForMovt -- TODO: marginal on exporting this
                               , do
                               , isTerminal
                               , isEmpty
@@ -48,19 +46,15 @@ receiveTrees = TreeEdit.Tree.Decoder.receiveTrees
 -- Functions we expose for testing only
 internals :
     { allLast : Path -> PathFragment -> Tree -> Bool
-    , canMove : Path -> Path -> Tree -> Bool
     , extractAt : Path -> Tree -> R.Result ( Tree, Tree )
-    , fixPathForMovt : Path -> Path -> Path
     , isLastAt : Tree -> Path -> Bool
     }
 internals = { allLast = allLast
-            , canMove = canMove
             , isLastAt = isLastAt
             , extractAt = extractAt
-            , fixPathForMovt = fixPathForMovt
             }
 
--- Convenience functions for generating trees for testing
+-- Convenience functions for generating trees for testing TODO: export as internals
 l : String -> String -> Tree
 l label text = { label = label
                , contents = Terminal text Nothing
@@ -102,7 +96,7 @@ either nt t tree =
         Nonterminal _ _ -> nt tree
         _ -> t tree
 
-children : Optional Tree (List Tree)
+children : Optional Tree (List Tree) -- TODO: lens, children of terminal is []
 children =
     let
         getChildren t =
@@ -229,6 +223,7 @@ setIndex idx tree =
 index : Optional Tree Index.Index
 index = Optional getIndex setIndex
 
+-- TODO: rewrite with lens
 removeIndex : Tree -> Tree
 removeIndex tree =
     case tree.contents of
@@ -268,124 +263,71 @@ allLast : Path -> PathFragment -> Tree -> Bool
 allLast path frag tree =
     List.all (isLastAt tree) (Path.allCombos path frag)
 
-allLastForDest : Path -> PathFragment -> Tree -> Bool
-allLastForDest path frag =
-    case path of
-        Path.RootPath -> \_ -> True -- TODO: is this correct??
-        otherwise ->
-            let
-                -- When speaking of a movement destination, the last element
-                -- of frag should actually be pointing one after the end of
-                -- the list, so we retract it by one here to simplify the
-                -- testing logic in allLast
-                newFrag = Path.moveFragLeft frag
-            in allLast path newFrag
-
 isOnlyChildAt : Tree -> Path -> Bool
 isOnlyChildAt t p = isFirstAt t p && isLastAt t p
 
-destPath : Path -> Path -> Tree -> R.Result Path
-destPath src newParent tree =
+moveTo : Path -> Path -> Tree -> R.Result (Tree, Path)
+moveTo from to tree =
+    if isOnlyChildAt tree from
+    then R.fail "Can't move only child"
+    else
+        let
+            _ = Debug.log "from" from
+            _ = Debug.log "to" to
+            { common, sibFrom, sibTo, tailFrom, tailTo, fragFrom, fragTo } = Path.splitCommon from to |> Debug.log "components"
+        in
+            case (sibFrom, sibTo) of
+                (Nothing, _) -> R.fail "Can't move to own child"
+                (Just sFrom, Nothing) ->
+                    -- Movement to own parent
+                    case (allFirst (Path.childPath sFrom common) tailFrom tree,
+                              allLast (Path.childPath sFrom common) tailFrom tree) of
+                        (True, False) ->
+                            -- Leftward
+                            performMove from (Path.childPath sFrom common) tree
+                        (False, True) ->
+                            performMove from (Path.childPath (sFrom + 1) common) tree
+                        (False, False) -> R.fail "can't move from the middle" |> Debug.log "res"
+                        otherwise -> R.fail "should never happen" |> Debug.log "res"
+                (Just sFrom, Just sTo) ->
+                    case sFrom - sTo of
+                        -1 ->
+                            -- Rightward
+                            case (allFirst (Path.childPath sTo common) tailTo tree,
+                                      allLast (Path.childPath sFrom common) tailFrom tree) of
+                                (True, True) ->
+                                    let
+                                        adjPath1 = case Path.isFragEmpty tailFrom of
+                                                       True -> Path.join (Path.childPath sFrom common) tailTo |> Debug.log "adjusted"
+                                                       False -> Path.join common fragTo
+                                        adjPath = adjPath1 |> Path.childPath 0
+                                    in
+                                        performMove from adjPath tree
+                                otherwise -> R.fail "can't move to/from the middle"
+                        1 ->
+                            -- Leftward
+                            case (allFirst (Path.childPath sFrom common) tailFrom tree,
+                                      allLast (Path.childPath sTo common) tailTo tree) of
+                                (True, True) ->
+                                    let
+                                        nKids = get to tree |> R.map (.getOption children >> Utils.fromJust >> List.length)
+                                        adjPath1 = Path.join common fragTo
+                                        adjPath = nKids |> R.map (\x -> Path.childPath x adjPath1)
+                                    in
+                                        adjPath |> R.andThen (\x -> performMove from x tree)
+                                otherwise -> R.fail "can't move to/from the middle"
+
+                        otherwise -> R.fail "can't move from non-adjacent siblings"
+
+performMove : Path -> Path -> Tree -> R.Result (Tree, Path)
+performMove from to tree =
     let
-        (common, src1, dest1) = Path.splitCommon src newParent
+        _ = Debug.log "from pm" from
+        _ = Debug.log "to pm" to
     in
-        case (Path.isFragEmpty src1, Path.isFragEmpty dest1) of
-            -- TODO: duplicates logic in canMove
-            -- Refactoring idea: make the tests from canMove into
-            -- locally-bound (let) functions.  Then return
-            -- pathWeNowCalc |> MyMaybe.guard theTestFn
-            -- where MyMaybe.guard : Bool -> Maybe a -> Maybe a
-            -- MyMaybe.guard flag val = if flag val else Nothing
-            -- Movement to own child disallowed
-            (True, False) -> R.fail "destPath"
-            -- Movement to own parent
-            (False, True) -> case (isFirstAt tree src,
-                                   isLastAt tree src)
-                             of
-                                 -- Land to parent's left
-                                 (True, False) -> Path.shiftOne newParent src1 |>
-                                                  Tuple.first |>
-                                                  R.succeed
-                                 -- Land to parent's right
-                                 (False, True) -> Path.shiftOne newParent src1 |>
-                                                  Tuple.first |>
-                                                  Path.moveRight |>
-                                                  R.succeed
-                                 otherwise -> R.fail "destPath"
-            otherwise ->
-                let
-                    rightward = Path.lessThan src newParent
-                in
-                    Path.join common dest1 |>
-                    R.succeed |>
-                    \x -> R.map2 Path.childPath
-                          ( if rightward
-                            then succeed 0
-                            else get newParent tree |>
-                                R.map children.getOption |> R.andThen (R.lift "destPath") |>
-                                R.map List.length
-                          ) x
-
-isRightwardMovt : Path -> Path -> Tree -> Bool
-isRightwardMovt src dest tree =
-    case dest of
-        RootPath -> allFirst RootPath (Path.toFragment src) tree
-        _ -> Path.lessThan src dest
-
--- It is allowed to move SRC to DEST without affecting the word order in the
--- tree if the following conditions are met: remove the common elements on the
--- path from the root to SRC and the path from root to DEST.  Then, the first
--- elements on the remaining path should be immediately adjacent (in the
--- appropriate direction for the intended movement, i.e. Src >> Dest for
--- rightward movt and vice versa).  And, the remaining elements on each path
--- must be the left/rightmost children (appropriately valued for the path to
--- SRC and DEST and whether the movement is leftward or rightward)
-canMove : Path -> Path -> Tree -> Bool
-canMove src dest tree =
-    let
-        (common, src1, dest1) = Path.splitCommon src dest
-        rightward = isRightwardMovt src dest tree
-        testFnSrc = if rightward then allLast else allFirst
-        testFnDest = if rightward then allFirst else allLastForDest
-    in
-        case (dest == RootPath, Path.isFragEmpty src1, Path.isFragEmpty dest1) of
-            (True, _, _) -> if rightward
-                            then allLast RootPath (Path.toFragment src) tree
-                            else allFirst RootPath (Path.toFragment src) tree
-            (_, False, False) ->
-                (if rightward
-                 then Path.areFragsAdjacent src1 dest1
-                 else Path.areFragsAdjacent dest1 src1) &&
-                (uncurry testFnSrc (Path.shiftOne common src1) tree) &&
-                (uncurry testFnDest (Path.shiftOne common dest1) tree) &&
-                (not (isOnlyChildAt tree src))
-            (_, False, True) ->
-                -- Movement to parent leftward
-                if rightward
-                then False
-                else (uncurry testFnSrc (Path.shiftOne common src1) tree) &&
-                (not (isOnlyChildAt tree src))
-
-            otherwise -> False
-
-fixPathForMovt : Path -> Path -> Path
-fixPathForMovt src dest =
-    let
-        (common, src1, dest1) = Path.splitCommon src dest
-        rightward = Path.lessThan src dest
-    in
-        if rightward && Path.isFragSingleton src1
-        then Path.join common <| Path.moveFragLeft dest1
-        else dest
-
-moveTo : Path -> Path -> Tree -> R.Result Tree
-moveTo source dest tree =
-    case canMove source dest tree of
-        False -> R.fail "can't move: moveTo"
-        True ->
-            tree |>
-            extractAt source |>
-            R.andThen (uncurry (insertAt (fixPathForMovt source dest)))
+        extractAt from tree |>
+        R.andThen (uncurry (insertAt to)) |>
+        R.map (\x -> (x, to))
 
 -- Other
 
