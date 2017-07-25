@@ -252,9 +252,11 @@ deleteNode model =
                     in
                         R.foldr (Tree.insertAt path) newRoot kids
             in
-                R.ifThen isTerminal
-                    (deleteTerminal ())
-                    (deleteNonTerminal ())
+                -- Can't use R.ifThen here because we need laziness
+                case isTerminal of
+                    Err e -> Err e
+                    Ok True -> deleteTerminal ()
+                    Ok False -> deleteNonTerminal ()
     in
         R.succeed model |>
         Selection.withOne model.selected (delete >> R.map (flip (.set Model.root) model)) |>

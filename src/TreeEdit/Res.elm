@@ -104,6 +104,7 @@ modify lens f init =
     in
         init1 |> f |> map (flip lens.set init) |> withDefault init
 
+-- Not lazy!
 ifThen : Result Bool -> Result a -> Result a -> Result a
 ifThen flag thn els =
     case flag of
