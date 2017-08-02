@@ -16,7 +16,7 @@ module TreeEdit.Actions exposing ( clearSelection
 
 import Maybe exposing (withDefault)
 import Dict exposing (Dict)
-import TreeEdit.Res as R
+import TreeEdit.Result as R exposing (Result(..))
 
 import Monocle.Optional as Optional
 
@@ -44,9 +44,10 @@ doOneSelected : (Tree -> Tree) -> Model -> Result
 doOneSelected f model =
     let
         path = model.selected |>
-               Selection.first
-    in R.lift "doOneSelected" path |>
-    R.andThen (\x -> doAt x f model)
+               (R.lift "no single selection" Selection.first)
+    in
+        path |>
+        R.andThen (\x -> doAt x f model)
 
 doAt : Path -> (Tree -> Tree) -> Model -> Result
 doAt path f model =
@@ -97,8 +98,8 @@ coIndex2 path1 path2 model =
                 root = (.get Model.root model)
                 tree1 = Tree.get path1 root
                 tree2 = Tree.get path2 root
-                index1 = tree1 |> R.map (.getOption Tree.index) |> R.andThen (R.lift "index1")
-                index2 = tree2 |> R.map (.getOption Tree.index) |> R.andThen (R.lift "index2")
+                index1 = tree1 |> R.andThen (R.lift "no index" (.getOption Tree.index))
+                index2 = tree2 |> R.andThen (R.lift "no index" (.getOption Tree.index))
                 ind = Tree.get (Path.root path1) root |>
                       R.map Tree.highestIndex |>
                       R.withDefault 0 |>
@@ -107,10 +108,10 @@ coIndex2 path1 path2 model =
                 case (index1, index2) of
                     -- One of the nodes has an index, the other does not: set
                     -- the index of the unindexed node to match
-                    (Err _, Ok x) -> setIndexAt path1 x.number model
-                    (Ok x, Err _) -> setIndexAt path2 x.number model
+                    (Result _ Nothing, Result _ (Just x)) -> setIndexAt path1 x.number model
+                    (Result _ (Just x), Result _ Nothing) -> setIndexAt path2 x.number model
                     -- Both of the nodes have an index: toggle index type
-                    (Ok x, Ok y) ->
+                    (Result _ (Just x), Result _ (Just y)) ->
                         case (x.variety, y.variety) of
                             -- Normal coindexing -> gap
                             (Index.Normal, Index.Normal) ->
@@ -128,8 +129,8 @@ coIndex2 path1 path2 model =
                             otherwise -> removeIndexAt path1 model |>
                                          R.andThen (removeIndexAt path2)
                     -- Neither node has an index -> coindex them
-                    (Err _, Err _) -> setIndexAt path1 ind model |>
-                                                    R.andThen (setIndexAt path2 ind)
+                    (Result _ Nothing, Result _ Nothing) -> setIndexAt path1 ind model |>
+                                                            R.andThen (setIndexAt path2 ind)
 
 setIndexAt: Path -> Int -> Action
 setIndexAt path index =
@@ -162,7 +163,7 @@ doMove src dest model =
                       in
                           inc |>
                           R.andThen (\x -> incrementIndicesBy x srcRoot (.get Model.root model))
-        res = R.andThen3 Tree.moveTo (Ok src) (Ok dest) newRoot
+        res = R.andThen3 Tree.moveTo (R.succeed src) (R.succeed dest) newRoot
         newRoot1 = R.map Tuple.first res
         newSel = R.map Tuple.second res
     in
@@ -238,21 +239,23 @@ deleteNode model =
                                       R.map (.getOption Tree.children) |>
                                       R.map (\x -> Maybe.withDefault False <| Maybe.map (List.length >> (==) 1) x)
                     in
-                        R.ifThen isOnlyChild (R.fail "Cannot delete an only child") <|
-                            R.ifThen isNonEmpty (R.fail "Cannot delete a non-empty terminal") <|
-                            (Tree.extractAt path (.get Model.root model) |> R.map Tuple.second)
+                        Tree.extractAt path (.get Model.root model) |>
+                        R.map Tuple.second |>
+                        R.guard isOnlyChild "Cannot delete an only child" |>
+                        R.guard isNonEmpty "Cannot delete a non-empty terminal"
+
                 deleteNonTerminal _ =
                     let
                         kids = node |> R.map (.getOption Tree.children) |> R.map Utils.fromJust
                         newRoot = Tree.extractAt path (.get Model.root model) |> R.map Tuple.second
                     in
                         R.foldr (Tree.insertAt path) newRoot kids
+                do x = if x
+                       then deleteTerminal ()
+                       else deleteNonTerminal ()
             in
-                -- Can't use R.ifThen here because we need laziness
-                case isTerminal of
-                    Err e -> Err e
-                    Ok True -> deleteTerminal ()
-                    Ok False -> deleteNonTerminal ()
+                isTerminal |>
+                R.andThen do
     in
         R.succeed model |>
         Selection.withOne model.selected (delete >> R.map (flip (.set Model.root) model)) |>

@@ -15,7 +15,7 @@ import TreeEdit.Tree as Tree exposing (constants, Tree)
 import TreeEdit.Tree.View exposing (toPenn)
 import TreeEdit.Actions as Actions
 
-import TreeEdit.Res exposing (modify)
+import TreeEdit.Result exposing (modify)
 
 import Monocle.Lens exposing (Lens)
 

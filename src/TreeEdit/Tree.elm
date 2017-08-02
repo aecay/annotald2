@@ -23,6 +23,7 @@ module TreeEdit.Tree exposing (l, t, trace, Tree, either,
 
 import List
 import List.Extra exposing (getAt, removeAt)
+import Dict
 import Maybe
 import Json.Decode exposing (Decoder)
 
@@ -36,9 +37,11 @@ import TreeEdit.Path as Path exposing (Path(..), PathFragment)
 
 import Monocle.Optional as Optional exposing (Optional)
 
-import TreeEdit.Res as R exposing (succeed, fail, Result)
+import TreeEdit.Result as R exposing (succeed, fail)
 
 type alias Tree = Type.Tree
+
+type alias Result a = R.Result a
 
 receiveTrees : Decoder (List Tree)
 receiveTrees = TreeEdit.Tree.Decoder.receiveTrees
@@ -46,7 +49,7 @@ receiveTrees = TreeEdit.Tree.Decoder.receiveTrees
 -- Functions we expose for testing only
 internals :
     { allLast : Path -> PathFragment -> Tree -> Bool
-    , extractAt : Path -> Tree -> R.Result ( Tree, Tree )
+    , extractAt : Path -> Tree -> Result ( Tree, Tree )
     , isLastAt : Tree -> Path -> Bool
     }
 internals = { allLast = allLast
@@ -134,16 +137,15 @@ map fn tree =
             Just ch -> children.set (List.map (\x -> map fn x) ch) newTree
 
 
-get : Path -> Tree -> R.Result Tree
+get : Path -> Tree -> Result Tree
 get path tree = case path of
                     Path.RootPath -> succeed tree
                     Path.Path foot _ ->
                         get (Path.parent path) tree |>
-                        R.map children.getOption |>
-                        R.andThen (R.lift "get") |>
-                        R.andThen (getAt foot >> R.lift "get")
+                        R.andThen (R.lift "no children" children.getOption) |>
+                        R.andThen (R.lift "chld not found" (getAt foot))
 
-set : Path -> Tree -> Tree -> R.Result Tree
+set : Path -> Tree -> Tree -> Result Tree
 set path newChild tree = case path of
                              Path.RootPath -> succeed newChild
                              Path.Path foot _ ->
@@ -154,7 +156,7 @@ set path newChild tree = case path of
                                      R.andThen (setChild foot newChild) |>
                                      R.andThen (\x -> set parentPath x tree)
 
-do : Path.Path -> (Tree -> Tree) -> Tree -> R.Result Tree
+do : Path.Path -> (Tree -> Tree) -> Tree -> Result Tree
 do path f tree =
     let
         orig = get path tree
@@ -162,7 +164,7 @@ do path f tree =
         orig |> R.map f |> R.andThen (\x -> set path x tree)
 
 -- TODO: rewrite with children lens
-setChild : Int -> Tree -> Tree -> R.Result Tree
+setChild : Int -> Tree -> Tree -> Result Tree
 setChild i new parent =
     case parent.contents of
         Nonterminal children index ->
@@ -182,7 +184,7 @@ updateChildren f t =
         Nonterminal children index -> { t | contents = Nonterminal (f children) index }
         _ -> t -- TODO: fail somehow?
 
-extractAt : Path -> Tree -> R.Result (Tree, Tree)
+extractAt : Path -> Tree -> Result (Tree, Tree)
 extractAt path tree =
     case path of
         RootPath -> R.fail "extractAt"
@@ -195,7 +197,7 @@ extractAt path tree =
                 do parent (updateChildren (removeAt idx)) tree |>
                 R.map2 (,) child
 
-insertAt : Path -> Tree -> Tree -> R.Result Tree
+insertAt : Path -> Tree -> Tree -> Result Tree
 insertAt path newChild =
     let
         parent = Path.parent path
@@ -254,7 +256,7 @@ allFirst path frag tree =
 isLastAt : Tree -> Path -> Bool
 isLastAt tree path =
     get (Path.parent path) tree |>
-    R.map children.getOption |> R.andThen (R.lift "isLastAt") |>
+    R.andThen (R.lift "no children" children.getOption) |>
     R.map List.length |>
     R.map ((==) (Path.foot path + 1)) |>
     R.withDefault False
@@ -266,7 +268,7 @@ allLast path frag tree =
 isOnlyChildAt : Tree -> Path -> Bool
 isOnlyChildAt t p = isFirstAt t p && isLastAt t p
 
-moveTo : Path -> Path -> Tree -> R.Result (Tree, Path)
+moveTo : Path -> Path -> Tree -> Result (Tree, Path)
 moveTo from to tree =
     if isOnlyChildAt tree from
     then R.fail "Can't move only child"
@@ -319,7 +321,7 @@ moveTo from to tree =
 
                         otherwise -> R.fail "can't move from non-adjacent siblings"
 
-performMove : Path -> Path -> Tree -> R.Result (Tree, Path)
+performMove : Path -> Path -> Tree -> Result (Tree, Path)
 performMove from to tree =
     let
         _ = Debug.log "from pm" from
