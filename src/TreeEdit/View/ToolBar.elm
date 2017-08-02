@@ -7,13 +7,7 @@ import Html.Events exposing (onClick)
 import TreeEdit.Msg as Msg exposing (Msg)
 
 view : String -> Html Msg
-view filename  = div [ A.style [ ("position", "fixed")
-                               , ("top", "5%")
-                               , ("left", "0px")
-                               , ("margin-left", "5px")
-                               , ("width", "15%")
-                               ]
-                     ]
+view filename  = div []
                  [ div [ A.style [ ("background-color", "#2E2E2E")
                                  , ("color", "white")
                                  , ("font-weight", "bold")
@@ -21,7 +15,7 @@ view filename  = div [ A.style [ ("position", "fixed")
                                  , ("width", "100%")
                                  , ("height", "16px")
                                 ]
-                       ] [text "Annotald 2"]
+                       ] [ text "Annotald 2" ]
                  , div [ A.style [ ("background", "#FEF6EA")
                                  , ("padding-bottom", "4px")
                                  , ("border", "1px solid #857259")
