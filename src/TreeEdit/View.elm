@@ -5,6 +5,7 @@ import Html.Attributes as Attr
 import Html.Lazy exposing (lazy3)
 import Json.Decode as Json
 import Html.Events as Ev
+import RemoteData exposing (RemoteData(..))
 
 import Toolkit.Helpers exposing (applyList)
 
@@ -15,6 +16,7 @@ import TreeEdit.Path as Path exposing (Path)
 import TreeEdit.Selection as Selection exposing (Selection)
 import TreeEdit.Msg as Msg exposing (Msg(..))
 import TreeEdit.View.ToolBar as ToolBar
+import TreeEdit.Metadata as Metadata
 
 import TreeEdit.Utils as Utils exposing (fromJust)
 import TreeEdit.ViewUtils exposing (onClick, blockAll)
@@ -148,7 +150,41 @@ viewRoot1 m =
 
 view : Model -> Html Msg
 view model =
-    div [] [ ToolBar.view model.fileName
-           , viewRoot1 model
-           , map Msg.Context <| ContextMenu.view model Model.contextMenu
-           ]
+    let
+        loading = div [] [ text "loading" ]
+    in
+        case model.root of
+            NotAsked -> loading
+            Loading -> loading
+            Failure e -> div [] [ text <| "error " ++ toString e ]
+            Success root -> div [] [ div [ Attr.style [ ("position", "fixed")
+                                                      , ("top", "30px")
+                                                      , ("left", "0px")
+                                                      , ("margin-left", "5px")
+                                                      , ("width", "15%")
+                                                      ]
+
+                                         ]
+                                         [ ToolBar.view model.fileName
+                                         , Metadata.view model |> Html.map Msg.Metadata
+                                         ]
+                                   , div [ Attr.style [ ("position", "fixed")
+                                                      , ("bottom", "30px")
+                                                      , ("left", "0px")
+                                                      , ("margin-left", "5px")
+                                                      , ("width", "15%")
+                                                      , ("background", "#FEF6EA")
+                                                      ]
+                                         ]
+                                         [ div [ Attr.style [ ("background-color", "#2E2E2E")
+                                                            , ("color", "white")
+                                                            , ("font-weight", "bold")
+                                                            , ("text-align", "center")
+                                                            , ("width", "100%")
+                                                            , ("height", "16px")
+                                                            ]
+                                               ] [ text "Messages" ]
+                                         , text model.lastMessage ]
+                                   , viewRoot1 model
+                                   , map Msg.Context <| ContextMenu.view model Model.contextMenu
+                                   ]

@@ -1,5 +1,7 @@
 module TreeEdit.Tree.Type exposing (..)
 
+import Dict exposing (Dict)
+
 import TreeEdit.Index as Index
 
 type TraceType = Wh | Extraposition | Clitic
@@ -16,4 +18,5 @@ type alias Label = String
 
 type alias Tree = { contents: Node
                   , label: Label
+                  , metadata: Dict String String
                   }

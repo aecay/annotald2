@@ -12,14 +12,15 @@ import RemoteData exposing (WebData, RemoteData(..))
 import TreeEdit.Tree exposing (Tree, t)
 import TreeEdit.Selection as Selection
 import TreeEdit.ContextMenuTypes as ContextMenuTypes
-import TreeEdit.Res as R
+import TreeEdit.Result as R
+import TreeEdit.Metadata.Type as Metadata
 
 type alias Model = { root: WebData Tree
                    , selected: Selection.Selection
                    , lastMessage: String
                    , contextMenu: ContextMenuTypes.Model
                    , fileName : String
-                   , message : String
+                   , metadataForm : Maybe (Metadata.MetadataForm, Metadata.FieldState)
                    }
 
 withTrees : List Tree -> String -> Model
@@ -28,7 +29,7 @@ withTrees trees s = { root = Success <| t "WTF" trees
                     , lastMessage = "Init"
                     , contextMenu = ContextMenuTypes.emptyModel
                     , fileName = s
-                    , message = ""
+                    , metadataForm = Nothing
                     }
 
 contextMenu : Lens Model ContextMenuTypes.Model

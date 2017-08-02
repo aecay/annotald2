@@ -61,11 +61,13 @@ internals = { allLast = allLast
 l : String -> String -> Tree
 l label text = { label = label
                , contents = Terminal text Nothing
+               , metadata = Dict.empty
                }
 
 trace : String -> Int -> Tree
 trace label index = { label = label
                     , contents = Trace Wh index
+                    , metadata = Dict.empty
                     }
 constants :
     { comment : Tree
@@ -76,21 +78,26 @@ constants :
 constants =
     { pro = { label = "NP-SBJ"
             , contents = EmptyCat Pro Nothing
+            , metadata = Dict.empty
             }
     , con = { label = "NP-SBJ"
             , contents = EmptyCat Con Nothing
+            , metadata = Dict.empty
             }
     , czero = { label = "C"
               , contents = EmptyCat Zero Nothing
+              , metadata = Dict.empty
               }
     , comment = { label = "CODE"
                 , contents = Comment "XXX"
+                , metadata = Dict.empty
                 }
     }
 
 t : String -> List Tree -> Tree
 t label children = { label = label
                    , contents = Nonterminal children Nothing
+                   , metadata = Dict.empty
                    }
 
 either : (Tree -> a) -> (Tree -> a) -> Tree -> a
@@ -363,4 +370,5 @@ makeTrace x =
     in
         { contents = Trace traceType 0 -- TODO: properly get an index
         , label = newLabel
+        , metadata = Dict.empty
         }

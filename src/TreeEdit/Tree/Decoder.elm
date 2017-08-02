@@ -47,31 +47,31 @@ extractIndex metadata =
 
 mungeLeaf : LeafDecoded -> Tree
 mungeLeaf l =
-    case l of LeafDecoded label text metadata -> -- TODO: destructuring is
+    case l of LeafDecoded label text metadata1 -> -- TODO: destructuring is
                                                  -- ugly, use a type alias/
                                                  -- object instead
         case label of
-            "CODE" -> { label = "CODE", contents = Comment text }
+            "CODE" -> { label = "CODE", contents = Comment text, metadata = metadata1 }
             _ ->
                 let
-                    (_, i) = extractIndex metadata
+                    (metadata, i) = extractIndex metadata1
                     trace typ = i |>
                                 Maybe.withDefault (Index.normal 0) |>
                                 .get Index.number |>
                                 Trace typ
                 in
                     case text of
-                        "*pro*" -> { label = label, contents = EmptyCat Pro i }
-                        "*con*" -> { label = label, contents = EmptyCat Con i }
-                        "*exp*" -> { label = label, contents = EmptyCat Exp i }
-                        "*" ->     { label = label, contents = EmptyCat Star i }
+                        "*pro*" -> { label = label, contents = EmptyCat Pro i, metadata = metadata }
+                        "*con*" -> { label = label, contents = EmptyCat Con i, metadata = metadata }
+                        "*exp*" -> { label = label, contents = EmptyCat Exp i, metadata = metadata }
+                        "*" ->     { label = label, contents = EmptyCat Star i, metadata = metadata }
                         -- TODO: causes problems if we have legitimately the
                         -- text "0" in a document
-                        "0" ->     { label = label, contents = EmptyCat Zero i }
-                        "*T*" ->   { label = label , contents = trace Wh }
-                        "*ICH*" -> { label = label, contents = trace Extraposition }
-                        "*CL*" ->  { label = label, contents = trace Clitic }
-                        _ -> { label = label, contents = Terminal text i }
+                        "0" ->     { label = label, contents = EmptyCat Zero i, metadata = metadata }
+                        "*T*" ->   { label = label , contents = trace Wh, metadata = metadata }
+                        "*ICH*" -> { label = label, contents = trace Extraposition, metadata = metadata }
+                        "*CL*" ->  { label = label, contents = trace Clitic, metadata = metadata }
+                        _ -> { label = label, contents = Terminal text i, metadata = metadata }
 
 type NTDecoded = NTDecoded String (List Tree) (Dict String String)
 
@@ -84,11 +84,11 @@ decodeNonterminal = D.map3 NTDecoded
 
 mungeNT : NTDecoded -> Tree
 mungeNT n =
-    case n of NTDecoded label children metadata ->
+    case n of NTDecoded label children metadata1 ->
         let
-            (_, i) = extractIndex metadata
+            (metadata, i) = extractIndex metadata1
         in
-            { label = label, contents = Nonterminal children i }
+            { label = label, contents = Nonterminal children i, metadata = metadata }
 
 decode : Decoder Tree
 decode =
