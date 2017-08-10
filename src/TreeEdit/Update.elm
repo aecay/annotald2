@@ -38,14 +38,16 @@ handleResult model result =
         R.Result msgs (Just newModel) -> { newModel | lastMessage = String.join "\n" msgs }
         R.Result msgs Nothing -> { model | lastMessage = String.join "\n" msgs }
 
+editingMetadata : Model -> Bool
+editingMetadata model = model.metadataForm |>
+                        Maybe.map Tuple.second |>
+                        Maybe.withDefault Dict.empty |>
+                        Dict.values |>
+                        List.any identity
+
 update : Msg -> Model -> Return Msg Model
 update msg model =
     let
-        editingMetadata = model.metadataForm |>
-                          Maybe.map Tuple.second |>
-                          Maybe.withDefault Dict.empty |>
-                          Dict.values |>
-                          List.any identity
         handleMetadata submsg = case model.root of
                                     Success root ->
                                         let
@@ -54,10 +56,13 @@ update msg model =
                                             Return.return newmodel <| Cmd.map Metadata subcmd
                                     _ -> Debug.crash "Got a metadata Cmd when no data was loaded"
     in
-        if editingMetadata
+        if editingMetadata model
         then
             case msg of
                 Metadata submsg -> handleMetadata submsg
+                KeyMsg code -> case code of
+                                   27 -> handleMetadata MetadataType.Cancel -- Escape
+                                   _ -> Return.singleton model
                 _ -> Return.singleton <|
                      handleResult model <|
                      R.fail "Can't do that while editing metadata"
@@ -120,7 +125,9 @@ update msg model =
                 Metadata submsg -> handleMetadata submsg
 
 subscriptions : Model -> Sub Msg
-subscriptions m = Sub.batch <|
-                  [ Keyboard.presses KeyMsg ] ++ if m.contextMenu.target == Nothing
-                       then []
-                       else [ Mouse.clicks (\_ -> CancelContext) ]
+subscriptions m =
+    let
+        keySub = if editingMetadata m then Keyboard.downs KeyMsg else Keyboard.presses KeyMsg
+        clickSub = if m.contextMenu.target == Nothing then Sub.none else (Mouse.clicks (\_ -> CancelContext))
+    in
+        Sub.batch [keySub, clickSub]
