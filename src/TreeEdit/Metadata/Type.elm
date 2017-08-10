@@ -19,4 +19,6 @@ type Msg = ReceivedDefinition (WebData String) |
     Form Form.Msg |
     Edit String |
     Save |
-    NewSelection
+    Cancel |
+    NewSelection |
+    SaveSuccess String

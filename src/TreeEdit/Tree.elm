@@ -19,6 +19,7 @@ module TreeEdit.Tree exposing (l, t, trace, Tree, either,
                               , constants
                               , map
                               , receiveTrees
+                              , metadata
                               )
 
 import List
@@ -36,6 +37,7 @@ import TreeEdit.Index as Index
 import TreeEdit.Path as Path exposing (Path(..), PathFragment)
 
 import Monocle.Optional as Optional exposing (Optional)
+import Monocle.Lens as Lens exposing (Lens)
 
 import TreeEdit.Result as R exposing (succeed, fail)
 
@@ -247,6 +249,16 @@ highestIndex t =
         f d i = Maybe.withDefault 0 (lens d) |> max i
     in
         fold f 0 t
+
+-- Metadata
+
+metadata : Lens Tree Metadata
+metadata =
+    let
+        get = .metadata
+        set m t = { t | metadata = m }
+    in
+        Lens get set
 
 -- Movement
 

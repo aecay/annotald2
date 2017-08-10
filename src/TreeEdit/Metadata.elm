@@ -9,6 +9,9 @@ import Html.Attributes as Attr exposing (id)
 import Html.Events exposing (onClick)
 
 import Json.Decode as D
+import Json.Encode as E
+
+import Cmd.Extra
 
 import RemoteData.Http as Net
 
@@ -27,8 +30,6 @@ import TreeEdit.Tree as Tree
 import TreeEdit.Model as Model
 import TreeEdit.Selection as Selection
 import TreeEdit.Result as R
-
--- Lemma form
 
 validation : Validation () Metadata
 validation =
@@ -94,8 +95,7 @@ formView form state =
         (if (Form.getFieldAsString "lemma" form |> .value) == Just ""
          then []
          else [ div [ id "lemma-def" ]
-                    [ field "definition"
-                    ]
+                    [ field "definition" ]
               ]
         ) ++
         if List.any identity <| Dict.values state
@@ -117,7 +117,40 @@ init {lemma, definition} = ( Form.initial [ Form.Init.setString "lemma" lemma
                                            ]
                            )
 
--- Main code
+save : Metadata -> Model.Model -> Return Msg Model.Model
+save metadata model =
+    case (model.root, Selection.first model.selected) of
+        (Success root, Just selection) ->
+            let
+                {lemma, definition} = metadata
+                sel = Tree.get selection root
+                -- set : R.Result (Dict String String -> Tree.Tree)
+                set = R.map (flip (.set Tree.metadata)) sel
+                newSel = sel |>
+                         R.map (.get Tree.metadata) |>
+                         R.map (Dict.update "lemma" (always <| Just lemma)) |>
+                         flip R.andMap set
+                newRoot = newSel |> R.andThen (\x -> Tree.set selection x root) |> R.withDefault root
+                updateCmd = case (definition,
+                                      model.metadataForm |>
+                                      Maybe.map Tuple.second |>
+                                      Maybe.andThen (Dict.get "definition"))
+                            of
+                                (Just def, Just True) ->
+                                    Net.post
+                                        "/dictentry"
+                                        (always <| SaveSuccess lemma)
+                                        (D.succeed ())
+                                        (E.object [ ("lemma", E.string lemma)
+                                                  , ("definition", E.string def)
+                                                  ])
+                                _ -> Cmd.none
+
+            in
+                Return.return
+                    { model | root = Success newRoot }
+                    updateCmd
+        _ -> Return.singleton model
 
 update : Model.Model -> Msg -> Return Msg Model.Model
 update model msg =
@@ -129,8 +162,7 @@ update model msg =
                                                                 (Optional.composeLens maybe first)
                                                                 (Form.update
                                                                      validation
-                                                                     (Form.Reset [("definition",
-                                                                                   Form.Field.string definition)]))
+                                                                     (Form.Input "definition" Form.Text (Form.Field.String definition)))
                                                                 model.metadataForm
                                                           }
                                     _ -> Return.singleton model
@@ -143,11 +175,13 @@ update model msg =
         Edit fieldName -> Return.singleton { model | metadataForm =
                                                  Optional.modify
                                                  (Optional.composeLens maybe second)
-                                                 (Dict.update fieldName (\_ -> Just True))
+                                                 (Dict.update fieldName (always <| Just True))
                                                  model.metadataForm
                                            }
-        Save -> Return.singleton model -- TODO: implement.  Also implement
-                                       -- canceling with esc
+        Save -> case model.metadataForm |> Maybe.andThen (Tuple.first >> Form.getOutput) of
+                    Just metadata -> save metadata model |> Return.command (Cmd.Extra.perform NewSelection)
+                    Nothing -> Return.singleton model
+        Cancel -> Return.singleton { model | metadataForm = Nothing }
         NewSelection ->
             case (model.root, Selection.first model.selected) of
                 -- TODO: first returns Just for a two-element selection
@@ -155,20 +189,22 @@ update model msg =
                     case (Tree.get p root) |> R.map Tree.isTerminal |> R.withDefault False of
                         True ->
                             let
-                                dict = (Tree.get p root) |> R.map .metadata |> R.withDefault Dict.empty
+                                dict = (Tree.get p root) |> R.map (.get Tree.metadata) |> R.withDefault Dict.empty
                                 extract key = Dict.get key dict
+                                lemma = extract "lemma"
                                 req x = Net.get
                                         (Net.url "/dictentry" [("lemma", x)])
                                         ReceivedDefinition
                                         D.string
                             in
                                 Return.return { model | metadataForm = Just <|
-                                                    init { lemma = extract "lemma" |> Maybe.withDefault ""
+                                                    init { lemma = Maybe.withDefault "" lemma
                                                          , definition = Nothing }
                                               }
-                                (extract "lemma" |> Maybe.map req |> Maybe.withDefault Cmd.none)
+                                (lemma |> Maybe.map req |> Maybe.withDefault Cmd.none)
                         False -> Return.singleton { model | metadataForm = Nothing }
                 _ -> Return.singleton { model | metadataForm = Nothing }
+        SaveSuccess lemma -> Return.singleton { model | lastMessage = "Saved definition for lemma " ++ lemma }
 
 view : Model.Model -> Html Msg
 view model =

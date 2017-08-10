@@ -16,7 +16,9 @@ type Node = Terminal String (Maybe Index.Index) |
 
 type alias Label = String
 
+type alias Metadata = Dict String String
+
 type alias Tree = { contents: Node
                   , label: Label
-                  , metadata: Dict String String
+                  , metadata: Metadata
                   }
