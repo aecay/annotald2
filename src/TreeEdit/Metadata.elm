@@ -128,7 +128,7 @@ save metadata model =
                 set = R.map (flip (.set Tree.metadata)) sel
                 newSel = sel |>
                          R.map (.get Tree.metadata) |>
-                         R.map (Dict.update "lemma" (always <| Just lemma)) |>
+                         R.map (Dict.update "LEMMA" (always <| Just lemma)) |>
                          flip R.andMap set
                 newRoot = newSel |> R.andThen (\x -> Tree.set selection x root) |> R.withDefault root
                 updateCmd = case (definition,
@@ -191,7 +191,7 @@ update model msg =
                             let
                                 dict = (Tree.get p root) |> R.map (.get Tree.metadata) |> R.withDefault Dict.empty
                                 extract key = Dict.get key dict
-                                lemma = extract "lemma"
+                                lemma = extract "LEMMA"
                                 req x = Net.get
                                         (Net.url "/dictentry" [("lemma", x)])
                                         ReceivedDefinition
