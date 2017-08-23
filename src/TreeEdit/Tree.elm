@@ -76,6 +76,7 @@ constants :
     , con : Tree
     , czero : Tree
     , pro : Tree
+    , vb : Tree
     }
 constants =
     { pro = { label = "NP-SBJ"
@@ -94,6 +95,10 @@ constants =
                 , contents = Comment "XXX"
                 , metadata = Dict.empty
                 }
+    , vb = { label = "VB"
+           , contents = EmptyCat Star Nothing
+           , metadata = Dict.empty
+           }
     }
 
 t : String -> List Tree -> Tree
