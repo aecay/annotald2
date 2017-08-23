@@ -13,6 +13,7 @@ module TreeEdit.Path exposing ( Path(..)
                               , allCombos
                               , toFragment
                               , internals
+                              , advance
                               )
 
 import List.Extra
@@ -152,3 +153,9 @@ allCombos path1 frag1 =
         case frag1 of
             PF [] -> [] -- TODO: testing the base case twice = code smell
             otherwise -> go path1 frag1 []
+
+advance : Path -> Path
+advance p =
+    case p of
+        RootPath -> RootPath
+        Path h t -> Path (h+1) t

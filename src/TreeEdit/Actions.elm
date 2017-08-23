@@ -7,6 +7,7 @@ module TreeEdit.Actions exposing ( clearSelection
                                  , deleteNode
                                  , leafBefore
                                  , leafBeforeInner -- For ContextMenu
+                                 , leafAfter
                         )
 
 -- This module contains the types and functions for creating *actions*, or
@@ -213,11 +214,23 @@ leafBeforeInner newLeaf path tree =
 
 leafBefore : Tree -> Model -> Result
 leafBefore newLeaf model =
-    R.succeed model |>
-    Selection.withOne model.selected (\x -> (leafBeforeInner newLeaf x (.get Model.root model)) |>
-                                          R.map (\x -> (.set Model.root) x model)) |>
-    -- TODO: test
-    Selection.withTwo model.selected (doMovement model)
+    let
+        createLeaf path = Model.doRoot (leafBeforeInner newLeaf path) model
+    in
+    Selection.perform model.selected
+        (R.succeed model)
+        (createLeaf >> R.succeed)
+        (doMovement model) -- TODO: test
+
+leafAfter : Tree -> Model -> Result
+leafAfter newLeaf model =
+    let
+        createLeaf path = Model.doRoot (leafBeforeInner newLeaf (Path.advance path)) model
+    in
+    Selection.perform model.selected
+        (R.succeed model)
+        (createLeaf >> R.succeed)
+        (\_ _ -> R.succeed model) -- TODO: get movement for this case working
 
 
 deleteNode : Model -> Result
