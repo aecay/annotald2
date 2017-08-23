@@ -183,7 +183,7 @@ createParent2 label one two model =
         then R.fail "parents are different for createParent2"
         else doAt parent1 (Tree.updateChildren (\c -> let (x, y, z) = Utils.splice foot1 (foot2+1) c
                                                       in x ++ [Tree.t label y] ++ z))
-            model
+            model |> R.map ((.set Model.selected) (Selection.one one))
 
 createParent : String -> Model -> Result
 createParent label model =
