@@ -1,13 +1,17 @@
 module TreeEdit.View exposing (view)
 
+import Color exposing (black, rgb, Color)
 import Html exposing (..)
 import Html.Attributes as Attr
+import Html.Events as Ev
 import Html.Lazy exposing (lazy3)
 import Json.Decode as Json
-import Html.Events as Ev
 import RemoteData exposing (RemoteData(..))
-
 import Toolkit.Helpers exposing (applyList)
+import TypedStyles exposing ( borderTopWidth, borderTopColor, borderBottomWidth, borderBottomColor
+                            , border, solid, borderLeftColor, borderLeftWidth
+                            , padding , color , px , backgroundColor , marginLeft
+                            )
 
 import TreeEdit.Model as Model exposing (Model)
 import TreeEdit.Tree as Tree exposing (Tree)
@@ -37,9 +41,10 @@ decodeMouse = Json.map2 (\x y -> { x = x, y = y })
               (Json.field "y" Json.int)
 
 ipStyles : List (String, String)
-ipStyles = [ ("border-top", "1px solid black")
-           , ("border-bottom", "1px solid black")
-           , ("background-color", "#C5908E")
+ipStyles = [ borderTopColor black
+           , borderTopWidth 1 px
+           , borderBottomColor black
+           , borderBottomWidth 1 px
            ]
 
 isIP : String -> Bool
@@ -49,24 +54,36 @@ isIP label =
     in
         List.any identity <| applyList predicates label
 
+theme : { offWhite : Color, salmon : Color, silver : Color, blue : Color }
+theme = { blue = rgb 70 130 180
+        , salmon = rgb 197 144 142
+        , offWhite = rgb 239 239 239
+        , silver = (rgb 192 192 192)
+        }
+
 snode : Path -> Tree -> Bool -> List (Html Msg) -> Html Msg
 snode self tree selected children =
     let
         rightClick = Ev.onWithOptions "contextmenu" blockAll <|
                      Json.map (\x -> RightClick self x) decodeMouse
+        isIP_ = isIP tree.label
+        bgColor = if selected
+                  then theme.blue
+                  else if isIP_
+                       then theme.salmon
+                       else theme.offWhite
     in
         div
         [ Attr.class "snode"
-        , Attr.style <| [ ("margin-left", "20px")
-                        , ("border", "1px solid silver")
-                        , ("border-left", "4px solid #4682B4")
-                        , ("background-color", if selected
-                                               then "#4682B4"
-                                               else "#EFEFEF")
-                        , ("padding", "2px")
+        , Attr.style <| [ marginLeft 20 px
+                        , border 1 px solid theme.silver
+                        , borderLeftColor theme.blue
+                        , borderLeftWidth 4 px
+                        , padding 2 px
+                        , color black
+                        , backgroundColor bgColor
                         , ("cursor", "pointer")
-                        , ("color", "black")
-                        ] ++ if isIP tree.label then ipStyles else []
+                        ] ++ if isIP_ then ipStyles else []
         , onClick <| ToggleSelect self
         , rightClick
         ] <| text (labelString tree) :: children

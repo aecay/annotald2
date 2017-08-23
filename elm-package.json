@@ -24,6 +24,7 @@
         "elm-lang/navigation": "2.1.0 <= v < 3.0.0",
         "etaque/elm-form": "2.1.0 <= v < 3.0.0",
         "evancz/url-parser": "2.0.1 <= v < 3.0.0",
+        "identicalsnowflake/elm-typed-styles": "3.0.0 <= v < 4.0.0",
         "krisajenkins/remotedata": "4.3.0 <= v < 5.0.0",
         "ohanhi/remotedata-http": "2.0.2 <= v < 3.0.0"
     },
