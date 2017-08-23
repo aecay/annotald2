@@ -144,6 +144,8 @@ viewRoot1 m =
                          , ("border", "1px solid black")
                          , ("margin-left", "calc(15% + 12px)")
                          , ("margin-right", "5%")
+                         -- In order for the trees to shrink to the correct width
+                         , ("display", "inline-block")
                          ]
             , rightClick
             ]
