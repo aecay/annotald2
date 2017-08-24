@@ -1,31 +1,38 @@
 module TreeEdit.View.ToolBar exposing (view)
 
+import Color exposing (white)
 import Html exposing (Html, div, text, br, button)
 import Html.Attributes as A
 import Html.Events exposing (onClick)
+import TypedStyles exposing ( backgroundColor, color, width, height, px, prc
+                            , paddingBottom, solid, border, marginBottom
+                            , textCenter
+                            )
 
 import TreeEdit.Msg as Msg exposing (Msg)
+import TreeEdit.View.Theme exposing (theme)
 
 view : String -> Html Msg
 view filename  = div []
-                 [ div [ A.style [ ("background-color", "#2E2E2E")
-                                 , ("color", "white")
+                 [ div [ A.style [ backgroundColor theme.darkGrey
+                                 , color white
+                                 , width 100 prc
+                                 , height 16 px
                                  , ("font-weight", "bold")
-                                 , ("text-align", "center")
-                                 , ("width", "100%")
-                                 , ("height", "16px")
+                                 , textCenter
                                 ]
                        ] [ text "Annotald 2" ]
-                 , div [ A.style [ ("background", "#FEF6EA")
-                                 , ("padding-bottom", "4px")
-                                 , ("border", "1px solid #857259")
-                                 , ("text-align", "center")
-                                 , ("margin-bottom", "6px")
+                 , div [ A.style [ backgroundColor theme.offWhite2
+                                 , paddingBottom 4 px
+                                 , border 1 px solid theme.darkTan
+                                 , marginBottom 6 px
+                                 , textCenter
                                  ]
                        ]
                      [ text ("Editing " ++ filename)
                      , button [ onClick Msg.DoSave
-                              , A.style [("width", "80%")]]
+                              , A.style [ width 80 prc ]
+                              ]
                            [text "Save"]
                      -- Undo, redo, exit
                      ]

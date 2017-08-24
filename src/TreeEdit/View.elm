@@ -1,6 +1,6 @@
 module TreeEdit.View exposing (view)
 
-import Color exposing (black, rgb, Color)
+import Color exposing (black, white)
 import Html exposing (..)
 import Html.Attributes as Attr
 import Html.Events as Ev
@@ -10,7 +10,9 @@ import RemoteData exposing (RemoteData(..))
 import Toolkit.Helpers exposing (applyList)
 import TypedStyles exposing ( borderTopWidth, borderTopColor, borderBottomWidth, borderBottomColor
                             , border, solid, borderLeftColor, borderLeftWidth
-                            , padding , color , px , backgroundColor , marginLeft
+                            , padding, color, px, backgroundColor, marginLeft
+                            , paddingLeft, paddingRight, width, height, prc
+                            , left, right, bottom, marginRight, top, textCenter
                             )
 
 import TreeEdit.Model as Model exposing (Model)
@@ -20,6 +22,7 @@ import TreeEdit.Path as Path exposing (Path)
 import TreeEdit.Selection as Selection exposing (Selection)
 import TreeEdit.Msg as Msg exposing (Msg(..))
 import TreeEdit.View.ToolBar as ToolBar
+import TreeEdit.View.Theme exposing (theme)
 import TreeEdit.Metadata as Metadata
 
 import TreeEdit.Utils as Utils exposing (fromJust)
@@ -54,13 +57,6 @@ isIP label =
     in
         List.any identity <| applyList predicates label
 
-theme : { offWhite : Color, salmon : Color, silver : Color, blue : Color }
-theme = { blue = rgb 70 130 180
-        , salmon = rgb 197 144 142
-        , offWhite = rgb 239 239 239
-        , silver = (rgb 192 192 192)
-        }
-
 snode : Path -> Tree -> Bool -> List (Html Msg) -> Html Msg
 snode self tree selected children =
     let
@@ -91,12 +87,12 @@ snode self tree selected children =
 wnode : Tree -> Html Msg
 wnode t = span
              [ Attr.class "wnode"
-             , Attr.style [ ("margin-left", "20px")
-                          , ("padding-left", "4px")
-                          , ("padding-right", "4px")
-                          , ("border", "1px solid black")
-                          , ("background-color", "white")
-                          , ("color", "black")
+             , Attr.style [ marginLeft 20 px
+                          , paddingLeft 4 px
+                          , paddingRight 4 px
+                          , border 1 px solid black
+                          , backgroundColor white
+                          , color black
                           ]
              ]
              [text <| terminalString t]
@@ -157,10 +153,10 @@ viewRoot1 m =
     in
         viewRoot m |>
         div [ Attr.class "sn0"
-            , Attr.style [ ("background-color", "#D2B48C")
-                         , ("border", "1px solid black")
+            , Attr.style [ backgroundColor theme.tan
+                         , border 1 px solid black
+                         , marginRight 5 prc
                          , ("margin-left", "calc(15% + 12px)")
-                         , ("margin-right", "5%")
                          -- In order for the trees to shrink to the correct width
                          , ("display", "inline-block")
                          ]
@@ -176,31 +172,31 @@ view model =
             NotAsked -> loading
             Loading -> loading
             Failure e -> div [] [ text <| "error " ++ toString e ]
-            Success root -> div [] [ div [ Attr.style [ ("position", "fixed")
-                                                      , ("top", "30px")
-                                                      , ("left", "0px")
-                                                      , ("margin-left", "5px")
-                                                      , ("width", "15%")
+            Success root -> div [] [ div [ Attr.style [ top 30 px
+                                                      , left 0 px
+                                                      , marginLeft 5 px
+                                                      , width 15 prc
+                                                      , ("position", "fixed")
                                                       ]
 
                                          ]
                                          [ ToolBar.view model.fileName
                                          , Metadata.view model |> Html.map Msg.Metadata
                                          ]
-                                   , div [ Attr.style [ ("position", "fixed")
-                                                      , ("bottom", "30px")
-                                                      , ("left", "0px")
-                                                      , ("margin-left", "5px")
-                                                      , ("width", "15%")
-                                                      , ("background", "#FEF6EA")
+                                   , div [ Attr.style [ bottom 30 px
+                                                      , left 0 px
+                                                      , marginLeft 5 px
+                                                      , width 15 prc
+                                                      , backgroundColor theme.offWhite2
+                                                      , ("position", "fixed")
                                                       ]
                                          ]
-                                         [ div [ Attr.style [ ("background-color", "#2E2E2E")
-                                                            , ("color", "white")
+                                         [ div [ Attr.style [ backgroundColor theme.darkGrey
+                                                            , color white
+                                                            , width 100 prc
+                                                            , height 16 px
                                                             , ("font-weight", "bold")
-                                                            , ("text-align", "center")
-                                                            , ("width", "100%")
-                                                            , ("height", "16px")
+                                                            , textCenter
                                                             ]
                                                ] [ text "Messages" ]
                                          , text model.lastMessage ]

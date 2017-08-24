@@ -1,19 +1,21 @@
 module TreeEdit.Metadata exposing (view, update)
 
-import RemoteData exposing (RemoteData(..), WebData)
-import Return exposing (Return)
+import Cmd.Extra
+import Color exposing (rgb, white)
 import Dict exposing (Dict)
-
 import Html exposing (div, text, button, Html, span)
 import Html.Attributes as Attr exposing (id)
 import Html.Events exposing (onClick)
-
 import Json.Decode as D
 import Json.Encode as E
-
-import Cmd.Extra
-
+import Monocle.Optional as Optional
+import Monocle.Common exposing (first, second, maybe)
+import RemoteData exposing (RemoteData(..), WebData)
 import RemoteData.Http as Net
+import Return exposing (Return)
+import TypedStyles exposing ( px, border, solid, margin, width, height, prc
+                            , color, backgroundColor, paddingBottom, padding
+                            , textCenter)
 
 import Form exposing (Form)
 import Form.Input as Input
@@ -21,15 +23,13 @@ import Form.Init
 import Form.Field
 import Form.Validate as V exposing (Validation)
 
-import Monocle.Optional as Optional
-import Monocle.Common exposing (first, second, maybe)
-
 import TreeEdit.Metadata.Type exposing (..)
 import TreeEdit.Selection exposing (Selection)
 import TreeEdit.Tree as Tree
 import TreeEdit.Model as Model
 import TreeEdit.Selection as Selection
 import TreeEdit.Result as R
+import TreeEdit.View.Theme exposing (theme)
 
 validation : Validation () Metadata
 validation =
@@ -55,16 +55,16 @@ textField fs form name =
                 else text value
         editButton m = button [ onClick m , Attr.style [("padding", "1px")]] [ text "✎" ]
     in
-        div [ Attr.style [ ("border", "1px solid #2E2E2E")
-                         , ("margin", "2px")
+        div [ Attr.style [ border 1 px solid theme.darkGrey
+                         , margin 2 px
                          ]
             ]
-            [ div [ Attr.style [ ("background-color", "#555555")
-                               , ("color", "#eeeeee")
+            [ div [ Attr.style [ backgroundColor (rgb 85 85 85)
+                               , color (rgb 238 238 238)
+                               , width 100 prc
+                               , height 16 px
                                , ("font-weight", "bold")
-                               , ("text-align", "center")
-                               , ("width", "100%")
-                               , ("height", "16px")
+                               , textCenter
                                ]
                   ]
                   [ text <| capitalize name ]
@@ -73,7 +73,7 @@ textField fs form name =
               else span [ Attr.style [ ("display", "flex")
                                      , ("justify-content", "space-between")
                                      , ("align-items", "center")
-                                     , ("padding", "2px")
+                                     , padding 2 px
                                      ]
                         ]
                   [ formatValue contents
@@ -99,7 +99,7 @@ formView form state =
               ]
         ) ++
         if List.any identity <| Dict.values state
-        then [ div [Attr.style [ ("margin", "2px")
+        then [ div [Attr.style [ margin 2 px
                                , ("display", "flex")
                                , ("flex-direction", "row-reverse")
                                ]
@@ -210,16 +210,16 @@ view : Model.Model -> Html Msg
 view model =
     case model.metadataForm of
         Just (form, state) -> div [ id "metadata-editor"
-                                  , Attr.style [ ("background", "#FEF6EA")
-                                               , ("padding-bottom", "2px")
+                                  , Attr.style [ backgroundColor theme.offWhite2
+                                               , paddingBottom 2 px
                                                ]
                                   ]
-                              [ div [ Attr.style [ ("background-color", "#2E2E2E")
-                                                 , ("color", "white")
+                              [ div [ Attr.style [ backgroundColor theme.darkGrey
+                                                 , color white
+                                                 , width 100 prc
+                                                 , height 16 px
                                                  , ("font-weight", "bold")
-                                                 , ("text-align", "center")
-                                                 , ("width", "100%")
-                                                 , ("height", "16px")
+                                                 , textCenter
                                                  ]
                                     ] [ text "Metadata" ]
                               , formView form state
