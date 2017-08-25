@@ -6,6 +6,7 @@ module TreeEdit.Msg exposing (Msg(..))
 import Keyboard
 import RemoteData exposing (WebData)
 
+import TreeEdit.Config exposing (Config)
 import TreeEdit.Path exposing (Path)
 import TreeEdit.ContextMenuTypes as ContextMenuTypes
 import TreeEdit.Model as Model
@@ -17,7 +18,7 @@ type Msg = ToggleSelect Path |
     RightClick Path ContextMenuTypes.Position |
     RightClickRoot |
     Context (ContextMenuTypes.Msg Model.Model) |
-    GotTrees (WebData (List Tree)) |
+    LoadedData (WebData ((List Tree), Config)) |
     DoSave |
     LogMessage String |
     CancelContext |

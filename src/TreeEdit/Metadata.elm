@@ -120,38 +120,41 @@ init {lemma, definition} = ( Form.initial [ Form.Init.setString "lemma" lemma
 
 save : Metadata -> Model.Model -> Return Msg Model.Model
 save metadata model =
-    case (model.root, Selection.first model.selected) of
-        (Success root, Just selection) ->
-            let
-                {lemma, definition} = metadata
-                sel = Tree.get selection root
-                -- set : R.Result (Dict String String -> Tree.Tree)
-                set = R.map (flip (.set Tree.metadata)) sel
-                newSel = sel |>
-                         R.map (.get Tree.metadata) |>
-                         R.map (Dict.update "LEMMA" (always <| Just lemma)) |>
-                         flip R.andMap set
-                newRoot = newSel |> R.andThen (\x -> Tree.set selection x root) |> R.withDefault root
-                updateCmd = case (definition,
-                                      model.metadataForm |>
-                                      Maybe.map Tuple.second |>
-                                      Maybe.andThen (Dict.get "definition"))
-                            of
-                                (Just def, Just True) ->
-                                    Net.post
-                                        "/dictentry"
-                                        (always <| SaveSuccess lemma)
-                                        (D.succeed ())
-                                        (E.object [ ("lemma", E.string lemma)
-                                                  , ("definition", E.string def)
-                                                  ])
-                                _ -> Cmd.none
+    let
+        root = model |> .get Model.root
+        selected = model |> .get Model.selected
+    in
+        case Selection.first selected of
+            Just selection ->
+                let
+                    {lemma, definition} = metadata
+                    sel = Tree.get selection root
+                    set = R.map (flip (.set Tree.metadata)) sel
+                    newSel = sel |>
+                             R.map (.get Tree.metadata) |>
+                             R.map (Dict.update "LEMMA" (always <| Just lemma)) |>
+                             flip R.andMap set
+                    newRoot = newSel |> R.andThen (\x -> Tree.set selection x root) |> R.withDefault root
+                    updateCmd = case (definition,
+                                          model.metadataForm |>
+                                          Maybe.map Tuple.second |>
+                                          Maybe.andThen (Dict.get "definition"))
+                                of
+                                    (Just def, Just True) ->
+                                        Net.post
+                                            "/dictentry"
+                                            (always <| SaveSuccess lemma)
+                                            (D.succeed ())
+                                            (E.object [ ("lemma", E.string lemma)
+                                                      , ("definition", E.string def)
+                                                      ])
+                                    _ -> Cmd.none
 
-            in
-                Return.return
-                    { model | root = Success newRoot }
-                    updateCmd
-        _ -> Return.singleton model
+                in
+                    Return.return
+                        (.set Model.root newRoot model)
+                        updateCmd
+            _ -> Return.singleton model
 
 update : Model.Model -> Msg -> Return Msg Model.Model
 update model msg =
@@ -187,27 +190,30 @@ update model msg =
                     Nothing -> Return.singleton model
         Cancel -> Return.return { model | metadataForm = Nothing } (TreeEdit.Ports.editing False)
         NewSelection ->
-            case (model.root, Selection.first model.selected) of
-                -- TODO: first returns Just for a two-element selection
-                (Success root, Just p) ->
-                    case (Tree.get p root) |> R.map Tree.isTerminal |> R.withDefault False of
-                        True ->
-                            let
-                                dict = (Tree.get p root) |> R.map (.get Tree.metadata) |> R.withDefault Dict.empty
-                                extract key = Dict.get key dict
-                                lemma = extract "LEMMA"
-                                req x = Net.get
-                                        (Net.url "/dictentry" [("lemma", x)])
-                                        ReceivedDefinition
-                                        D.string
-                            in
-                                Return.return { model | metadataForm = Just <|
-                                                    init { lemma = Maybe.withDefault "" lemma
-                                                         , definition = Nothing }
-                                              }
-                                (lemma |> Maybe.map req |> Maybe.withDefault Cmd.none)
-                        False -> Return.singleton { model | metadataForm = Nothing }
-                _ -> Return.singleton { model | metadataForm = Nothing }
+            let
+                root = model |> .get Model.root
+            in
+                case Selection.first model.selected of
+                    -- TODO: first returns Just for a two-element selection
+                    Just p ->
+                        case (Tree.get p root) |> R.map Tree.isTerminal |> R.withDefault False of
+                            True ->
+                                let
+                                    dict = (Tree.get p root) |> R.map (.get Tree.metadata) |> R.withDefault Dict.empty
+                                    extract key = Dict.get key dict
+                                    lemma = extract "LEMMA"
+                                    req x = Net.get
+                                            (Net.url "/dictentry" [("lemma", x)])
+                                            ReceivedDefinition
+                                            D.string
+                                in
+                                    Return.return { model | metadataForm = Just <|
+                                                        init { lemma = Maybe.withDefault "" lemma
+                                                             , definition = Nothing }
+                                                  }
+                                    (lemma |> Maybe.map req |> Maybe.withDefault Cmd.none)
+                            False -> Return.singleton { model | metadataForm = Nothing }
+                    _ -> Return.singleton { model | metadataForm = Nothing }
         SaveSuccess lemma -> Return.singleton { model | lastMessage = "Saved definition for lemma " ++ lemma }
 
 view : Model.Model -> Html Msg

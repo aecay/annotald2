@@ -15,6 +15,7 @@ import TypedStyles exposing ( borderTopWidth, borderTopColor, borderBottomWidth,
                             , left, right, bottom, marginRight, top, textCenter
                             )
 
+import TreeEdit.Config exposing (Config)
 import TreeEdit.Model as Model exposing (Model)
 import TreeEdit.Tree as Tree exposing (Tree)
 import TreeEdit.Tree.View exposing (labelString, terminalString)
@@ -30,8 +31,6 @@ import TreeEdit.ViewUtils exposing (onClick, blockAll)
 
 import TreeEdit.ContextMenuTypes as ContextMenuTypes
 import TreeEdit.ContextMenu as ContextMenu
-
--- TODO: use html.keyed for speed
 
 blockAll : Ev.Options
 blockAll = { stopPropagation = True
@@ -50,19 +49,19 @@ ipStyles = [ borderTopColor black
            , borderBottomWidth 1 px
            ]
 
-isIP : String -> Bool
-isIP label =
+isIP : Config -> String -> Bool
+isIP config label =
     let
-        predicates = List.map String.startsWith ["IP-", "FRAG"] -- TODO: make configurable
+        predicates = List.map String.startsWith config.ipLabels
     in
         List.any identity <| applyList predicates label
 
-snode : Path -> Tree -> Bool -> List (Html Msg) -> Html Msg
-snode self tree selected children =
+snode : Config -> Path -> Tree -> Bool -> List (Html Msg) -> Html Msg
+snode config self tree selected children =
     let
         rightClick = Ev.onWithOptions "contextmenu" blockAll <|
                      Json.map (\x -> RightClick self x) decodeMouse
-        isIP_ = isIP tree.label
+        isIP_ = isIP config tree.label
         bgColor = if selected
                   then theme.blue
                   else if isIP_
@@ -97,20 +96,20 @@ wnode t = span
              ]
              [text <| terminalString t]
 
-viewTree : List Path -> Path -> Tree -> Html Msg
-viewTree selected selfPath tree =
+viewTree : Config -> List Path -> Path -> Tree -> Html Msg
+viewTree config selected selfPath tree =
     let
         isSelected = List.member selfPath selected
-        viewT d = snode selfPath d isSelected [wnode d]
+        viewT d = snode config selfPath d isSelected [wnode d]
         viewNt d =
             (.getOption Tree.children) tree |> Utils.fromJust |>
-            List.indexedMap (\i c -> viewTree selected (Path.childPath i selfPath) c) |>
-            snode selfPath d isSelected
+            List.indexedMap (\i c -> viewTree config selected (Path.childPath i selfPath) c) |>
+            snode config selfPath d isSelected
     in
         Tree.either viewNt viewT tree
 
-viewRootTree : Maybe (List Path) -> Int -> Tree -> Html Msg
-viewRootTree selected selfIndex tree = viewTree (Maybe.withDefault [] selected) (Path.singleton selfIndex) tree
+viewRootTree : Config -> Maybe (List Path) -> Int -> Tree -> Html Msg
+viewRootTree config selected selfIndex tree = viewTree config (Maybe.withDefault [] selected) (Path.singleton selfIndex) tree
 
 -- Why do we go through all these contortions?  Html.lazy compares based on
 -- equality of reference, not equality per se (source:
@@ -123,13 +122,14 @@ viewRootTree selected selfIndex tree = viewTree (Maybe.withDefault [] selected) 
 -- Nothing if 1) nothing is selected or 2) the selection is not inside the
 -- current tree.  There might be further performance optimizations we could
 -- make here, but for now it's Good Enough™
-viewRoot : Model -> List (Html Msg)
-viewRoot model =
+viewRoot : Model -> Tree -> Config -> List (Html Msg)
+viewRoot model root config =
     let
         selectedTrees1 = Selection.get model.selected
         selectedTrees = if selectedTrees1 == [] then Nothing else Just selectedTrees1
+        viewRootFn = viewRootTree config
     in
-        (.get Model.root model) |>
+        root |>
         -- Possibly can make this a Lens, if the children of a terminal are
         -- defined as []
         (.getOption Tree.children) |>
@@ -142,16 +142,15 @@ viewRoot model =
                                        then selectedTrees
                                        else Nothing
                              in
-                                 lazy3 viewRootTree sel i c)
+                                 lazy3 viewRootFn sel i c)
 
--- TODO: lame name
-viewRoot1 : Model -> Html Msg
-viewRoot1 m =
+wrapSn0 : List (Html Msg) -> Html Msg
+wrapSn0 nodes =
     let
         rightClick = Ev.onWithOptions "contextmenu" blockAll <|
                      Json.map (\_ -> RightClickRoot) decodeMouse
     in
-        viewRoot m |>
+        nodes |>
         div [ Attr.class "sn0"
             , Attr.style [ backgroundColor theme.tan
                          , border 1 px solid black
@@ -168,38 +167,38 @@ view model =
     let
         loading = div [] [ text "loading" ]
     in
-        case model.root of
+        case model.webdata of
             NotAsked -> loading
             Loading -> loading
             Failure e -> div [] [ text <| "error " ++ toString e ]
-            Success root -> div [] [ div [ Attr.style [ top 30 px
-                                                      , left 0 px
-                                                      , marginLeft 5 px
-                                                      , width 15 prc
-                                                      , ("position", "fixed")
-                                                      ]
+            Success (root, config) -> div [] [ div [ Attr.style [ top 30 px
+                                                                , left 0 px
+                                                                , marginLeft 5 px
+                                                                , width 15 prc
+                                                                , ("position", "fixed")
+                                                                ]
 
-                                         ]
-                                         [ ToolBar.view model.fileName
-                                         , Metadata.view model |> Html.map Msg.Metadata
-                                         ]
-                                   , div [ Attr.style [ bottom 30 px
-                                                      , left 0 px
-                                                      , marginLeft 5 px
-                                                      , width 15 prc
-                                                      , backgroundColor theme.offWhite2
-                                                      , ("position", "fixed")
-                                                      ]
-                                         ]
-                                         [ div [ Attr.style [ backgroundColor theme.darkGrey
-                                                            , color white
-                                                            , width 100 prc
-                                                            , height 16 px
-                                                            , ("font-weight", "bold")
-                                                            , textCenter
-                                                            ]
-                                               ] [ text "Messages" ]
-                                         , text model.lastMessage ]
-                                   , viewRoot1 model
-                                   , map Msg.Context <| ContextMenu.view model Model.contextMenu
-                                   ]
+                                                   ]
+                                                   [ ToolBar.view model.fileName
+                                                   , Metadata.view model |> Html.map Msg.Metadata
+                                                   ]
+                                             , div [ Attr.style [ bottom 30 px
+                                                                , left 0 px
+                                                                , marginLeft 5 px
+                                                                , width 15 prc
+                                                                , backgroundColor theme.offWhite2
+                                                                , ("position", "fixed")
+                                                                ]
+                                                   ]
+                                                   [ div [ Attr.style [ backgroundColor theme.darkGrey
+                                                                      , color white
+                                                                      , width 100 prc
+                                                                      , height 16 px
+                                                                      , ("font-weight", "bold")
+                                                                      , textCenter
+                                                                      ]
+                                                         ] [ text "Messages" ]
+                                                   , text model.lastMessage ]
+                                             , viewRoot model root config |> wrapSn0
+                                             , map Msg.Context <| ContextMenu.view model Model.contextMenu
+                                             ]

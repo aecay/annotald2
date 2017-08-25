@@ -12,6 +12,7 @@ from lovett.format import Json
 
 CORPUS_PATH = "/home/aecay/projects/chlg/parsing"
 DICT_FILE = "/home/aecay/projects/chlg/dict.json"
+CONFIG_FILE = "/home/aecay/projects/chlg/config.json"
 
 with open(DICT_FILE, "r") as fin:
     DICT = json.load(fin)
@@ -33,6 +34,12 @@ def static():
 def files():
     return list(map(lambda x: os.path.relpath(x, CORPUS_PATH),
                     glob.glob(os.path.join(CORPUS_PATH, "*.psd"))))
+
+
+@hug.get("/config")
+def config():
+    with open(CONFIG_FILE) as fin:
+        return json.load(fin)
 
 
 @hug.get("/file")

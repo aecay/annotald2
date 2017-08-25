@@ -5,7 +5,7 @@ import TreeEdit.Selection as Selection
 import TreeEdit.ContextMenu as ContextMenu
 import TreeEdit.Msg as Msg exposing (Msg(..))
 import TreeEdit.Tree.Json exposing (toJson)
-import TreeEdit.Tree exposing (children)
+import TreeEdit.Tree as Tree exposing (children)
 import TreeEdit.Metadata.Type as MetadataType
 import TreeEdit.Metadata as Metadata
 
@@ -22,7 +22,6 @@ import RemoteData.Http
 import Dict
 import Json.Decode as D
 import Json.Encode as E
-import Cmd.Extra
 
 import TreeEdit.Result as R
 
@@ -48,13 +47,11 @@ editingMetadata model = model.metadataForm |>
 update : Msg -> Model -> Return Msg Model
 update msg model =
     let
-        handleMetadata submsg = case model.root of
-                                    Success root ->
-                                        let
-                                            (newmodel, subcmd) = Metadata.update model submsg
-                                        in
-                                            Return.return newmodel <| Cmd.map Metadata subcmd
-                                    _ -> Debug.crash "Got a metadata Cmd when no data was loaded"
+        handleMetadata submsg =
+            let
+                (newmodel, subcmd) = Metadata.update model submsg
+            in
+                Return.return newmodel <| Cmd.map Metadata subcmd
     in
         if editingMetadata model
         then
@@ -98,28 +95,26 @@ update msg model =
                         model
                 Context contextMsg ->
                     Return.singleton <| (ContextMenu.update contextMsg Model.root Model.contextMenu) model
-                GotTrees (Success trees) ->
-                    Return.singleton <| Model.withTrees trees model.fileName
-                GotTrees x ->
+                LoadedData (Success (trees, config)) ->
+                    Return.singleton { model | webdata = Success (Tree.t "wtf" trees, config) }
+                LoadedData x ->
                     Debug.log ("fetch error: " ++ (toString x)) <| Return.singleton model
                 DoSave ->
                     let
+                        root = .get Model.root model
                         handle : (RemoteData.WebData () -> Msg)
                         handle d = case d of
                                        Success _ -> LogMessage "Save success"
                                        f -> LogMessage <| "Save failure: " ++ toString f
                     in
                         Return.return model <|
-                            case model.root of
-                                Success tree ->
-                                    RemoteData.Http.post
-                                        "/save"
-                                        handle
-                                        (D.succeed ())
-                                        (E.object [ ("filename", E.string model.fileName)
-                                                  , ("trees", toJson <| Utils.fromJust <| .getOption children tree)
-                                                  ])
-                                _ -> Cmd.Extra.perform <| LogMessage "Trying to save unloaded trees"
+                            RemoteData.Http.post
+                                "/save"
+                                handle
+                                (D.succeed ())
+                                (E.object [ ("filename", E.string model.fileName)
+                                          , ("trees", toJson <| Utils.fromJust <| .getOption children root)
+                                          ])
                 LogMessage m -> Return.singleton { model | lastMessage = m }
                 CancelContext -> Return.singleton <| ContextMenu.hide contextMenu <| model
                 Metadata submsg -> handleMetadata submsg
