@@ -66,7 +66,7 @@ def save(filename: hug.types.text, trees: hug.types.json):
             t.metadata.id = str(uuid.uuid4())
         # TODO: remove ID on lower trees
     with open(os.path.join(CORPUS_PATH, filename), "w") as fout:
-        fout.write(c.format(lovett.format.Penn))
+        fout.write(c.format(lovett.format.Icepahc))
 
 
 @hug.get("/dictentry")
