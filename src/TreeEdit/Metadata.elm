@@ -27,6 +27,7 @@ import TreeEdit.Metadata.Type exposing (..)
 import TreeEdit.Selection exposing (Selection)
 import TreeEdit.Tree as Tree
 import TreeEdit.Model as Model
+import TreeEdit.Ports
 import TreeEdit.Selection as Selection
 import TreeEdit.Result as R
 import TreeEdit.View.Theme exposing (theme)
@@ -172,16 +173,19 @@ update model msg =
                                               (Form.update validation submsg)
                                               model.metadataForm
                                         }
-        Edit fieldName -> Return.singleton { model | metadataForm =
-                                                 Optional.modify
-                                                 (Optional.composeLens maybe second)
-                                                 (Dict.update fieldName (always <| Just True))
-                                                 model.metadataForm
-                                           }
+        Edit fieldName -> Return.return { model | metadataForm =
+                                              Optional.modify
+                                              (Optional.composeLens maybe second)
+                                              (Dict.update fieldName (always <| Just True))
+                                              model.metadataForm
+                                        }
+                          (TreeEdit.Ports.editing True)
         Save -> case model.metadataForm |> Maybe.andThen (Tuple.first >> Form.getOutput) of
-                    Just metadata -> save metadata model |> Return.command (Cmd.Extra.perform NewSelection)
+                    Just metadata -> save metadata model |>
+                                     Return.command (Cmd.Extra.perform NewSelection) |>
+                                     Return.command (TreeEdit.Ports.editing False)
                     Nothing -> Return.singleton model
-        Cancel -> Return.singleton { model | metadataForm = Nothing }
+        Cancel -> Return.return { model | metadataForm = Nothing } (TreeEdit.Ports.editing False)
         NewSelection ->
             case (model.root, Selection.first model.selected) of
                 -- TODO: first returns Just for a two-element selection

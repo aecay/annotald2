@@ -25,8 +25,12 @@
       var app = Elm.Main.embed(node);
       // We need to hack around the fact that it isnʼt easy to preventDefault
       // from Elm.
+      var editing = false;
+      app.ports.editing.subscribe(function (newediting) {
+          editing = newediting;
+      });
       document.documentElement.addEventListener('keypress', function (e) {
-          if (e.which === 32) { // Space
+          if (e.which === 32 && !editing) { // Space
               e.preventDefault();
           }
       });
