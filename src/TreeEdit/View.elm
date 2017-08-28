@@ -1,6 +1,7 @@
 module TreeEdit.View exposing (view)
 
-import Color exposing (black, white)
+import Color exposing (black, white, Color)
+import Guards exposing (..)
 import Html exposing (..)
 import Html.Attributes as Attr
 import Html.Events as Ev
@@ -16,8 +17,10 @@ import TypedStyles exposing ( borderTopWidth, borderTopColor, borderBottomWidth,
                             )
 
 import TreeEdit.Config exposing (Config)
-import TreeEdit.Model as Model exposing (Model)
-import TreeEdit.Tree as Tree exposing (Tree)
+import TreeEdit.Model as Model
+import TreeEdit.Model.Type exposing (Model)
+import TreeEdit.Tree as Tree
+import TreeEdit.Tree.Type exposing (Tree)
 import TreeEdit.Tree.View exposing (labelString, terminalString)
 import TreeEdit.Path as Path exposing (Path)
 import TreeEdit.Selection as Selection exposing (Selection)
@@ -25,6 +28,8 @@ import TreeEdit.Msg as Msg exposing (Msg(..))
 import TreeEdit.View.ToolBar as ToolBar
 import TreeEdit.View.Theme exposing (theme)
 import TreeEdit.Metadata as Metadata
+import TreeEdit.View.LabelEdit as LabelEdit
+import TreeEdit.View.LabelEdit.Type exposing (LabelForm)
 
 import TreeEdit.Utils as Utils exposing (fromJust)
 import TreeEdit.ViewUtils exposing (onClick, blockAll)
@@ -56,17 +61,27 @@ isIP config label =
     in
         List.any identity <| applyList predicates label
 
-snode : Config -> Path -> Tree -> Bool -> List (Html Msg) -> Html Msg
-snode config self tree selected children =
+bgColor : Bool -> Bool -> Color
+bgColor selected ip = selected => theme.blue
+                      |= ip => theme.salmon
+                      |= theme.offWhite
+
+type alias ViewInfo =
+    { config : Config
+    , selected : List Path
+    , labelForm : Maybe LabelForm
+    }
+
+snode : ViewInfo -> Path -> Tree -> List (Html Msg) -> Html Msg
+snode info self tree children =
     let
+        selected = List.member self info.selected
         rightClick = Ev.onWithOptions "contextmenu" blockAll <|
                      Json.map (\x -> RightClick self x) decodeMouse
-        isIP_ = isIP config tree.label
-        bgColor = if selected
-                  then theme.blue
-                  else if isIP_
-                       then theme.salmon
-                       else theme.offWhite
+        isIP_ = isIP info.config tree.label
+        label = case (selected, info.labelForm) of
+                    (True, Just form) -> Html.map Msg.Label <| LabelEdit.view form
+                    _ -> text <| labelString tree
     in
         div
         [ Attr.class "snode"
@@ -76,12 +91,12 @@ snode config self tree selected children =
                         , borderLeftWidth 4 px
                         , padding 2 px
                         , color black
-                        , backgroundColor bgColor
+                        , backgroundColor (bgColor selected isIP_)
                         , ("cursor", "pointer")
                         ] ++ if isIP_ then ipStyles else []
         , onClick <| ToggleSelect self
         , rightClick
-        ] <| text (labelString tree) :: children
+        ] <| label :: children
 
 wnode : Tree -> Html Msg
 wnode t = span
@@ -96,20 +111,26 @@ wnode t = span
              ]
              [text <| terminalString t]
 
-viewTree : Config -> List Path -> Path -> Tree -> Html Msg
-viewTree config selected selfPath tree =
+viewTree : ViewInfo -> Path -> Tree -> Html Msg
+viewTree info selfPath tree =
     let
-        isSelected = List.member selfPath selected
-        viewT d = snode config selfPath d isSelected [wnode d]
+        isSelected = List.member selfPath info.selected
+        viewT d = snode info selfPath d [wnode d]
         viewNt d =
             (.getOption Tree.children) tree |> Utils.fromJust |>
-            List.indexedMap (\i c -> viewTree config selected (Path.childPath i selfPath) c) |>
-            snode config selfPath d isSelected
+            List.indexedMap (\i c -> viewTree info (Path.childPath i selfPath) c) |>
+            snode info selfPath d
     in
         Tree.either viewNt viewT tree
 
-viewRootTree : Config -> Maybe (List Path) -> Int -> Tree -> Html Msg
-viewRootTree config selected selfIndex tree = viewTree config (Maybe.withDefault [] selected) (Path.singleton selfIndex) tree
+viewRootTree : Config -> Maybe (List Path, Maybe LabelForm) -> Int -> Tree -> Html Msg
+viewRootTree config dataPack selfIndex tree =
+    let
+        selected = dataPack |> Maybe.map Tuple.first |> Maybe.withDefault []
+        labelForm = dataPack |> Maybe.map Tuple.second |> Maybe.withDefault Nothing
+        info = { config = config, selected = selected, labelForm = labelForm }
+    in
+        viewTree info (Path.singleton selfIndex) tree
 
 -- Why do we go through all these contortions?  Html.lazy compares based on
 -- equality of reference, not equality per se (source:
@@ -125,9 +146,10 @@ viewRootTree config selected selfIndex tree = viewTree config (Maybe.withDefault
 viewRoot : Model -> Tree -> Config -> List (Html Msg)
 viewRoot model root config =
     let
-        selectedTrees1 = Selection.get model.selected
-        selectedTrees = if selectedTrees1 == [] then Nothing else Just selectedTrees1
+        selectedTrees = Selection.get model.selected
+        selectedRoots = (List.map Path.root selectedTrees)
         viewRootFn = viewRootTree config
+        labelForm = model.labelForm
     in
         root |>
         -- Possibly can make this a Lens, if the children of a terminal are
@@ -136,10 +158,8 @@ viewRoot model root config =
         Utils.fromJust |>
         List.indexedMap (\i c ->
                              let
-                                 sel = if Just True == Maybe.map
-                                       (\x -> List.member (Path.singleton i) (List.map Path.root x))
-                                       selectedTrees
-                                       then selectedTrees
+                                 sel = if List.member (Path.singleton i) selectedRoots
+                                       then Just (selectedTrees, labelForm)
                                        else Nothing
                              in
                                  lazy3 viewRootFn sel i c)

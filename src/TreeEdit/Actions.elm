@@ -8,6 +8,8 @@ module TreeEdit.Actions exposing ( clearSelection
                                  , leafBefore
                                  , leafBeforeInner -- For ContextMenu
                                  , leafAfter
+                                 , finishLabelEdit
+                                 , editLabel
                         )
 
 -- This module contains the types and functions for creating *actions*, or
@@ -27,12 +29,15 @@ import List.Extra exposing (zip)
 
 -- Annotald packages
 
-import TreeEdit.Tree as Tree exposing (Tree)
+import TreeEdit.Tree as Tree
+import TreeEdit.Tree.Type exposing (Tree)
 import TreeEdit.Path as Path exposing (Path)
 import TreeEdit.Utils as Utils
-import TreeEdit.Model as Model exposing (Model)
+import TreeEdit.Model as Model
+import TreeEdit.Model.Type exposing (Model)
 import TreeEdit.Selection as Selection
 import TreeEdit.Index as Index exposing (normal, Variety(..))
+import TreeEdit.View.LabelEdit as LabelEdit
 
 type alias Result = R.Result Model
 
@@ -52,8 +57,7 @@ doOneSelected f model =
 
 doAt : Path -> (Tree -> Tree) -> Model -> Result
 doAt path f model =
-    -- TODO: ideally doRoot returns a Result, meaning that R.modify does...
-    R.succeed <| Model.doRoot (Tree.do path f) model
+    R.modify Model.root (Tree.do path f) model
 
 clearSelection : Action
 clearSelection m = R.succeed { m | selected = Selection.empty }
@@ -99,39 +103,42 @@ coIndex2 path1 path2 model =
                 root = (.get Model.root model)
                 tree1 = Tree.get path1 root
                 tree2 = Tree.get path2 root
-                index1 = tree1 |> R.andThen (R.lift "no index" (.getOption Tree.index))
-                index2 = tree2 |> R.andThen (R.lift "no index" (.getOption Tree.index))
+                index1 = tree1 |> R.map (.getOption Tree.index)
+                index2 = tree2 |> R.map (.getOption Tree.index)
                 ind = Tree.get (Path.root path1) root |>
                       R.map Tree.highestIndex |>
                       R.withDefault 0 |>
                       (+) 1
+                helper : Maybe Index.Index -> Maybe Index.Index -> Result
+                helper i1 i2 =
+                    case (i1, i2) of
+                        -- One of the nodes has an index, the other does not: set
+                        -- the index of the unindexed node to match
+                        (Nothing, Just x) -> setIndexAt path1 x.number model
+                        (Just x, Nothing) -> setIndexAt path2 x.number model
+                        -- Both of the nodes have an index: toggle index type
+                        (Just x, Just y) ->
+                            case (x.variety, y.variety) of
+                                -- Normal coindexing -> gap
+                                (Index.Normal, Index.Normal) ->
+                                    setIndexVarietyAt path2 Index.Gap model
+                                -- Gap -> backwards gap
+                                (Index.Normal, Index.Gap) ->
+                                    setIndexVarietyAt path1 Index.Gap model |>
+                                    R.andThen (setIndexVarietyAt path2 Index.Normal)
+                                -- Backwards gap -> remove indexes
+                                (Index.Gap, Index.Normal) ->
+                                    removeIndexAt path1 model |>
+                                    R.andThen (removeIndexAt path2)
+                                -- Something weird -> remove indexes (TODO: is
+                                -- this right?)
+                                otherwise -> removeIndexAt path1 model |>
+                                             R.andThen (removeIndexAt path2)
+                        -- Neither node has an index -> coindex them
+                        (Nothing, Nothing) -> setIndexAt path1 ind model |>
+                                              R.andThen (setIndexAt path2 ind)
             in
-                case (index1, index2) of
-                    -- One of the nodes has an index, the other does not: set
-                    -- the index of the unindexed node to match
-                    (Result _ Nothing, Result _ (Just x)) -> setIndexAt path1 x.number model
-                    (Result _ (Just x), Result _ Nothing) -> setIndexAt path2 x.number model
-                    -- Both of the nodes have an index: toggle index type
-                    (Result _ (Just x), Result _ (Just y)) ->
-                        case (x.variety, y.variety) of
-                            -- Normal coindexing -> gap
-                            (Index.Normal, Index.Normal) ->
-                                setIndexVarietyAt path2 Index.Gap model
-                            -- Gap -> backwards gap
-                            (Index.Normal, Index.Gap) ->
-                                setIndexVarietyAt path1 Index.Gap model |>
-                                R.andThen (setIndexVarietyAt path2 Index.Normal)
-                            -- Backwards gap -> remove indexes
-                            (Index.Gap, Index.Normal) ->
-                                removeIndexAt path1 model |>
-                                R.andThen (removeIndexAt path2)
-                            -- Something weird -> remove indexes (TODO: is
-                            -- this right?)
-                            otherwise -> removeIndexAt path1 model |>
-                                         R.andThen (removeIndexAt path2)
-                    -- Neither node has an index -> coindex them
-                    (Result _ Nothing, Result _ Nothing) -> setIndexAt path1 ind model |>
-                                                            R.andThen (setIndexAt path2 ind)
+                R.andThen2 helper index1 index2
 
 setIndexAt: Path -> Int -> Action
 setIndexAt path index =
@@ -168,9 +175,8 @@ doMove src dest model =
         newRoot1 = R.map Tuple.first res
         newSel = R.map Tuple.second res
     in
-        R.map ((flip (.set Model.root)) model) newRoot1 |>
-        R.map2 (\s m -> { m | selected = (Selection.one s) }) newSel
-
+        R.modify Model.root (always newRoot1) model |>
+        R.andThen (R.modify Model.selected (always <| R.map Selection.one newSel))
 
 createParent2 : String -> Path -> Path -> Model -> Result
 createParent2 label one two model =
@@ -215,21 +221,21 @@ leafBeforeInner newLeaf path tree =
 leafBefore : Tree -> Model -> Result
 leafBefore newLeaf model =
     let
-        createLeaf path = Model.doRoot (leafBeforeInner newLeaf path) model
+        createLeaf path = R.modify Model.root (leafBeforeInner newLeaf path) model
     in
     Selection.perform model.selected
         (R.succeed model)
-        (createLeaf >> R.succeed)
+        (createLeaf)
         (doMovement model) -- TODO: test
 
 leafAfter : Tree -> Model -> Result
 leafAfter newLeaf model =
     let
-        createLeaf path = Model.doRoot (leafBeforeInner newLeaf (Path.advance path)) model
+        createLeaf path = R.modify Model.root (leafBeforeInner newLeaf (Path.advance path)) model
     in
     Selection.perform model.selected
         (R.succeed model)
-        (createLeaf >> R.succeed)
+        (createLeaf)
         (\_ _ -> R.succeed model) -- TODO: get movement for this case working
 
 
@@ -245,24 +251,24 @@ deleteNode model =
                 -- (i.e. thunks) to avoid computing them both
                 deleteTerminal _ =
                     let
-                        isNonEmpty = node |> R.map (Tree.isEmpty >> not)
-                        isOnlyChild = path |>
+                        isEmpty = node |> R.map (Tree.isEmpty)
+                        hasSiblings = path |>
                                       Path.parent |>
                                       flip Tree.get (.get Model.root model) |>
-                                      R.map (.getOption Tree.children) |>
-                                      R.map (\x -> Maybe.withDefault False <| Maybe.map (List.length >> (==) 1) x)
+                                      R.map (Maybe.withDefault [] << .getOption Tree.children) |>
+                                      R.map (\x -> List.length x >= 1)
                     in
                         Tree.extractAt path (.get Model.root model) |>
                         R.map Tuple.second |>
-                        R.guard isOnlyChild "Cannot delete an only child" |>
-                        R.guard isNonEmpty "Cannot delete a non-empty terminal"
+                        R.guard hasSiblings "Cannot delete an only child" |>
+                        R.guard isEmpty "Cannot delete a non-empty terminal"
 
                 deleteNonTerminal _ =
                     let
                         kids = node |> R.map (.getOption Tree.children) |> R.map Utils.fromJust
                         newRoot = Tree.extractAt path (.get Model.root model) |> R.map Tuple.second
                     in
-                        R.foldr (Tree.insertAt path) newRoot kids
+                        R.andThen2 (Tree.insertManyAt path) kids newRoot
                 do x = if x
                        then deleteTerminal ()
                        else deleteNonTerminal ()
@@ -273,3 +279,29 @@ deleteNode model =
         R.succeed model |>
         Selection.withOne model.selected (delete >> R.map (flip (.set Model.root) model)) |>
         R.andThen clearSelection
+
+
+editLabel : Model -> Result
+editLabel model =
+    let
+        -- TODO: don't want a second selection
+        selected : R.Result Path.Path
+        selected = model |> .get Model.selected |> Selection.first |> R.liftVal "nothing selected"
+        root : R.Result Tree
+        root = model |> .get Model.root |> R.succeed
+        label : R.Result String
+        label = R.andThen2 Tree.get selected root |> R.map .label
+        initForm = R.map LabelEdit.init label
+    in
+        R.map (\l -> { model | labelForm = Just <| LabelEdit.init l}) label
+
+finishLabelEdit : Model -> Result
+finishLabelEdit model =
+    let
+        selected = model |> .get Model.selected |> Selection.first |> R.liftVal "nothing selected"
+        root = model |> .get Model.root
+        newLabel = model.labelForm |> R.liftVal "not editing" |> R.andThen LabelEdit.finish
+        changeLabel = newLabel |> R.map (\label -> (\tree -> { tree | label = label }))
+    in
+        R.andThen3 doAt selected changeLabel (R.succeed model) |>
+        R.map (\m -> { m | labelForm = Nothing })

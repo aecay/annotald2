@@ -27,6 +27,7 @@ import TreeEdit.Metadata.Type exposing (..)
 import TreeEdit.Selection exposing (Selection)
 import TreeEdit.Tree as Tree
 import TreeEdit.Model as Model
+import TreeEdit.Model.Type exposing (Model)
 import TreeEdit.Ports
 import TreeEdit.Selection as Selection
 import TreeEdit.Result as R
@@ -118,7 +119,7 @@ init {lemma, definition} = ( Form.initial [ Form.Init.setString "lemma" lemma
                                            ]
                            )
 
-save : Metadata -> Model.Model -> Return Msg Model.Model
+save : Metadata -> Model -> Return Msg Model
 save metadata model =
     let
         root = model |> .get Model.root
@@ -156,7 +157,7 @@ save metadata model =
                         updateCmd
             _ -> Return.singleton model
 
-update : Model.Model -> Msg -> Return Msg Model.Model
+update : Model -> Msg -> Return Msg Model
 update model msg =
     case msg of
         ReceivedDefinition s -> case s of
@@ -215,8 +216,11 @@ update model msg =
                             False -> Return.singleton { model | metadataForm = Nothing }
                     _ -> Return.singleton { model | metadataForm = Nothing }
         SaveSuccess lemma -> Return.singleton { model | lastMessage = "Saved definition for lemma " ++ lemma }
+        Key code -> case code of
+                        27 -> Return.return { model | metadataForm = Nothing } (TreeEdit.Ports.editing False)
+                        _ -> Return.singleton model
 
-view : Model.Model -> Html Msg
+view : Model -> Html Msg
 view model =
     case model.metadataForm of
         Just (form, state) -> div [ id "metadata-editor"

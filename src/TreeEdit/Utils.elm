@@ -1,14 +1,11 @@
 module TreeEdit.Utils exposing ( fromJust
                                , splice
                                , insert
+                               , insertMany
                                , sort2
                                )
 
 import List
-import List.Extra
-
-import Monocle.Lens exposing (Lens)
-import Monocle.Optional as Optional exposing (Optional)
 
 import Debug
 
@@ -25,6 +22,10 @@ splice i j list =
 insert : Int -> a -> List a -> List a
 insert i x list =
     List.take i list ++ x :: List.drop i list
+
+insertMany : Int -> List a -> List a -> List a
+insertMany i xs list =
+    List.take i list ++ xs ++ List.drop i list
 
 fromJust : Maybe a -> a
 fromJust x = case x of

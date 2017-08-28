@@ -1,6 +1,6 @@
 module TreeEdit.ContextMenuTypes exposing (Model, Msg(..), Position, emptyModel)
 
-import TreeEdit.Tree exposing (Tree)
+import TreeEdit.Tree.Type exposing (Tree)
 import TreeEdit.Path exposing (Path)
 
 type alias Position = { x: Int

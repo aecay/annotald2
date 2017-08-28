@@ -1,29 +1,20 @@
-module TreeEdit.Model exposing ( Model
-                               , init
-                               , doRoot
+module TreeEdit.Model exposing ( init
                                , root
                                , contextMenu
                                , selected
-                      )
+                               , labelForm
+                               )
 
 import Monocle.Lens exposing (Lens, modify)
+import Monocle.Optional exposing (Optional)
 import RemoteData exposing (WebData, RemoteData(..))
 
-import TreeEdit.Config exposing (Config)
-import TreeEdit.Tree exposing (Tree)
+import TreeEdit.Tree.Type exposing (Tree)
 import TreeEdit.Selection as Selection
 import TreeEdit.ContextMenuTypes as ContextMenuTypes
-import TreeEdit.Result as R
-import TreeEdit.Metadata.Type as Metadata
+import TreeEdit.View.LabelEdit.Type exposing (LabelForm)
 
-type alias Model = { selected: Selection.Selection
-                   , lastMessage: String
-                   , contextMenu: ContextMenuTypes.Model
-                   , fileName : String
-                   , metadataForm : Maybe (Metadata.MetadataForm, Metadata.FieldState)
-                   , webdata : WebData (Tree, Config)
-                   , editingLemma : Bool
-                   }
+import TreeEdit.Model.Type exposing (Model)
 
 init : String -> Model
 init filename = { webdata = NotAsked
@@ -32,7 +23,7 @@ init filename = { webdata = NotAsked
                 , contextMenu = ContextMenuTypes.emptyModel
                 , fileName = filename
                 , metadataForm = Nothing
-                , editingLemma = False
+                , labelForm = Nothing
                 }
 
 contextMenu : Lens Model ContextMenuTypes.Model
@@ -53,5 +44,13 @@ root =
 selected : Lens Model Selection.Selection
 selected = Lens .selected (\s m -> { m | selected = s })
 
-doRoot : (Tree -> R.Result Tree) -> Model -> Model
-doRoot = R.modify root
+labelForm : Optional Model LabelForm
+labelForm =
+    let
+        getOption m = m.labelForm
+        set form m = { m | labelForm = Just form }
+    in
+        Optional getOption set
+
+-- doRoot : (Tree -> R.Result Tree) -> Model -> Model
+-- doRoot = R.modify root

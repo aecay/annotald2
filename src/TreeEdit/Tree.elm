@@ -1,4 +1,4 @@
-module TreeEdit.Tree exposing (l, t, trace, Tree, either,
+module TreeEdit.Tree exposing (l, t, trace, either,
                                    -- TODO: exporting all this internal stuff is not
                                    -- the best...
                                    get, set,
@@ -7,6 +7,7 @@ module TreeEdit.Tree exposing (l, t, trace, Tree, either,
                               , moveTo
                               , internals
                               , insertAt
+                              , insertManyAt
                               , do
                               , isTerminal
                               , isEmpty
@@ -20,8 +21,10 @@ module TreeEdit.Tree exposing (l, t, trace, Tree, either,
                               , map
                               , receiveTrees
                               , metadata
+                              , illegalLabelChar
                               )
 
+import Char
 import List
 import List.Extra exposing (getAt, removeAt)
 import Dict
@@ -40,8 +43,6 @@ import Monocle.Optional as Optional exposing (Optional)
 import Monocle.Lens as Lens exposing (Lens)
 
 import TreeEdit.Result as R exposing (succeed, fail)
-
-type alias Tree = Type.Tree
 
 type alias Result a = R.Result a
 
@@ -207,17 +208,20 @@ extractAt path tree =
                 parent = Path.parent path
                 idx = Path.foot path
                 child = get path tree
+                newparent = do parent (updateChildren (removeAt idx)) tree
             in
-                do parent (updateChildren (removeAt idx)) tree |>
-                R.map2 (,) child
+                R.map (,) child |> R.andMap newparent
 
 insertAt : Path -> Tree -> Tree -> Result Tree
-insertAt path newChild =
+insertAt path newChild = insertManyAt path [newChild]
+
+insertManyAt : Path -> List Tree -> Tree -> Result Tree
+insertManyAt path newChildren =
     let
         parent = Path.parent path
         idx = Path.foot path
     in
-        do parent (updateChildren (Utils.insert idx newChild))
+        do parent (updateChildren (Utils.insertMany idx newChildren))
 
 getIndex : Tree -> Maybe Index.Index
 getIndex t =
@@ -389,3 +393,10 @@ makeTrace x =
         , label = newLabel
         , metadata = Dict.empty
         }
+
+legalLabelChar : Char -> Bool
+legalLabelChar c =
+    Char.isUpper c || Char.isDigit c || c == '=' || c == '-' || c == '.' || c == ','
+
+illegalLabelChar : Char -> Bool
+illegalLabelChar = not << legalLabelChar

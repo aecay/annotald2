@@ -5,7 +5,7 @@ module TreeEdit.Metadata.Type exposing ( Metadata
                                        )
 
 import Dict exposing (Dict)
-
+import Keyboard
 import Form exposing (Form)
 import RemoteData exposing (WebData)
 
@@ -21,4 +21,5 @@ type Msg = ReceivedDefinition (WebData String) |
     Save |
     Cancel |
     NewSelection |
-    SaveSuccess String
+    SaveSuccess String |
+    Key Keyboard.KeyCode

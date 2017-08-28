@@ -11,17 +11,18 @@ import Html.Attributes as Attr
 import Mouse
 
 import TreeEdit.Path as Path exposing (Path)
-import TreeEdit.Tree as Tree exposing (constants, Tree)
+import TreeEdit.Tree as Tree exposing (constants)
+import TreeEdit.Tree.Type exposing (Tree)
 import TreeEdit.Tree.View exposing (toPenn)
 import TreeEdit.Actions as Actions
 
-import TreeEdit.Result exposing (modify)
+import TreeEdit.Result as R exposing (modify)
 
 import Monocle.Lens exposing (Lens)
 
 import TreeEdit.ContextMenuTypes exposing (..)
 
-show : Position -> Path -> Lens a Model -> (a -> a)
+show : Position -> Path -> Lens a Model -> a -> a
 show position path lens =
     lens.set { position = position, target = Just path }
 
@@ -117,13 +118,13 @@ view parent lens =
                                                ] -- TODO: real list of extensions to toggle
                         ]
 
-update : Msg a -> Lens a Tree.Tree -> Lens a Model -> a -> a
+update : Msg a -> Lens a Tree -> Lens a Model -> a -> R.Result a
 update msg rootLens configLens parent =
     case msg of
         LeafBefore path leaf ->
             (modify rootLens
                  (Actions.leafBeforeInner leaf path)
-                 parent) |> hide configLens
+                 parent) |> R.map (hide configLens)
         LeafAfter path leaf -> Debug.crash "foo" -- TODO: write path+1
                                                  -- function
         SetLabel path newLabel ->
@@ -131,9 +132,9 @@ update msg rootLens configLens parent =
                 (Tree.do path (\x -> {x | label = newLabel }))
                 parent
         ToggleExtension path ext -> Debug.crash "foo"
-        Ignore -> parent
-        Hide -> hide configLens parent
-        Show position path -> show position path configLens parent
+        Ignore -> R.succeed parent
+        Hide -> R.succeed <| hide configLens parent
+        Show position path -> R.succeed <| show position path configLens parent
 
 subscriptions : (Lens a Model) -> a -> Sub (Msg a)
 subscriptions l m =

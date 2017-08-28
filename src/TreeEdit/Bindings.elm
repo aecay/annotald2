@@ -27,4 +27,5 @@ bindings = Dict.fromList <|
            , ( 'c', Actions.coIndex )
            , ( 'v', Actions.changeLabel ["IP-SMC", "IP-INF"])
            , ( 'b' , Actions.leafBefore constants.con )
+           , ( 'l' , Actions.editLabel )
            ]

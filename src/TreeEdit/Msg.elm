@@ -9,9 +9,10 @@ import RemoteData exposing (WebData)
 import TreeEdit.Config exposing (Config)
 import TreeEdit.Path exposing (Path)
 import TreeEdit.ContextMenuTypes as ContextMenuTypes
-import TreeEdit.Model as Model
-import TreeEdit.Tree exposing (Tree)
+import TreeEdit.Model.Type as Model
+import TreeEdit.Tree.Type exposing (Tree)
 import TreeEdit.Metadata.Type as Metadata
+import TreeEdit.View.LabelEdit.Type as Label
 
 type Msg = ToggleSelect Path |
     KeyMsg Keyboard.KeyCode |
@@ -22,4 +23,6 @@ type Msg = ToggleSelect Path |
     DoSave |
     LogMessage String |
     CancelContext |
-    Metadata Metadata.Msg
+    Metadata Metadata.Msg |
+    Label Label.Msg |
+    LabelKey Keyboard.KeyCode

@@ -24,6 +24,7 @@ type Path = Path Int (List Int) | RootPath
 
 type PathFragment = PF (List Int)
 
+internals : { fromList : List Int -> Path, pf : List Int -> PathFragment }
 internals = { fromList = fromList
             , pf = PF
             }
