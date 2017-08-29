@@ -17,14 +17,17 @@ module TreeEdit.Result exposing ( fail
                                 , andMap
                                 -- , map3
                                 , do
+                                , handle
                              )
 
 import Maybe.Extra
 import Monocle.Lens exposing (Lens)
 -- import Monocle.Optional exposing (Optional)
+import Return
 import Toolkit.Helpers exposing (uncurry3)
 
 import TreeEdit.Msg exposing (Msg)
+import TreeEdit.Model.Type exposing (Model)
 
 type alias Message = String
 
@@ -138,3 +141,12 @@ modify lens f init =
 
 do : Cmd Msg -> Result a -> Result a
 do cmd (Result msgs cmds val) = Result msgs (cmds ++ [cmd]) val
+
+handle : Model -> Result Model -> Return.Return Msg Model
+handle model result =
+    case result of
+        Result msgs cmds (Just newModel) ->
+            Return.return { newModel | lastMessage = String.join "\n" msgs } (Cmd.batch cmds)
+        Result msgs cmds Nothing ->
+            -- TODO: cmds should always be empty in this case
+            Return.return { model | lastMessage = String.join "\n" msgs } (Cmd.batch cmds)

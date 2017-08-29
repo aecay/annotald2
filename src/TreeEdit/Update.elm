@@ -33,15 +33,6 @@ import TreeEdit.Path as Path
 import Keyboard
 import Mouse
 
-handleResult : Model -> R.Result Model -> Return Msg Model
-handleResult model result =
-    case result of
-        R.Result msgs cmds (Just newModel) ->
-            Return.return { newModel | lastMessage = String.join "\n" msgs } (Cmd.batch cmds)
-        R.Result msgs cmds Nothing ->
-            -- TODO: cmds should always be empty in this case
-            Return.return { model | lastMessage = String.join "\n" msgs } (Cmd.batch cmds)
-
 editingMetadata : Model -> Bool
 editingMetadata model = model.metadataForm |>
                         Maybe.map Tuple.second |>
@@ -79,7 +70,7 @@ update msg model =
                         binding = R.lift "Key is not bound" (Dict.get k) bindings
                     in
                         R.andThen (\x -> x model) binding |>
-                        handleResult model |>
+                        R.handle model |>
                         Return.andThen (\x -> Metadata.update x MetadataType.NewSelection)
                 RightClick path position ->
                     if disableMouse
@@ -95,7 +86,7 @@ update msg model =
                     else
                         (Selection.perform model.selected
                              (Return.singleton model)
-                             (\sel -> Actions.doMove sel Path.RootPath model |> handleResult model)
+                             (\sel -> Actions.doMove sel Path.RootPath model |> R.handle model)
                              (\_ _ -> Return.singleton model)) -- TODO: support moving multiple
                                                                      -- nodes
                 Context contextMsg ->
@@ -130,7 +121,7 @@ update msg model =
                         Return.return newmodel subcmd
                 Label submsg -> Return.singleton model |> refracto Model.labelForm Msg.Label (LabelEdit.update submsg)
                 LabelKey code -> case code of
-                                     13 -> handleResult model <| Actions.finishLabelEdit model
+                                     13 -> R.handle model <| Actions.finishLabelEdit model
                                      27 -> Return.singleton { model | labelForm = Nothing }
                                      _ -> Return.singleton model
                 Ignore -> Return.singleton model
