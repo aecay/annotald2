@@ -1,0 +1,30 @@
+For testing html views:
+http://package.elm-lang.org/packages/eeue56/elm-html-test/latest
+
+Fuzz test update function:
+http://package.elm-lang.org/packages/Janiczek/elm-architecture-test/latest
+http://package.elm-lang.org/packages/jwoudenberg/elm-test-experimental/1.0.0/Fuzz-Msg
+
+Comprehensive testing framework:
+http://package.elm-lang.org/packages/rogeriochaves/elm-testable/latest
+
+Alternate test runner:
+https://github.com/benansell/lobo
+
+Better dropdown library:
+https://github.com/MadonnaMat/elm-select-two
+
+Python testing:
+https://hypothesis.readthedocs.io/en/latest/
+https://github.com/box/genty
+
+
+=====
+
+http://jarrodoverson.com/blog/using-github-pages-on-github-enterprise/
+
+------
+
+next steps:
+- comment editor
+- b and a movement keys
