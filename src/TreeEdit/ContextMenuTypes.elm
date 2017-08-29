@@ -15,7 +15,7 @@ type alias Model = { position : Position
 emptyModel : Model
 emptyModel = { position = { x = 0, y = 0 }, target = Nothing }
 
-type Msg a =
+type Msg =
     LeafBefore Path Tree |
     LeafAfter Path Tree |
     SetLabel Path String |

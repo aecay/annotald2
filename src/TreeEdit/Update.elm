@@ -61,7 +61,7 @@ update msg model =
                     then Return.singleton model
                     else
                         Return.singleton
-                            ((ContextMenu.hide contextMenu >> Lens.modify selected (Selection.updateWith z))
+                            ((ContextMenu.hide >> Lens.modify selected (Selection.updateWith z))
                                  model) |>
                         -- TODO: use return.optics here
                         Return.andThen (\x -> Metadata.update x MetadataType.NewSelection)
@@ -77,8 +77,8 @@ update msg model =
                     then Return.singleton model
                     else
                         (Selection.perform model.selected
-                             (Return.singleton <| ContextMenu.show position path Model.contextMenu model)
-                             (\sel -> Actions.doMove sel path model |> handleResult model)
+                             (Return.singleton <| ContextMenu.show position path model)
+                             (\sel -> Actions.doMove sel path model |> R.handle model)
                              (\_ _ -> Return.singleton model)) -- TODO: support moving multiple nodes
                 RightClickRoot ->
                     if disableMouse
@@ -90,8 +90,7 @@ update msg model =
                              (\_ _ -> Return.singleton model)) -- TODO: support moving multiple
                                                                      -- nodes
                 Context contextMsg ->
-                    ContextMenu.update contextMsg Model.root Model.contextMenu model |>
-                    handleResult model
+                    ContextMenu.update contextMsg model
                 LoadedData (Success (trees, config)) ->
                     Return.singleton { model | webdata = Success (Tree.t "wtf" trees, config) }
                 LoadedData x ->
@@ -113,7 +112,7 @@ update msg model =
                                           , ("trees", toJson <| Utils.fromJust <| .getOption children root)
                                           ])
                 LogMessage m -> Return.singleton { model | lastMessage = m }
-                CancelContext -> Return.singleton <| ContextMenu.hide contextMenu <| model
+                CancelContext -> Return.singleton <| ContextMenu.hide model
                 Metadata submsg ->
                     let
                         (newmodel, subcmd) = Metadata.update model submsg

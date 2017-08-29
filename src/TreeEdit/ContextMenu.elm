@@ -9,27 +9,28 @@ import TreeEdit.ViewUtils as ViewUtils exposing (onClick)
 import Html as H exposing (Html)
 import Html.Attributes as Attr
 import Mouse
+import Return exposing (Return)
 
 import TreeEdit.Path as Path exposing (Path)
 import TreeEdit.Tree as Tree exposing (constants)
 import TreeEdit.Tree.Type exposing (Tree)
 import TreeEdit.Tree.View exposing (toPenn)
 import TreeEdit.Actions as Actions
-
+import TreeEdit.Msg as Msg
+import TreeEdit.Model as Model
+import TreeEdit.Model.Type as ModelType
 import TreeEdit.Result as R exposing (modify)
-
-import Monocle.Lens exposing (Lens)
 
 import TreeEdit.ContextMenuTypes exposing (..)
 
-show : Position -> Path -> Lens a Model -> a -> a
-show position path lens =
-    lens.set { position = position, target = Just path }
+show : Position -> Path -> ModelType.Model -> ModelType.Model
+show position path =
+    .set Model.contextMenu { position = position, target = Just path }
 
-hide : Lens a Model -> a -> a
-hide lens = lens.set emptyModel
+hide : ModelType.Model -> ModelType.Model
+hide = .set Model.contextMenu emptyModel
 
-entry : List (H.Attribute (Msg a)) -> String -> Html (Msg a)
+entry : List (H.Attribute Msg) -> String -> Html Msg
 entry attrs s = H.div [] [ H.a ([ Attr.style [ ("color", "#333")
                                              , ("text-decoration", "none")
                                              , ("line-height", "20px")
@@ -42,23 +43,23 @@ entry attrs s = H.div [] [ H.a ([ Attr.style [ ("color", "#333")
                          ]
 
 leaf : String ->
-       (Path -> Tree -> Msg a) ->
-       Path -> Tree -> Html (Msg a)
+       (Path -> Tree -> Msg) ->
+       Path -> Tree -> Html Msg
 leaf arrow ctor path newLeaf =
     entry [onClick <| ctor path newLeaf] <|
         arrow ++ toPenn newLeaf
 
-leafBefore : Path -> Tree -> Html (Msg a)
+leafBefore : Path -> Tree -> Html Msg
 leafBefore = leaf "< " LeafBefore
 
-leafAfter : Path -> Tree -> Html (Msg a)
+leafAfter : Path -> Tree -> Html Msg
 leafAfter = leaf "> " LeafAfter
 
-toggleExtension : Path -> String -> Html (Msg a)
+toggleExtension : Path -> String -> Html Msg
 toggleExtension path ext =
     entry [ onClick <| ToggleExtension path ext ] ext
 
-heading : String -> Html (Msg a)
+heading : String -> Html Msg
 heading title = H.div [ Attr.style [ ("color", "#FEEDD5")
                                    , ("background-color", "black")
                                    , ("padding", "2px")
@@ -72,7 +73,7 @@ heading title = H.div [ Attr.style [ ("color", "#FEEDD5")
 colWidth : Int
 colWidth = 150
 
-column : String -> List (Html (Msg a)) -> Html (Msg a)
+column : String -> List (Html Msg) -> Html Msg
 column headingText children = H.div [ Attr.class "conMenuColumn"
                                     , Attr.style [ ("width", toString colWidth ++ "px")
                                                  , ("float", "left")
@@ -80,10 +81,10 @@ column headingText children = H.div [ Attr.class "conMenuColumn"
                                     ] <|
                           [ heading headingText ] ++ children
 
-view : a -> Lens a Model -> Html (Msg a)
-view parent lens =
+view : ModelType.Model -> Html Msg
+view parent =
     let
-        model = lens.get parent
+        model = .get Model.contextMenu parent
     in
         case model.target of
             Nothing -> H.div [] []
@@ -112,32 +113,35 @@ view parent lens =
                                             , lb constants.czero
                                             , lb constants.comment
                                             , la constants.comment
-                                 ]
+                                            ]
                         , column "Toggle ext." [ tx "SPE"
                                                , tx "XXX"
                                                ] -- TODO: real list of extensions to toggle
                         ]
 
-update : Msg a -> Lens a Tree -> Lens a Model -> a -> R.Result a
-update msg rootLens configLens parent =
+update : Msg -> ModelType.Model -> Return Msg.Msg ModelType.Model
+update msg model =
     case msg of
         LeafBefore path leaf ->
-            (modify rootLens
-                 (Actions.leafBeforeInner leaf path)
-                 parent) |> R.map (hide configLens)
+            .get Model.root model |>
+            Actions.leafBeforeInner leaf path |>
+            R.map (flip (.set Model.root) model) |>
+            R.handle model |>
+            Return.map hide
         LeafAfter path leaf -> Debug.crash "foo" -- TODO: write path+1
                                                  -- function
         SetLabel path newLabel ->
-            modify rootLens
+            modify Model.root
                 (Tree.do path (\x -> {x | label = newLabel }))
-                parent
+                model |>
+            R.handle model
         ToggleExtension path ext -> Debug.crash "foo"
-        Ignore -> R.succeed parent
-        Hide -> R.succeed <| hide configLens parent
-        Show position path -> R.succeed <| show position path configLens parent
+        Ignore -> Return.singleton model
+        Hide -> Return.singleton <| hide model
+        Show position path -> Return.singleton <| show position path model
 
-subscriptions : (Lens a Model) -> a -> Sub (Msg a)
-subscriptions l m =
-    case .target (l.get m) of
+subscriptions : ModelType.Model -> Sub Msg
+subscriptions m =
+    case .target (.get Model.contextMenu m) of
         Nothing -> Sub.batch []
         Just _ -> Mouse.clicks (\_ -> Hide)

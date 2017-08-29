@@ -17,7 +17,6 @@ import TypedStyles exposing ( borderTopWidth, borderTopColor, borderBottomWidth,
                             )
 
 import TreeEdit.Config exposing (Config)
-import TreeEdit.Model as Model
 import TreeEdit.Model.Type exposing (Model)
 import TreeEdit.Tree as Tree
 import TreeEdit.Tree.Type exposing (Tree)
@@ -220,5 +219,5 @@ view model =
                                                          ] [ text "Messages" ]
                                                    , text model.lastMessage ]
                                              , viewRoot model root config |> wrapSn0
-                                             , map Msg.Context <| ContextMenu.view model Model.contextMenu
+                                             , map Msg.Context <| ContextMenu.view model
                                              ]
