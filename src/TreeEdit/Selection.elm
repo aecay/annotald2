@@ -6,6 +6,7 @@ module TreeEdit.Selection exposing ( Selection
                                    , empty
                                    , updateWith
                                    , get
+                                   , getOne
                                    , perform
                                    , withOne
                                    , withTwo
@@ -52,6 +53,12 @@ get s = case s of
             None -> []
             One x -> [x]
             Two x y -> [x, y]
+
+getOne : Selection -> Maybe Path
+getOne s = case s of
+               None -> Nothing
+               One x -> Just x
+               Two _ _ -> Nothing
 
 perform : Selection -> a -> (Path -> a) -> (Path -> Path -> a) -> a
 perform sel none one two =

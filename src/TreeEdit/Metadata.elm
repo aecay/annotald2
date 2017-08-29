@@ -195,8 +195,7 @@ update model msg =
             let
                 root = model |> .get Model.root
             in
-                case Selection.first model.selected of
-                    -- TODO: first returns Just for a two-element selection
+                case Selection.getOne model.selected of
                     Just p ->
                         case (Tree.get p root) |> R.map Tree.isTerminal |> R.withDefault False of
                             True ->

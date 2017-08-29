@@ -287,9 +287,8 @@ deleteNode model =
 editLabel : Model -> Result
 editLabel model =
     let
-        -- TODO: don't want a second selection
         selected : R.Result Path.Path
-        selected = model |> .get Model.selected |> Selection.first |> R.liftVal "nothing selected"
+        selected = model |> .get Model.selected |> Selection.getOne |> R.liftVal "nothing selected"
         root : R.Result Tree
         root = model |> .get Model.root |> R.succeed
         label : R.Result String
