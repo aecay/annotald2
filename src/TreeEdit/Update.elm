@@ -9,6 +9,7 @@ import TreeEdit.Tree.Json exposing (toJson)
 import TreeEdit.Tree as Tree exposing (children)
 import TreeEdit.Metadata.Type as MetadataType
 import TreeEdit.Metadata as Metadata
+import TreeEdit.View as View
 import TreeEdit.View.LabelEdit as LabelEdit
 
 import TreeEdit.Utils as Utils
@@ -49,7 +50,7 @@ editingLabel model =
 update : Msg -> Model -> Return Msg Model
 update msg model =
     let
-        disableMouse = editingMetadata model || editingLabel model
+        disableMouse = Debug.log "Mouse disabled" <| editingMetadata model || editingLabel model
     in
         if False -- TODO: dummy to prevent reindenting everything yet
         then Return.singleton model
@@ -92,7 +93,10 @@ update msg model =
                 Context contextMsg ->
                     ContextMenu.update contextMsg model
                 LoadedData (Success (trees, config)) ->
-                    Return.singleton { model | webdata = Success (Tree.t "wtf" trees, config) }
+                    Return.singleton { model |
+                                       webdata = Success (Tree.t "wtf" trees, config)
+                                     , viewRootWithConfig = Just <| View.viewRootTree config
+                                     }
                 LoadedData x ->
                     Debug.log ("fetch error: " ++ (toString x)) <| Return.singleton model
                 DoSave ->

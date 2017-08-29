@@ -24,6 +24,7 @@ init filename = { webdata = NotAsked
                 , fileName = filename
                 , metadataForm = Nothing
                 , labelForm = Nothing
+                , viewRootWithConfig = Nothing
                 }
 
 contextMenu : Lens Model ContextMenuTypes.Model

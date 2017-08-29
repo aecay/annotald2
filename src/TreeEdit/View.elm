@@ -1,4 +1,6 @@
-module TreeEdit.View exposing (view)
+module TreeEdit.View exposing ( view
+                              , viewRootTree -- For memoization hack
+                              )
 
 import Color exposing (black, white, Color)
 import Guards exposing (..)
@@ -125,6 +127,7 @@ viewTree info selfPath tree =
 viewRootTree : Config -> Maybe (List Path, Maybe LabelForm) -> Int -> Tree -> Html Msg
 viewRootTree config dataPack selfIndex tree =
     let
+        _ = Debug.log "redraw" (dataPack, selfIndex)
         selected = dataPack |> Maybe.map Tuple.first |> Maybe.withDefault []
         labelForm = dataPack |> Maybe.map Tuple.second |> Maybe.withDefault Nothing
         info = { config = config, selected = selected, labelForm = labelForm }
@@ -147,8 +150,8 @@ viewRoot model root config =
     let
         selectedTrees = Selection.get model.selected
         selectedRoots = (List.map Path.root selectedTrees)
-        viewRootFn = viewRootTree config
         labelForm = model.labelForm
+        vrt = model.viewRootWithConfig |> Maybe.withDefault (viewRootTree config)
     in
         root |>
         -- Possibly can make this a Lens, if the children of a terminal are
@@ -157,11 +160,11 @@ viewRoot model root config =
         Utils.fromJust |>
         List.indexedMap (\i c ->
                              let
-                                 sel = if List.member (Path.singleton i) selectedRoots
-                                       then Just (selectedTrees, labelForm)
-                                       else Nothing
+                                 data = if List.member (Path.singleton i) selectedRoots
+                                        then Just (selectedTrees, labelForm)
+                                        else Nothing
                              in
-                                 lazy3 viewRootFn sel i c)
+                                 lazy3 vrt data i c)
 
 wrapSn0 : List (Html Msg) -> Html Msg
 wrapSn0 nodes =
