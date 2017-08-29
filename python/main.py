@@ -62,8 +62,7 @@ def get_file(name: hug.types.text):
 def save(filename: hug.types.text, trees: hug.types.json):
     c = lovett.corpus.from_objects(trees)
     for t in c:
-        if "ID" not in t.metadata:
-            t.metadata.id = str(uuid.uuid4())
+        del t.metadata["ID"]
         # TODO: remove ID on lower trees
     with open(os.path.join(CORPUS_PATH, filename), "w") as fout:
         fout.write(c.format(lovett.format.Icepahc))
