@@ -16,6 +16,7 @@ module TreeEdit.Result exposing ( fail
                                 -- , foldr
                                 , andMap
                                 -- , map3
+                                , do
                              )
 
 import Maybe.Extra
@@ -134,3 +135,6 @@ modify lens f init =
 --         R.Err err -> R.Err err
 --         R.Ok True -> thn
 --         R.Ok False -> els
+
+do : Cmd Msg -> Result a -> Result a
+do cmd (Result msgs cmds val) = Result msgs (cmds ++ [cmd]) val

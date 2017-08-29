@@ -17,9 +17,11 @@ module TreeEdit.Actions exposing ( clearSelection
 
 -- Standard library
 
+import Dom
 import Maybe exposing (withDefault)
 import Dict exposing (Dict)
 import TreeEdit.Result as R exposing (Result(..))
+import Task
 
 import Monocle.Optional as Optional
 
@@ -38,6 +40,7 @@ import TreeEdit.Model.Type exposing (Model)
 import TreeEdit.Selection as Selection
 import TreeEdit.Index as Index exposing (normal, Variety(..))
 import TreeEdit.View.LabelEdit as LabelEdit
+import TreeEdit.Msg as Msg
 
 type alias Result = R.Result Model
 
@@ -293,7 +296,8 @@ editLabel model =
         label = R.andThen2 Tree.get selected root |> R.map .label
         initForm = R.map LabelEdit.init label
     in
-        R.map (\l -> { model | labelForm = Just <| LabelEdit.init l}) label
+        R.map (\l -> { model | labelForm = Just <| LabelEdit.init l}) label |>
+        R.do (Dom.focus "labelEditor" |> Task.onError (always <| Task.succeed ()) |> Task.perform (always Msg.Ignore))
 
 finishLabelEdit : Model -> Result
 finishLabelEdit model =

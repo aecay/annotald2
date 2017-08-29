@@ -133,6 +133,7 @@ update msg model =
                                      13 -> handleResult model <| Actions.finishLabelEdit model
                                      27 -> Return.singleton { model | labelForm = Nothing }
                                      _ -> Return.singleton model
+                Ignore -> Return.singleton model
 
 subscriptions : Model -> Sub Msg
 subscriptions m =

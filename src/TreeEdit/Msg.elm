@@ -25,4 +25,5 @@ type Msg = ToggleSelect Path |
     CancelContext |
     Metadata Metadata.Msg |
     Label Label.Msg |
-    LabelKey Keyboard.KeyCode
+    LabelKey Keyboard.KeyCode |
+    Ignore

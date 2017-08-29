@@ -22,7 +22,9 @@ validation = V.field "label" V.string
 view : LabelForm -> Html Msg
 view form = Html.map FormMsg <| Input.textInput
             (Form.getFieldAsString "label" form)
-            [ Attr.style [(width 150 px)] ]
+            [ Attr.style [(width 150 px)]
+            , Attr.id "labelEditor"
+            ]
 
 init : String -> LabelForm
 init label = Form.initial [("label", Field.string label)] validation
