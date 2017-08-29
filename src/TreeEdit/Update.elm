@@ -73,14 +73,14 @@ update msg model =
                             ((ContextMenu.hide contextMenu >> Lens.modify selected (Selection.updateWith z))
                                  model) |>
                         -- TODO: use return.optics here
-                        Return.andThen (\x -> Metadata.update x MetadataType.NewSelection ) |>
-                        Return.mapCmd Msg.Metadata
+                        Return.andThen (\x -> Metadata.update x MetadataType.NewSelection)
                 KeyMsg k ->
                     let
                         binding = R.lift "Key is not bound" (Dict.get k) bindings
                     in
-                        handleResult model <| R.andThen (\x -> x model) binding
-                        -- TODO: selecton may have changed, notify metadata editor
+                        R.andThen (\x -> x model) binding |>
+                        handleResult model |>
+                        Return.andThen (\x -> Metadata.update x MetadataType.NewSelection)
                 RightClick path position ->
                     if disableMouse
                     then Return.singleton model
@@ -127,7 +127,7 @@ update msg model =
                     let
                         (newmodel, subcmd) = Metadata.update model submsg
                     in
-                        Return.return newmodel <| Cmd.map Metadata subcmd
+                        Return.return newmodel subcmd
                 Label submsg -> Return.singleton model |> refracto Model.labelForm Msg.Label (LabelEdit.update submsg)
                 LabelKey code -> case code of
                                      13 -> handleResult model <| Actions.finishLabelEdit model

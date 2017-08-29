@@ -32,6 +32,7 @@ import TreeEdit.Ports
 import TreeEdit.Selection as Selection
 import TreeEdit.Result as R
 import TreeEdit.View.Theme exposing (theme)
+import TreeEdit.Msg as Msg
 
 validation : Validation () Metadata
 validation =
@@ -119,7 +120,7 @@ init {lemma, definition} = ( Form.initial [ Form.Init.setString "lemma" lemma
                                            ]
                            )
 
-save : Metadata -> Model -> Return Msg Model
+save : Metadata -> Model -> Return Msg.Msg Model
 save metadata model =
     let
         root = model |> .get Model.root
@@ -154,10 +155,10 @@ save metadata model =
                 in
                     Return.return
                         (.set Model.root newRoot model)
-                        updateCmd
+                        (Cmd.map Msg.Metadata updateCmd)
             _ -> Return.singleton model
 
-update : Model -> Msg -> Return Msg Model
+update : Model -> Msg -> Return Msg.Msg Model
 update model msg =
     case msg of
         ReceivedDefinition s -> case s of
@@ -186,7 +187,7 @@ update model msg =
                           (TreeEdit.Ports.editing True)
         Save -> case model.metadataForm |> Maybe.andThen (Tuple.first >> Form.getOutput) of
                     Just metadata -> save metadata model |>
-                                     Return.command (Cmd.Extra.perform NewSelection) |>
+                                     Return.command (Cmd.map Msg.Metadata <| Cmd.Extra.perform NewSelection) |>
                                      Return.command (TreeEdit.Ports.editing False)
                     Nothing -> Return.singleton model
         Cancel -> Return.return { model | metadataForm = Nothing } (TreeEdit.Ports.editing False)
@@ -212,7 +213,7 @@ update model msg =
                                                         init { lemma = Maybe.withDefault "" lemma
                                                              , definition = Nothing }
                                                   }
-                                    (lemma |> Maybe.map req |> Maybe.withDefault Cmd.none)
+                                    (lemma |> Maybe.map req |> Maybe.withDefault Cmd.none |> Cmd.map Msg.Metadata)
                             False -> Return.singleton { model | metadataForm = Nothing }
                     _ -> Return.singleton { model | metadataForm = Nothing }
         SaveSuccess lemma -> Return.singleton { model | lastMessage = "Saved definition for lemma " ++ lemma }
