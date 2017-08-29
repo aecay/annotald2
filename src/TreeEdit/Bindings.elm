@@ -11,7 +11,8 @@ import TreeEdit.Tree exposing (constants)
 bindings : Dict Keyboard.KeyCode Actions.Action
 bindings = Dict.fromList <|
            List.map (\(char, binding) -> (toCode char, binding)) <|
-           [ ( ' ', Actions.clearSelection )
+           [ ( '2' , Actions.changeLabel ["NP", "NP-POS"] )
+           , ( ' ', Actions.clearSelection )
            , ( 'q', Actions.changeLabel ["CONJP"] )
            , ( 'w', Actions.changeLabel ["NP-SBJ", "NP-OB1", "NP-OB2", "NP-PRD"] )
            , ( 'e', Actions.changeLabel ["CP-ADV", "CP-CMP", "CP-DEG"])
