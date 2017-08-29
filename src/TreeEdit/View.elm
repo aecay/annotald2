@@ -44,8 +44,8 @@ blockAll = { stopPropagation = True
 
 decodeMouse : Json.Decoder ContextMenuTypes.Position
 decodeMouse = Json.map2 (\x y -> { x = x, y = y })
-              (Json.field "x" Json.int)
-              (Json.field "y" Json.int)
+              (Json.field "pageX" Json.int)
+              (Json.field "pageY" Json.int)
 
 ipStyles : List (String, String)
 ipStyles = [ borderTopColor black
