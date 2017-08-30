@@ -106,8 +106,8 @@ coIndex2 path1 path2 model =
                 root = (.get Model.root model)
                 tree1 = Tree.get path1 root
                 tree2 = Tree.get path2 root
-                index1 = tree1 |> R.map (.getOption Tree.index)
-                index2 = tree2 |> R.map (.getOption Tree.index)
+                index1 = tree1 |> R.map (.get Tree.index)
+                index2 = tree2 |> R.map (.get Tree.index)
                 ind = Tree.get (Path.root path1) root |>
                       R.map Tree.highestIndex |>
                       R.withDefault 0 |>
@@ -145,19 +145,20 @@ coIndex2 path1 path2 model =
 
 setIndexAt: Path -> Int -> Action
 setIndexAt path index =
-    doAt path ((Optional.composeLens Tree.index Index.number |> .set) index)
+    doAt path (.set Tree.index <| Just <| Index.normal index)
 
 setIndexVarietyAt : Path -> Index.Variety -> Action
 setIndexVarietyAt path newVariety =
-    doAt path ((Optional.composeLens Tree.index Index.variety |> .set) newVariety)
+    doAt path (((fromLens Tree.index) => maybe => (fromLens Index.variety) |> .set) newVariety)
+
 
 removeIndexAt : Path -> Action
 removeIndexAt path =
-    doAt path Tree.removeIndex
+    doAt path (.set Tree.index Nothing)
 
 incrementIndicesBy : Int -> Path -> Tree -> R.Result Tree
 incrementIndicesBy inc path tree =
-    Optional.modify (Optional.composeLens Tree.index Index.number) ((+) inc) |>
+    Optional.modify ((fromLens Tree.index) => maybe => (fromLens Index.number)) ((+) inc) |>
     Tree.map |>
     (\x -> Tree.do path x tree)
 

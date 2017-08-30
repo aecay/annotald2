@@ -14,7 +14,6 @@ module TreeEdit.Tree exposing (l, t, trace, either,
                               , extractAt
                               , index
                               , makeTrace
-                              , removeIndex
                               , updateChildren
                               , children
                               , constants
@@ -30,6 +29,9 @@ import List.Extra exposing (getAt, removeAt)
 import Dict
 import Maybe
 import Json.Decode exposing (Decoder)
+import Monocle.Optional as Optional exposing (Optional)
+import Monocle.Common exposing ((=>), maybe)
+import Monocle.Lens as Lens exposing (Lens)
 
 import TreeEdit.Tree.Type as Type exposing (..)
 import TreeEdit.Tree.Decoder
@@ -38,9 +40,6 @@ import TreeEdit.Utils as Utils
 
 import TreeEdit.Index as Index
 import TreeEdit.Path as Path exposing (Path(..), PathFragment)
-
-import Monocle.Optional as Optional exposing (Optional)
-import Monocle.Lens as Lens exposing (Lens)
 
 import TreeEdit.Result as R exposing (succeed, fail)
 
@@ -223,38 +222,34 @@ insertManyAt path newChildren =
     in
         do parent (updateChildren (Utils.insertMany idx newChildren))
 
-getIndex : Tree -> Maybe Index.Index
-getIndex t =
-    case t.contents of
-        Terminal _ idx -> idx
-        Nonterminal _ idx -> idx
-        Trace _ idx -> Just <| Index.normal idx
-        _ -> Nothing
-
-setIndex : Index.Index -> Tree -> Tree
-setIndex idx tree =
-    case tree.contents of
-        Terminal s _ -> { tree | contents = Terminal s <| Just idx }
-        Nonterminal c _ -> { tree | contents = Nonterminal c <| Just idx }
-        Trace t _ -> {tree | contents = Trace t <| (.get Index.number) idx }
-        _ -> tree
-
--- TODO: rewrite with let
-index : Optional Tree Index.Index
-index = Optional getIndex setIndex
-
--- TODO: rewrite with lens
-removeIndex : Tree -> Tree
-removeIndex tree =
-    case tree.contents of
-        Terminal s _ -> { tree | contents = Terminal s Nothing }
-        Nonterminal c _ -> { tree | contents = Nonterminal c Nothing }
-        _ -> tree -- TODO: fail noisily
+index : Lens Tree (Maybe Index.Index)
+index =
+    let
+        get t = case t.contents of
+                    Terminal _ idx -> idx
+                    Nonterminal _ idx -> idx
+                    Trace _ idx -> Maybe.map Index.normal idx
+                    Comment _ -> Nothing
+                    EmptyCat _ idx -> idx
+        set idx t = case t.contents of
+                        Terminal s _ -> { t | contents = Terminal s idx }
+                        Nonterminal c _ -> { t | contents = Nonterminal c idx }
+                        Trace typ _ ->
+                            let
+                                i = Maybe.map (.get Index.number) idx
+                            in
+                                case i of
+                                    Just n -> { t | contents = Trace typ <| Just n }
+                                    Nothing -> Debug.log "Tried to unset index of trace" t
+                        EmptyCat typ _ -> { t | contents = EmptyCat typ idx }
+                        Comment _ -> Debug.log "Tried to manipulate index of comment" t
+    in
+        Lens get set
 
 highestIndex : Tree -> Int
 highestIndex t =
     let
-        lens = Optional.composeLens index Index.number |> .getOption
+        lens = (Optional.fromLens index) => maybe => (Optional.fromLens Index.number) |> .getOption
         f d i = Maybe.withDefault 0 (lens d) |> max i
     in
         fold f 0 t

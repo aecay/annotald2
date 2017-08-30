@@ -17,7 +17,7 @@ isTrace { contents } =
 labelString : Tree -> String
 labelString tree =
     let
-        index = (.getOption Tree.index) tree |> Maybe.map Index.string |> Maybe.withDefault ""
+        index = (.get Tree.index) tree |> Maybe.map Index.string |> Maybe.withDefault ""
         label = tree.label
     in
         if isTrace tree
