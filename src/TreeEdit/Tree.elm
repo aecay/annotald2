@@ -391,7 +391,7 @@ makeTrace x =
 
 legalLabelChar : Char -> Bool
 legalLabelChar c =
-    Char.isUpper c || Char.isDigit c || c == '=' || c == '-' || c == '.' || c == ','
+    Char.isUpper c || Char.isDigit c || c == '-' || c == '.' || c == ','
 
 illegalLabelChar : Char -> Bool
 illegalLabelChar = not << legalLabelChar
