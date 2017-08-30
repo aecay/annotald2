@@ -228,7 +228,7 @@ index =
         get t = case t.contents of
                     Terminal _ idx -> idx
                     Nonterminal _ idx -> idx
-                    Trace _ idx -> Maybe.map Index.normal idx
+                    Trace _ idx -> Just <| Index.normal idx
                     Comment _ -> Nothing
                     EmptyCat _ idx -> idx
         set idx t = case t.contents of
@@ -239,7 +239,7 @@ index =
                                 i = Maybe.map (.get Index.number) idx
                             in
                                 case i of
-                                    Just n -> { t | contents = Trace typ <| Just n }
+                                    Just n -> { t | contents = Trace typ n }
                                     Nothing -> Debug.log "Tried to unset index of trace" t
                         EmptyCat typ _ -> { t | contents = EmptyCat typ idx }
                         Comment _ -> Debug.log "Tried to manipulate index of comment" t
@@ -373,8 +373,8 @@ hasDashTag : String -> Label -> Bool
 hasDashTag tag label =
     List.member tag <| String.split "-" label
 
-makeTrace : Tree -> Tree
-makeTrace x =
+makeTrace : Tree -> Index.Index -> Tree
+makeTrace x i =
     let
         label = x.label
         (newLabel, traceType) =
@@ -384,7 +384,7 @@ makeTrace x =
             then (label, Clitic) -- TODO: drop the CL dashtag
             else (label, Extraposition)
     in
-        { contents = Trace traceType 0 -- TODO: properly get an index
+        { contents = Trace traceType i.number
         , label = newLabel
         , metadata = Dict.empty
         }

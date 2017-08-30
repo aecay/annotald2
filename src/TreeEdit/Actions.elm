@@ -6,7 +6,8 @@ module TreeEdit.Actions exposing ( clearSelection
                                  , createParent
                                  , deleteNode
                                  , leafBefore
-                                 , leafBeforeInner -- For ContextMenu
+                                 , leafBeforeInner -- For ContextMenu TODO:
+                                                   -- consolidate with createLeaf
                                  , leafAfter
                                  , finishLabelEdit
                                  , editLabel
@@ -22,8 +23,8 @@ import Maybe exposing (withDefault)
 import Dict exposing (Dict)
 import TreeEdit.Result as R exposing (Result(..))
 import Task
-
-import Monocle.Optional as Optional
+import Monocle.Optional as Optional exposing (fromLens)
+import Monocle.Common exposing ((=>), maybe)
 
 -- Third party
 
@@ -83,22 +84,16 @@ changeLabel labels =
 
 coIndex : Model -> Result
 coIndex model =
-    let
-        sel = model.selected
-        one : Model -> Result
-        one = (Selection.withOne sel coIndex1 R.succeed)
-        two : Model -> Result
-        two = (Selection.withTwo sel coIndex2 R.succeed)
-    in
-        R.succeed model |>
-        R.andThen one |>
-        R.andThen two
+    Selection.perform model.selected
+        (R.succeed model)
+        (coIndex1 model)
+        (coIndex2 model)
 
-coIndex1: Path -> Model -> Result
-coIndex1 = removeIndexAt
+coIndex1: Model -> Path -> Result
+coIndex1 = flip removeIndexAt
 
-coIndex2 : Path -> Path -> Model -> Result
-coIndex2 path1 path2 model =
+coIndex2 : Model -> Path -> Path -> Result
+coIndex2 model path1 path2  =
     case Path.root path1 == Path.root path2 of
         False -> R.failWarn "Can't coindex nodes in two different roots"
         True ->
@@ -120,11 +115,15 @@ coIndex2 path1 path2 model =
                         (Nothing, Just x) -> setIndexAt path1 x.number model
                         (Just x, Nothing) -> setIndexAt path2 x.number model
                         -- Both of the nodes have an index: toggle index type
+                        -- TODO: must check that indices are both equal
                         (Just x, Just y) ->
-                            case (x.variety, y.variety) of
+                            case Debug.log "both" (x.variety, y.variety) of
                                 -- Normal coindexing -> gap
                                 (Index.Normal, Index.Normal) ->
-                                    setIndexVarietyAt path2 Index.Gap model
+                                    setIndexVarietyAt path2 Index.Gap model |>
+                                    R.andThen (\x -> if isGapAt path2 x |> Debug.log "inner" |> R.withDefault False
+                                                     then R.succeed x
+                                                     else setIndexVarietyAt path1 Index.Gap model)
                                 -- Gap -> backwards gap
                                 (Index.Normal, Index.Gap) ->
                                     setIndexVarietyAt path1 Index.Gap model |>
@@ -151,6 +150,14 @@ setIndexVarietyAt : Path -> Index.Variety -> Action
 setIndexVarietyAt path newVariety =
     doAt path (((fromLens Tree.index) => maybe => (fromLens Index.variety) |> .set) newVariety)
 
+isGapAt : Path -> Model -> R.Result Bool
+isGapAt path model =
+    .get Model.root model |>
+    Tree.get path |>
+    R.map (.getOption <|
+               (fromLens Tree.index) => maybe => (fromLens Index.variety)) |>
+    R.map (Maybe.withDefault Index.Normal) |>
+    R.map ((==) Index.Gap)
 
 removeIndexAt : Path -> Action
 removeIndexAt path =
@@ -206,12 +213,20 @@ createParent label model =
         model |> Selection.perform model.selected none one (createParent2 label)
 
 doMovement : Model -> Path -> Path -> Result
-doMovement model src dest =
+doMovement model dest src =
     let
-        trace = Tree.get src (.get Model.root model) |> R.map Tree.makeTrace
+        ind = (.get Model.root) model |>
+              Tree.get (Path.root src) |>
+              R.map Tree.highestIndex |>
+              R.withDefault 0 |>
+              (+) 1
+        m = doAt src (.set Tree.index <| Just <| Index.normal ind) model
+        -- TODO: can get the trace from the passed in node, no need to
+        -- separately pass the index
+        trace : R.Result Tree
+        trace = m |> R.map (.get Model.root) |> R.andThen (Tree.get src) |> R.map (flip Tree.makeTrace <| Index.normal ind)
     in
-        R.andThen (\x -> leafBefore x model) trace |>
-        R.andThen (coIndex2 src dest)
+        R.andThen3 createLeaf trace m (R.succeed dest)
 
 leafBeforeInner : Tree -> Path -> Tree -> R.Result Tree
 leafBeforeInner newLeaf path tree =
@@ -222,25 +237,22 @@ leafBeforeInner newLeaf path tree =
     in
         Tree.do parent (Tree.updateChildren update) tree
 
+createLeaf : Tree -> Model -> Path -> Result
+createLeaf leaf m path = R.modify Model.root (leafBeforeInner leaf path) m
+
 leafBefore : Tree -> Model -> Result
 leafBefore newLeaf model =
-    let
-        createLeaf path = R.modify Model.root (leafBeforeInner newLeaf path) model
-    in
     Selection.perform model.selected
         (R.succeed model)
-        (createLeaf)
-        (doMovement model) -- TODO: test
+        (createLeaf newLeaf model)
+        (doMovement model)
 
 leafAfter : Tree -> Model -> Result
 leafAfter newLeaf model =
-    let
-        createLeaf path = R.modify Model.root (leafBeforeInner newLeaf (Path.advance path)) model
-    in
     Selection.perform model.selected
         (R.succeed model)
-        (createLeaf)
-        (\_ _ -> R.succeed model) -- TODO: get movement for this case working
+        ((createLeaf newLeaf model) << Path.advance)
+        (\dest src -> doMovement model (Path.advance dest) src)
 
 
 deleteNode : Model -> Result
