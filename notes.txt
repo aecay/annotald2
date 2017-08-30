@@ -27,4 +27,4 @@ http://jarrodoverson.com/blog/using-github-pages-on-github-enterprise/
 
 next steps:
 - comment editor
-- b and a movement keys
+- make deleting a trace remove coindices on other nodes
