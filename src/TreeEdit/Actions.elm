@@ -200,17 +200,14 @@ createParent2 label one two model =
         then R.fail "parents are different for createParent2"
         else doAt parent1 (Tree.updateChildren (\c -> let (x, y, z) = Utils.splice foot1 (foot2+1) c
                                                       in x ++ [Tree.t label y] ++ z))
-            model |> R.map ((.set Model.selected) (Selection.one one))
+            model |> R.map ((.set Model.selected) (Selection.one <| Path.childPath foot1 parent1))
 
 createParent : String -> Model -> Result
 createParent label model =
     let
-        none : Model -> Result
-        none = \x -> R.succeed x
-        one : Path -> Model -> Result
         one path = doAt path (\x -> Tree.t label [x])
     in
-        model |> Selection.perform model.selected none one (createParent2 label)
+        model |> Selection.perform model.selected R.succeed one (createParent2 label)
 
 doMovement : Model -> Path -> Path -> Result
 doMovement model dest src =
