@@ -26,7 +26,7 @@ bindings = Dict.fromList <|
            -- , ( 'z', ) -- TODO: undo
            , ( 'x', Actions.createParent "XP" )
            , ( 'c', Actions.coIndex )
-           , ( 'v', Actions.changeLabel ["IP-SMC", "IP-INF", "IP-PPL"])
+           , ( 'v', Actions.changeLabel ["IP-INF", "RRC", "IP-PPL", "IP-SMC"])
            , ( 'b' , Actions.leafBefore constants.con )
            , ( 'l' , Actions.editLabel )
            ]
