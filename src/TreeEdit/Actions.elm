@@ -68,21 +68,29 @@ doAt path f model =
 clearSelection : Action
 clearSelection m = R.succeed { m | selected = Selection.empty }
 
-changeLabel : List String -> Action
-changeLabel labels =
-    case labels of
-        [] -> R.succeed
-        head :: tail ->
-            let
-                pairs : List (String, String)
-                pairs = tail ++ [head] |> zip (head :: tail)
-                repls : Dict String String
-                repls = Dict.fromList pairs
-                change : String -> String
-                change s = Dict.get s repls |> withDefault head
-                update : Tree -> Tree
-                update z = (\d -> { d | label = change d.label }) z
-            in doOneSelected update
+changeLabel : List String -> Model -> Result
+changeLabel labels model =
+    let
+        selected = model |> .get Model.selected |> Selection.getOne |> R.liftVal "changeLabel"
+    in
+        if R.andThen (flip Tree.get (.get Model.root model)) selected
+            |> R.map (Tree.either (always False) hasTerminalLabel)
+            |> R.withDefault True
+        then R.succeed model
+        else
+            case labels of
+                [] -> R.succeed model
+                head :: tail ->
+                    let
+                        pairs : List (String, String)
+                        pairs = tail ++ [head] |> zip (head :: tail)
+                        repls : Dict String String
+                        repls = Dict.fromList pairs
+                        change : String -> String
+                        change s = Dict.get s repls |> withDefault head
+                        update : Tree -> Tree
+                        update z = (\d -> { d | label = change d.label }) z
+                    in R.andThen3 doAt selected (R.succeed update) (R.succeed model)
 
 coIndex : Model -> Result
 coIndex model =
