@@ -8,6 +8,7 @@ import TreeEdit.ViewUtils as ViewUtils exposing (onClick)
 
 import Html as H exposing (Html)
 import Html.Attributes as Attr
+import Html.CssHelpers
 import Mouse
 import Return exposing (Return)
 
@@ -19,9 +20,13 @@ import TreeEdit.Actions as Actions
 import TreeEdit.Msg as Msg
 import TreeEdit.Model as Model
 import TreeEdit.Model.Type as ModelType
+import TreeEdit.View.Css exposing (ns)
 import TreeEdit.Result as R exposing (modify)
 
 import TreeEdit.ContextMenuTypes exposing (..)
+import TreeEdit.ContextMenu.Css exposing (Classes(..), Ids(..))
+
+{id, class, classList} = Html.CssHelpers.withNamespace ns
 
 show : Position -> Path -> ModelType.Model -> ModelType.Model
 show position path =
@@ -31,16 +36,7 @@ hide : ModelType.Model -> ModelType.Model
 hide = .set Model.contextMenu emptyModel
 
 entry : List (H.Attribute Msg) -> String -> Html Msg
-entry attrs s = H.div [] [ H.a ([ Attr.style [ ("color", "#333")
-                                             , ("text-decoration", "none")
-                                             , ("line-height", "20px")
-                                             , ("height", "20px")
-                                             , ("padding", "1px 5px")
-                                             -- , ("padding-left", "28px")
-                                             , ("cursor", "pointer")
-                                             ]
-                                ] ++ attrs) [ H.text s ]
-                         ]
+entry attrs s = H.div [] [ H.a ([ class [ Entry ] ] ++ attrs) [ H.text s ] ]
 
 leaf : String ->
        (Path -> Tree -> Msg) ->
@@ -60,24 +56,14 @@ toggleExtension path ext =
     entry [ onClick <| ToggleExtension path ext ] ext
 
 heading : String -> Html Msg
-heading title = H.div [ Attr.style [ ("color", "#FEEDD5")
-                                   , ("background-color", "black")
-                                   , ("padding", "2px")
-                                   , ("padding-left", "5px")
-                                   , ("border-bottom", "1px solid silver")
-                                   , ("border-left", "1px solid silver")
-                                   , ("font-weight", "bold")
-                                   ]
-                      ] [ H.text title ]
+heading title = H.div [ class [Heading]] [ H.text title ]
 
 colWidth : Int
 colWidth = 150
 
 column : String -> List (Html Msg) -> Html Msg
-column headingText children = H.div [ Attr.class "conMenuColumn"
-                                    , Attr.style [ ("width", toString colWidth ++ "px")
-                                                 , ("float", "left")
-                                                 ]
+column headingText children = H.div [ class [Column]
+                                    , Attr.style [ ("width", toString colWidth ++ "px") ]
                                     ] <|
                           [ heading headingText ] ++ children
 
@@ -94,14 +80,8 @@ view parent =
                     la = leafAfter path
                     tx = toggleExtension path
                 in
-                    H.div [ Attr.id "conMenu"
-                          , Attr.style [ ("position", "absolute")
-                                       , ("width", toString (colWidth * 3) ++ "px")
-                                       , ("z-index", "9999")
-                                       , ("border" , "1px solid black")
-                                       , ("background-color", "#efefef")
-                                       , ("padding", "0px")
-                                       , ("margin", "0px")
+                    H.div [ id ContextMenu
+                          , Attr.style [ ("width", toString (colWidth * 3) ++ "px")
                                        , ("left", toString model.position.x ++ "px")
                                        , ("top", toString model.position.y ++ "px")
                                        ]
@@ -135,7 +115,7 @@ update msg model =
                 (Tree.do path (\x -> {x | label = newLabel }))
                 model |>
             R.handle model
-        ToggleExtension path ext -> Debug.crash "foo"
+        ToggleExtension path ext -> Actions.toggleDashTag ext path model |> R.handle model |> Return.map hide
         Ignore -> Return.singleton model
         Hide -> Return.singleton <| hide model
         Show position path -> Return.singleton <| show position path model

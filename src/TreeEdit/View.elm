@@ -2,21 +2,14 @@ module TreeEdit.View exposing ( view
                               , viewRootTree -- For memoization hack
                               )
 
-import Color exposing (black, white, Color)
+import Html.CssHelpers
 import Guards exposing (..)
 import Html exposing (..)
-import Html.Attributes as Attr
 import Html.Events as Ev
 import Html.Lazy exposing (lazy3)
 import Json.Decode as Json
 import RemoteData exposing (RemoteData(..))
 import Toolkit.Helpers exposing (applyList)
-import TypedStyles exposing ( borderTopWidth, borderTopColor, borderBottomWidth, borderBottomColor
-                            , border, solid, borderLeftColor, borderLeftWidth
-                            , padding, color, px, backgroundColor, marginLeft
-                            , paddingLeft, paddingRight, width, height, prc
-                            , left, right, bottom, marginRight, top, textCenter
-                            )
 
 import TreeEdit.Config exposing (Config)
 import TreeEdit.Model.Type exposing (Model)
@@ -27,8 +20,8 @@ import TreeEdit.Path as Path exposing (Path)
 import TreeEdit.Selection as Selection exposing (Selection)
 import TreeEdit.Msg as Msg exposing (Msg(..))
 import TreeEdit.View.ToolBar as ToolBar
-import TreeEdit.View.Theme exposing (theme)
 import TreeEdit.Metadata as Metadata
+import TreeEdit.View.Css as Css
 import TreeEdit.View.LabelEdit as LabelEdit
 import TreeEdit.View.LabelEdit.Type exposing (LabelForm)
 
@@ -37,6 +30,8 @@ import TreeEdit.ViewUtils exposing (onClick, blockAll)
 
 import TreeEdit.ContextMenuTypes as ContextMenuTypes
 import TreeEdit.ContextMenu as ContextMenu
+
+{id, class, classList} = Html.CssHelpers.withNamespace Css.ns
 
 blockAll : Ev.Options
 blockAll = { stopPropagation = True
@@ -48,13 +43,6 @@ decodeMouse = Json.map2 (\x y -> { x = x, y = y })
               (Json.field "pageX" Json.int)
               (Json.field "pageY" Json.int)
 
-ipStyles : List (String, String)
-ipStyles = [ borderTopColor black
-           , borderTopWidth 1 px
-           , borderBottomColor black
-           , borderBottomWidth 1 px
-           ]
-
 isIP : Config -> String -> Bool
 isIP config label =
     let
@@ -62,10 +50,10 @@ isIP config label =
     in
         List.any identity <| applyList predicates label
 
-bgColor : Bool -> Bool -> Color
-bgColor selected ip = selected => theme.blue
-                      |= ip => theme.salmon
-                      |= theme.offWhite
+snodeClass : Bool -> Bool -> Css.Classes
+snodeClass selected ip = selected => Css.SnodeSelected
+                       |= ip => Css.SnodeIp
+                       |= Css.Snode
 
 type alias ViewInfo =
     { config : Config
@@ -85,31 +73,14 @@ snode info self tree children =
                     _ -> text <| labelString tree
     in
         div
-        [ Attr.class "snode"
-        , Attr.style <| [ marginLeft 20 px
-                        , border 1 px solid theme.silver
-                        , borderLeftColor theme.blue
-                        , borderLeftWidth 4 px
-                        , padding 2 px
-                        , color black
-                        , backgroundColor (bgColor selected isIP_)
-                        , ("cursor", "pointer")
-                        ] ++ if isIP_ then ipStyles else []
+        [ class <| [snodeClass selected isIP_]
         , onClick <| ToggleSelect self
         , rightClick
         ] <| label :: children
 
 wnode : Tree -> Html Msg
 wnode t = span
-             [ Attr.class "wnode"
-             , Attr.style [ marginLeft 20 px
-                          , paddingLeft 4 px
-                          , paddingRight 4 px
-                          , border 1 px solid black
-                          , backgroundColor white
-                          , color black
-                          ]
-             ]
+             [ class [Css.Wnode] ]
              [text <| terminalString t]
 
 viewTree : ViewInfo -> Path -> Tree -> Html Msg
@@ -173,14 +144,7 @@ wrapSn0 nodes =
                      Json.map (\_ -> RightClickRoot) decodeMouse
     in
         nodes |>
-        div [ Attr.class "sn0"
-            , Attr.style [ backgroundColor theme.tan
-                         , border 1 px solid black
-                         , marginRight 5 prc
-                         , ("margin-left", "calc(15% + 12px)")
-                         -- In order for the trees to shrink to the correct width
-                         , ("display", "inline-block")
-                         ]
+        div [ id [Css.Sn0]
             , rightClick
             ]
 
@@ -193,33 +157,12 @@ view model =
             NotAsked -> loading
             Loading -> loading
             Failure e -> div [] [ text <| "error " ++ toString e ]
-            Success (root, config) -> div [] [ div [ Attr.style [ top 30 px
-                                                                , left 0 px
-                                                                , marginLeft 5 px
-                                                                , width 15 prc
-                                                                , ("position", "fixed")
-                                                                ]
-
-                                                   ]
+            Success (root, config) -> div [] [ div [ id Css.Toolbar ]
                                                    [ ToolBar.view model.fileName
                                                    , Metadata.view model |> Html.map Msg.Metadata
                                                    ]
-                                             , div [ Attr.style [ bottom 30 px
-                                                                , left 0 px
-                                                                , marginLeft 5 px
-                                                                , width 15 prc
-                                                                , backgroundColor theme.offWhite2
-                                                                , ("position", "fixed")
-                                                                ]
-                                                   ]
-                                                   [ div [ Attr.style [ backgroundColor theme.darkGrey
-                                                                      , color white
-                                                                      , width 100 prc
-                                                                      , height 16 px
-                                                                      , ("font-weight", "bold")
-                                                                      , textCenter
-                                                                      ]
-                                                         ] [ text "Messages" ]
+                                             , div [ id Css.Messages ]
+                                                   [ div [ class [Css.Titlebar] ] [ text "Messages" ]
                                                    , text model.lastMessage ]
                                              , viewRoot model root config |> wrapSn0
                                              , map Msg.Context <| ContextMenu.view model

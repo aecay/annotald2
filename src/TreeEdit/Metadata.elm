@@ -5,6 +5,7 @@ import Color exposing (rgb, white)
 import Dict exposing (Dict)
 import Html exposing (div, text, button, Html, span)
 import Html.Attributes as Attr exposing (id)
+import Html.CssHelpers
 import Html.Events exposing (onClick)
 import Json.Decode as D
 import Json.Encode as E
@@ -24,6 +25,7 @@ import Form.Field
 import Form.Validate as V exposing (Validation)
 
 import TreeEdit.Metadata.Type exposing (..)
+import TreeEdit.Metadata.Css exposing (Classes(..))
 import TreeEdit.Selection exposing (Selection)
 import TreeEdit.Tree as Tree
 import TreeEdit.Model as Model
@@ -33,6 +35,9 @@ import TreeEdit.Selection as Selection
 import TreeEdit.Result as R
 import TreeEdit.View.Theme exposing (theme)
 import TreeEdit.Msg as Msg
+import TreeEdit.View.Css exposing (ns)
+
+{id, class, classList} = Html.CssHelpers.withNamespace ns
 
 validation : Validation () Metadata
 validation =
@@ -54,31 +59,16 @@ textField fs form name =
                 value = x.value |> Maybe.withDefault ""
             in
                 if value == ""
-                then Html.i [ Attr.style [ ("color", "grey") ] ] [ text <| "no " ++ name ]
+                then Html.i [ class [TextFieldAbsent] ] [ text <| "no " ++ name ]
                 else text value
-        editButton m = button [ onClick m , Attr.style [("padding", "1px")]] [ text "✎" ]
+        editButton m = button [ onClick m , class [EditButton] ] [ text "✎" ]
     in
-        div [ Attr.style [ border 1 px solid theme.darkGrey
-                         , margin 2 px
-                         ]
-            ]
-            [ div [ Attr.style [ backgroundColor (rgb 85 85 85)
-                               , color (rgb 238 238 238)
-                               , width 100 prc
-                               , height 16 px
-                               , ("font-weight", "bold")
-                               , textCenter
-                               ]
-                  ]
+        div [ class [TextField] ]
+            [ div [ class [TextFieldInner] ]
                   [ text <| capitalize name ]
             , if editing
-              then Html.map Form <| Input.textInput contents [ Attr.style [ ("width", "100%") ] ]
-              else span [ Attr.style [ ("display", "flex")
-                                     , ("justify-content", "space-between")
-                                     , ("align-items", "center")
-                                     , padding 2 px
-                                     ]
-                        ]
+              then Html.map Form <| Input.textInput contents [ class [TextFieldEditBox] ]
+              else span [ class [TextFieldEditContainer] ]
                   [ formatValue contents
                   , span [ Attr.style [("flex-grow", "2")]] []
                   , editButton <| Edit name
@@ -102,11 +92,7 @@ formView form state =
               ]
         ) ++
         if List.any identity <| Dict.values state
-        then [ div [Attr.style [ margin 2 px
-                               , ("display", "flex")
-                               , ("flex-direction", "row-reverse")
-                               ]
-                   ]
+        then [ div [ class [SaveButtonContainer] ]
                    [ button [ onClick Save ] [ text "Save" ] ] ]
         else []
 
@@ -190,7 +176,11 @@ update model msg =
                                      Return.command (Cmd.map Msg.Metadata <| Cmd.Extra.perform NewSelection) |>
                                      Return.command (TreeEdit.Ports.editing False)
                     Nothing -> Return.singleton model
-        Cancel -> Return.return { model | metadataForm = Nothing } (TreeEdit.Ports.editing False)
+        Cancel -> Return.singleton model |>
+                  Return.command (Cmd.map Msg.Metadata <| Cmd.Extra.perform NewSelection) |>
+                  Return.command (TreeEdit.Ports.editing False)
+                  -- TODO: why doesn't it work?
+                  -- (Cmd.batch [TreeEdit.Ports.editing False, Cmd.Extra.perform <| Msg.Metadata NewSelection])
         NewSelection ->
             let
                 root = model |> .get Model.root
