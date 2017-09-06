@@ -18,6 +18,7 @@ module TreeEdit.Result exposing ( fail
                                 -- , map3
                                 , do
                                 , handle
+                                , ifThen
                              )
 
 import Maybe.Extra
@@ -39,8 +40,16 @@ fail s = Result [s] [] Nothing
 guard : Result Bool -> String -> Result a -> Result a
 guard flag failMsg res =
     case flag of
-        Result _ _ (Just True) -> res
-        Result msgs _ _ -> Result (msgs ++ [failMsg]) [] Nothing
+        Result _ _ (Just True) -> joinSecond flag res
+        Result msgs _ (Just False) -> toFail flag |> log failMsg
+        Result _ _ Nothing -> toFail flag
+
+joinSecond : Result a -> Result b -> Result b
+joinSecond (Result msgs1 cmds1 _) (Result msgs2 cmds2 val) =
+    Result (msgs1 ++ msgs2) (cmds1 ++ cmds2) val
+
+toFail : Result a -> Result b
+toFail (Result msgs cmds _) = Result msgs cmds Nothing
 
 -- TODO: remove
 failWarn : String -> Result a
@@ -59,11 +68,7 @@ andThen : (a -> Result b) -> Result a -> Result b
 andThen fn res =
     case res of
         Result msgs cmds Nothing -> Result msgs cmds Nothing
-        Result msgs cmds (Just val) ->
-            let
-                (Result newmsgs newcmds newval) = fn val
-            in
-                Result (msgs ++ newmsgs) (cmds ++ newcmds) newval
+        Result _ _ (Just val) -> joinSecond res (fn val)
 
 andThen2 : (a -> b -> Result c) -> Result a -> Result b -> Result c
 andThen2 fn a b =
@@ -131,13 +136,13 @@ modify lens f init =
 --             Nothing -> init
 --             Just val -> f val |> map (flip lens.set init) |> withDefault init
 
--- -- Not lazy!
--- ifThen : Result Bool -> Result a -> Result a -> Result a
--- ifThen flag thn els =
---     case flag of
---         R.Err err -> R.Err err
---         R.Ok True -> thn
---         R.Ok False -> els
+-- Not lazy!
+ifThen : Result Bool -> Result a -> Result a -> Result a
+ifThen flag thn els =
+    case flag of
+        Result _ _ (Just True) -> joinSecond flag thn
+        Result _ _ (Just False) -> joinSecond flag els
+        Result msgs cmds Nothing -> Result msgs cmds Nothing
 
 do : Cmd Msg -> Result a -> Result a
 do cmd (Result msgs cmds val) = Result msgs (cmds ++ [cmd]) val
