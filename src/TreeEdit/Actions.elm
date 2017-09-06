@@ -233,7 +233,8 @@ doMovement model dest src =
         trace : R.Result Tree
         trace = m |> R.map (.get Model.root) |> R.andThen (Tree.get src) |> R.map (flip Tree.makeTrace <| Index.normal ind)
     in
-        R.andThen3 createLeaf trace m (R.succeed dest)
+        R.andThen3 createLeaf trace m (R.succeed dest) |>
+        R.map (.set Model.selected <| Selection.one dest)
 
 leafBeforeInner : Tree -> Path -> Tree -> R.Result Tree
 leafBeforeInner newLeaf path tree =
