@@ -335,7 +335,10 @@ moveTo from to tree =
                                       allLast (Path.childPath sTo common) tailTo tree) of
                                 (True, True) ->
                                     let
-                                        nKids = get to tree |> R.map (.getOption children >> Utils.fromJust >> List.length)
+                                        nKids = get to tree |>
+                                                R.andThen (.getOption children >>
+                                                               R.liftVal "something weird happened moving") |>
+                                                R.map List.length
                                         adjPath1 = Path.join common fragTo
                                         adjPath = nKids |> R.map (\x -> Path.childPath x adjPath1)
                                     in
