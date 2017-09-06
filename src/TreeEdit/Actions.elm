@@ -11,6 +11,7 @@ module TreeEdit.Actions exposing ( clearSelection
                                  , leafAfter
                                  , finishLabelEdit
                                  , editLabel
+                                 , toggleDashTag
                         )
 
 -- This module contains the types and functions for creating *actions*, or
@@ -42,6 +43,7 @@ import TreeEdit.Selection as Selection
 import TreeEdit.Index as Index exposing (normal, Variety(..))
 import TreeEdit.View.LabelEdit as LabelEdit
 import TreeEdit.Msg as Msg
+import TreeEdit.Tree.Utils exposing (hasTerminalLabel)
 
 type alias Result = R.Result Model
 
@@ -318,3 +320,16 @@ finishLabelEdit model =
     in
         R.andThen3 doAt selected changeLabel (R.succeed model) |>
         R.map (\m -> { m | labelForm = Nothing })
+
+toggleDashTag : String -> Path -> Model -> Result
+toggleDashTag tag path model =
+    let
+        tree = model |> .get Model.root |> Tree.get path
+        labels = tree |> R.map (.label >> String.split "-")
+        contains = labels |> R.map (List.any ((==) tag))
+        setLabel l t = { t | label = l }
+    in
+        R.ifThen contains
+            (labels |> R.map (List.filter ((/=) tag) >> String.join "-"))
+            (labels |> R.map ((\x -> x ++ [tag]) >> String.join "-")) |>
+        R.andThen (\x -> doAt path (setLabel x) model)
