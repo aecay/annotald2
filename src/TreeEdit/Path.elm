@@ -104,29 +104,22 @@ type alias SplitResult = { common : Path
 splitCommon : Path -> Path -> SplitResult
 splitCommon p1 p2 =
     let
-        go p1 p2 accum = case (List.head p1, List.head p2) of
-                             (Just h1, Just h2) -> if h1 == h2
-                                                   then let
-                                                       t1 = List.tail p1 |> fromJust
-                                                       t2 = List.tail p2 |> fromJust
-                                                   in
-                                                       go t1 t2 <| accum ++ [h1]
-                                                   else { common = fromList <| List.reverse accum
-                                                        , sibFrom = Just h1
-                                                        , sibTo = Just h2
-                                                        , tailFrom = PF <| List.reverse <| fromJust <| List.tail p1
-                                                        , tailTo = PF <| List.reverse <| fromJust <| List.tail p2
-                                                        , fragFrom = PF <| List.reverse p1
-                                                        , fragTo = PF <| List.reverse p2
-                                                        }
-                             (h1, h2) -> { common = fromList <| List.reverse accum
-                                          , sibFrom = h1
-                                          , sibTo = h2
-                                          , tailFrom = PF <| List.reverse <| Maybe.withDefault [] <| List.tail p1
-                                          , tailTo = PF <| List.reverse <| Maybe.withDefault [] <| List.tail p2
-                                          , fragFrom = PF <| List.reverse p1
-                                          , fragTo = PF <| List.reverse p2
-                                          }
+        go p1 p2 accum =
+            let
+                res from to = { common = fromList <| List.reverse accum
+                              , sibFrom = from
+                              , sibTo = to
+                              , tailFrom = PF <| List.reverse <| Maybe.withDefault [] <| List.tail p1
+                              , tailTo = PF <| List.reverse <| Maybe.withDefault [] <| List.tail p2
+                              , fragFrom = PF <| List.reverse p1
+                              , fragTo = PF <| List.reverse p2
+                              }
+            in
+                case (p1, p2) of
+                    (h1 :: t1, h2 :: t2) -> if h1 == h2
+                                            then go t1 t2 <| accum ++ [h1]
+                                            else res (Just h1) (Just h2)
+                    (x1, x2) -> res (List.head x1) (List.head x2)
     in
         go (List.reverse (toList p1)) (List.reverse (toList p2)) []
 
