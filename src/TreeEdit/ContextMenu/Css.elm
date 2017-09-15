@@ -16,6 +16,7 @@ css = (stylesheet << namespace ns) <|
                     , height (px 20)
                     , padding2 (px 1) (px 5)
                     , cursor pointer
+                    , hover [ backgroundColor (hex "#cccccc")]
                     ]
       , class Heading [ color (hex "#FEEDD5")
                       , backgroundColor (hex "#000000")

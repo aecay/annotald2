@@ -36,7 +36,7 @@ hide : ModelType.Model -> ModelType.Model
 hide = .set Model.contextMenu emptyModel
 
 entry : List (H.Attribute Msg) -> String -> Html Msg
-entry attrs s = H.div [] [ H.a ([ class [ Entry ] ] ++ attrs) [ H.text s ] ]
+entry attrs s = H.div ([ class [ Entry ] ] ++ attrs) [ H.a [] [ H.text s ] ]
 
 leaf : String ->
        (Path -> Tree -> Msg) ->
