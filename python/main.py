@@ -7,7 +7,7 @@ import uuid
 import hug
 
 import lovett.corpus
-from lovett.format import Json
+from lovett.format import Json, Deep
 
 
 CORPUS_PATH = "/home/aecay/projects/chlg/parsing"
@@ -46,7 +46,7 @@ def config():
 def get_file(name: hug.types.text):
     path = os.path.join(CORPUS_PATH, name)
     with open(path) as fin:
-        corpus = lovett.corpus.from_file(fin)
+        corpus = lovett.corpus.from_file(fin, Deep)
     for tree in corpus:
         for node in tree.nodes():
             if lovett.util.is_leaf(node):
