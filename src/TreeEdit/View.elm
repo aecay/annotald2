@@ -2,12 +2,14 @@ module TreeEdit.View exposing ( view
                               , viewRootTree -- For memoization hack
                               )
 
+import Dict
 import Html.CssHelpers
 import Guards exposing (..)
 import Html exposing (..)
 import Html.Events as Ev
 import Html.Lazy exposing (lazy3)
 import Json.Decode as Json
+import Maybe.Extra exposing (isJust)
 import RemoteData exposing (RemoteData(..))
 import Toolkit.Helpers exposing (applyList)
 
@@ -55,6 +57,16 @@ snodeClass selected ip = selected => Css.SnodeSelected
                        |= ip => Css.SnodeIp
                        |= Css.Snode
 
+labelHtml : Tree -> Html Msg
+labelHtml tree =
+    let
+        hasCorrection = tree.metadata |> Dict.get "ORIG-TAG" |> isJust
+        labelStr = labelString tree
+    in
+        if hasCorrection
+        then span [] [text labelStr, span [class [Css.CorrectionFlag]] [text "CORR"] ]
+        else text <| labelStr
+
 type alias ViewInfo =
     { config : Config
     , selected : List Path
@@ -70,7 +82,7 @@ snode info self tree children =
         isIP_ = isIP info.config tree.label
         label = case (selected, info.labelForm) of
                     (True, Just form) -> Html.map Msg.Label <| LabelEdit.view form
-                    _ -> text <| labelString tree
+                    _ -> labelHtml tree
     in
         div
         [ class <| [snodeClass selected isIP_]

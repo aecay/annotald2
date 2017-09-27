@@ -7,7 +7,7 @@ import Css.Namespace exposing (namespace)
 
 import TreeEdit.View.Theme exposing (theme)
 
-type Classes = Snode | Titlebar | Wnode | SnodeIp | SnodeSelected
+type Classes = Snode | Titlebar | Wnode | SnodeIp | SnodeSelected | CorrectionFlag
 type Ids = Toolbar | ContextMenu | Messages | Sn0
 
 convertColor : Color.Color -> Css.Color
@@ -85,4 +85,11 @@ css = (stylesheet << namespace ns) <|
       , class Snode [snode]
       , class SnodeIp [snode, ip]
       , class SnodeSelected [snode, selected]
+      , class CorrectionFlag [ border3 (px 1) solid (hex "C17900")
+                             , backgroundColor (hex "FCD271")
+                             , color black
+                             , fontSize (px 6)
+                             , padding (px 1)
+                             , verticalAlign textTop
+                             ]
       ]
