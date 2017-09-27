@@ -9,6 +9,8 @@ import Html.CssHelpers
 import Html.Events exposing (onClick)
 import Json.Decode as D
 import Json.Encode as E
+import Maybe.Extra as MX
+import Monocle.Lens as Lens
 import Monocle.Optional as Optional
 import Monocle.Common exposing (first, second, maybe)
 import RemoteData exposing (RemoteData(..), WebData)
@@ -28,6 +30,7 @@ import TreeEdit.Metadata.Type exposing (..)
 import TreeEdit.Metadata.Css exposing (Classes(..))
 import TreeEdit.Selection exposing (Selection)
 import TreeEdit.Tree as Tree
+import TreeEdit.Tree.Type exposing (Tree)
 import TreeEdit.Model as Model
 import TreeEdit.Model.Type exposing (Model)
 import TreeEdit.Ports
@@ -39,18 +42,25 @@ import TreeEdit.View.Css exposing (ns)
 
 {id, class, classList} = Html.CssHelpers.withNamespace ns
 
+fieldNames = [ "lemma"
+             , "definition"
+             , "orig-tag"
+             ]
+
 validation : Validation () Metadata
 validation =
-    V.map2 (\l def -> { lemma = l, definition = def })
-        (V.field "lemma" (V.string |> V.andThen V.nonEmpty))
-        (V.field "definition" (V.string |> V.map Just)) -- TODO: should be Nothing
-                                                  -- if empty
+    let
+        do str = V.andThen (V.string |> V.map (Dict.update str (always str)))
+    in
+        List.foldl do (V.succeed Dict.empty) fieldNames
 
 capitalize : String -> String
 capitalize s = String.toUpper (String.left 1 s) ++ String.dropLeft 1 s
 
-textField : FieldState -> MetadataForm -> String -> Html Msg
-textField fs form name =
+type FieldType = Writable | ReadOnly
+
+textField : FieldState -> MetadataForm -> FieldType -> String -> Html Msg
+textField fs form fieldType name =
     let
         editing = Dict.get name fs |> Maybe.withDefault False
         contents = Form.getFieldAsString name form
@@ -61,7 +71,9 @@ textField fs form name =
                 if value == ""
                 then Html.i [ class [TextFieldAbsent] ] [ text <| "no " ++ name ]
                 else text value
-        editButton m = button [ onClick m , class [EditButton] ] [ text "✎" ]
+        editButton m = case fieldType of
+                           ReadOnly -> span [] []
+                           Writable -> button [ onClick m , class [EditButton] ] [ text "✎" ]
     in
         div [ class [TextField] ]
             [ div [ class [TextFieldInner] ]
@@ -78,33 +90,66 @@ textField fs form name =
 formView : MetadataForm -> FieldState -> Html Msg
 formView form state =
     let
-        field = textField state form
+        field name = div [id ("formField-" ++ name)] [textField state form Writable name]
+        condField condition name = if condition then field name else div [] []
+        roField name = textField state form ReadOnly name
     in
 
-    div [ id "lemma" ] <|
-        [ div [ id "lemma-text" ]
-              [ field "lemma" ]
+    div [ id "metadataForm" ] <|
+        [ field "lemma"
+        , condField ((Form.getFieldAsString "lemma" form |> .value) == Just "") "definition"
+        , roField "orig-tag"
         ] ++
-        (if (Form.getFieldAsString "lemma" form |> .value) == Just ""
-         then []
-         else [ div [ id "lemma-def" ]
-                    [ field "definition" ]
-              ]
-        ) ++
         if List.any identity <| Dict.values state
         then [ div [ class [SaveButtonContainer] ]
                    [ button [ onClick Save ] [ text "Save" ] ] ]
         else []
 
 init : Metadata -> (MetadataForm, FieldState)
-init {lemma, definition} = ( Form.initial [ Form.Init.setString "lemma" lemma
-                                          , Form.Init.setString "definition" <| Maybe.withDefault "" definition
-                                          ]
-                                 validation
-                           , Dict.fromList [ ("lemma", False)
-                                           , ("definition", False)
-                                           ]
-                           )
+init metadata = ( fieldNames |>
+                      List.map (\x -> Dict.get x metadata) |>
+                      MX.values |>
+                      flip (Form.initial validation)
+                , Dict.fromList <| List.map (\x -> (x, False)) fieldNames
+                )
+
+type alias Updater = String -> Tree -> Return Msg.Msg Tree
+
+lemmaU : Updater
+lemmaU newLemma sel =
+    sel |>
+    Lens.modify Tree.metadata Dict.update "LEMMA" (always <| Just newLemma) |>
+    Return.singleton
+
+definitionU : Updater
+definitionU newDef sel =
+    let
+        lemma = (.get Tree.metadata) sel |> Dict.get "METADATA"
+        updateCmd lemma = Net.post
+                              "/dictentry"
+                              (always <| SaveSuccess lemma)
+                              (D.succeed ())
+                              (E.object [ ("lemma", E.string lemma)
+                                        , ("definition", E.string newDef)
+                                        ])
+    in
+        Maybe.map updateCmd lemma |>
+        Maybe.withDefault Cmd.none |>
+        Return.return sel
+
+performUpdate : Dict String String -> MetadataForm -> String -> Updater -> Return Msg.Msg Tree -> Return Msg.Msg Tree
+performUpdate formOut metadataForm field updater ret =
+    let
+        dirty = metadataForm |> -- TODO: could pass something smaller to this fn
+                Maybe.map Tuple.second |>
+                Maybe.andThen (Dict.get field) |>
+                Maybe.withDefault False
+        fieldValue = Dict.get field formOut |> Maybe.withDefault ""
+        do selected = updater fieldValue
+    in
+        if dirty
+        then Return.andThen do ret
+        else ret
 
 save : Metadata -> Model -> Return Msg.Msg Model
 save metadata model =
@@ -115,33 +160,15 @@ save metadata model =
         case Selection.first selected of
             Just selection ->
                 let
-                    {lemma, definition} = metadata
-                    sel = Tree.get selection root
-                    set = R.map (flip (.set Tree.metadata)) sel
-                    newSel = sel |>
-                             R.map (.get Tree.metadata) |>
-                             R.map (Dict.update "LEMMA" (always <| Just lemma)) |>
-                             flip R.andMap set
-                    newRoot = newSel |> R.andThen (\x -> Tree.set selection x root) |> R.withDefault root
-                    updateCmd = case (definition,
-                                          model.metadataForm |>
-                                          Maybe.map Tuple.second |>
-                                          Maybe.andThen (Dict.get "definition"))
-                                of
-                                    (Just def, Just True) ->
-                                        Net.post
-                                            "/dictentry"
-                                            (always <| SaveSuccess lemma)
-                                            (D.succeed ())
-                                            (E.object [ ("lemma", E.string lemma)
-                                                      , ("definition", E.string def)
-                                                      ])
-                                    _ -> Cmd.none
+                    doUpdate = R.andThen (performUpdate metadata model.metadataForm)
 
                 in
-                    Return.return
-                        (.set Model.root newRoot model)
-                        (Cmd.map Msg.Metadata updateCmd)
+                    Return.singleton (root |> Tree.get selection) |>
+                    doUpdate "lemma" lemmaU |>
+                    doUpdate "definition" definitionU |>
+                    -- TODO doUpdate "orig-tag" origTagU |>
+                    Return.andThen (Tree.set selection root) |>
+                    Return.map (\x -> .set Model.root x model)
             _ -> Return.singleton model
 
 update : Model -> Msg -> Return Msg.Msg Model
@@ -199,8 +226,7 @@ update model msg =
                                             D.string
                                 in
                                     Return.return { model | metadataForm = Just <|
-                                                        init { lemma = Maybe.withDefault "" lemma
-                                                             , definition = Nothing }
+                                                        init (Dict.fromList [("lemma", "")])
                                                   }
                                     (lemma |> Maybe.map req |> Maybe.withDefault Cmd.none |> Cmd.map Msg.Metadata)
                             False -> Return.singleton { model | metadataForm = Nothing }

@@ -9,7 +9,7 @@ import Keyboard
 import Form exposing (Form)
 import RemoteData exposing (WebData)
 
-type alias Metadata = { lemma : String, definition : Maybe String }
+type alias Metadata = Dict String String
 
 type alias MetadataForm = Form () Metadata
 
