@@ -18,7 +18,7 @@ indexToJson idx =  case idx of
                        Nothing -> []
                        Just i -> [ ("INDEX", .get Index.number i |> toString)
                                  , ("IDX-TYPE", case .get Index.variety i of
-                                                    Index.Normal -> "normal"
+                                                    Index.Normal -> "regular"
                                                     Index.Gap -> "gap")
                                  ]
 
