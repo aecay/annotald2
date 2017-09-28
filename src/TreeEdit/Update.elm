@@ -50,7 +50,7 @@ editingLabel model =
 update : Msg -> Model -> Return Msg Model
 update msg model =
     let
-        disableMouse = Debug.log "Mouse disabled" <| editingMetadata model || editingLabel model
+        disableMouse = editingMetadata model || editingLabel model
     in
         if False -- TODO: dummy to prevent reindenting everything yet
         then Return.singleton model
