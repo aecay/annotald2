@@ -110,7 +110,7 @@ viewTree info selfPath tree =
 viewRootTree : Config -> Maybe (List Path, Maybe LabelForm) -> Int -> Tree -> Html Msg
 viewRootTree config dataPack selfIndex tree =
     let
-        _ = Debug.log "redraw" (dataPack, selfIndex)
+        -- _ = Debug.log "redraw" (dataPack, selfIndex)
         selected = dataPack |> Maybe.map Tuple.first |> Maybe.withDefault []
         labelForm = dataPack |> Maybe.map Tuple.second |> Maybe.withDefault Nothing
         info = { config = config, selected = selected, labelForm = labelForm }
