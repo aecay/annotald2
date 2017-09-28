@@ -1,6 +1,7 @@
 module TreeEdit.Metadata.Type exposing ( Metadata
                                        , MetadataForm
-                                       , FieldState
+                                       , FieldState(..)
+                                       , FieldStates
                                        , Msg(..)
                                        )
 
@@ -13,11 +14,14 @@ type alias Metadata = Dict String String
 
 type alias MetadataForm = Form () Metadata
 
-type alias FieldState = Dict String Bool
+type FieldState = Visible | Editing | Hidden
+
+type alias FieldStates = Dict String FieldState
 
 type Msg = ReceivedDefinition (WebData String) |
     Form Form.Msg |
     Edit String |
+    Delete String |
     Save |
     Cancel |
     NewSelection |

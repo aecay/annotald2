@@ -16,7 +16,7 @@ type alias Model = { selected: Selection.Selection
                    , lastMessage: String
                    , contextMenu: ContextMenuTypes.Model
                    , fileName : String
-                   , metadataForm : Maybe (Metadata.MetadataForm, Metadata.FieldState)
+                   , metadataForm : Maybe (Metadata.MetadataForm, Metadata.FieldStates)
                    , webdata : WebData (Tree, Config)
                    , labelForm: Maybe LabelForm
                    , viewRootWithConfig : Maybe (Maybe (List Path.Path, Maybe LabelForm) -> Int -> Tree -> Html Msg.Msg)
