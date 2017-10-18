@@ -60,7 +60,7 @@ snodeClass selected ip = selected => Css.SnodeSelected
 labelHtml : Tree -> Html Msg
 labelHtml tree =
     let
-        hasCorrection = tree.metadata |> Dict.get "ORIG-TAG" |> isJust
+        hasCorrection = tree.metadata |> Dict.get "OLD-TAG" |> isJust
         labelStr = labelString tree
     in
         if hasCorrection
