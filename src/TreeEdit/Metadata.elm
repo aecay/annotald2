@@ -44,12 +44,12 @@ import TreeEdit.View.Css exposing (ns)
 
 origTagState : Tree -> Bool
 origTagState t =
-    Tree.isTerminal t && (.get Tree.metadata t |> Dict.get "ORIG-TAG" |> (/=) Nothing)
+    Tree.isTerminal t && (.get Tree.metadata t |> Dict.get "OLD-TAG" |> (/=) Nothing)
 
 fieldNames : List (String, Tree -> Bool)
 fieldNames = [ ("lemma", Tree.isTerminal)
              , ("definition", Tree.isTerminal)
-             , ("orig-tag", origTagState)
+             , ("old-tag", origTagState)
              ]
 
 validation : Validation () Metadata
@@ -112,7 +112,7 @@ formView form state =
     div [ id "metadataForm" ] <|
         [ field "lemma"
         , condField ((Form.getFieldAsString "lemma" form |> .value) /= Just "") "definition"
-        , roField "orig-tag"
+        , roField "old-tag"
         ] ++
         if List.any ((==) Editing) <| Dict.values state
         then [ div [ class [SaveButtonContainer] ]
@@ -140,6 +140,9 @@ genericU key newVal sel =
 
 lemmaU : Updater
 lemmaU = genericU "LEMMA"
+
+oldTagU : Updater
+oldTagU = genericU "OLD-TAG"
 
 definitionU : Updater
 definitionU newDef sel =
@@ -201,7 +204,7 @@ save metadata model =
                                                      -- enumerate metadata fields
                     doUpdate "lemma" lemmaU |>
                     doUpdate "definition" definitionU |>
-                    -- TODO doUpdate "orig-tag" origTagU |>
+                    doUpdate "old-tag" oldTagU |>
                     Debug.log "after updates" |>
                     Return.map (\newLeaf -> Tree.set selection newLeaf root |>
                                         R.withDefault root) |>
