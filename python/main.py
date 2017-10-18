@@ -18,13 +18,6 @@ with open(DICT_FILE, "r") as fin:
     DICT = json.load(fin)
 
 
-# html = hug.get(output=hug.output_format.html)
-# @hug.get('/')
-# def index():
-#     with open('static/index.html') as fin:
-#         return fin.read()
-
-
 @hug.static("/static")
 def static():
     return (os.path.join(os.path.dirname(__file__), "static"),)
@@ -47,24 +40,12 @@ def get_file(name: hug.types.text):
     path = os.path.join(CORPUS_PATH, name)
     with open(path) as fin:
         corpus = lovett.corpus.from_file(fin, Deep)
-    for tree in corpus:
-        for node in tree.nodes():
-            if lovett.util.is_leaf(node):
-                parts = node.text.split("-")
-                if len(parts) == 2:
-                    text, lemma = parts
-                    node.text = text
-                    node.metadata.lemma = lemma
     return json.loads(corpus.format(Json))
 
 
 @hug.post("/save")
 def save(filename: hug.types.text, trees: hug.types.json):
     c = lovett.corpus.from_objects(trees)
-    for t in c:
-        if "ID" in t.metadata:
-            del t.metadata["ID"]
-        # TODO: remove ID on lower trees
     with open(os.path.join(CORPUS_PATH, filename), "w") as fout:
         fout.write(c.format(lovett.format.Deep))
 
