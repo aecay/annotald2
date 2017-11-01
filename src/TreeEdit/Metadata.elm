@@ -50,6 +50,7 @@ fieldNames : List (String, Tree -> Bool)
 fieldNames = [ ("lemma", Tree.isTerminal)
              , ("definition", Tree.isTerminal)
              , ("old-tag", origTagState)
+             , ("case", Tree.isTerminal) -- TODO: improvements
              ]
 
 validation : Validation () Metadata
@@ -107,12 +108,16 @@ formView form state =
         field name = div [id ("formField-" ++ name)] [textField state form Writable name]
         condField condition name = if condition then field name else div [] []
         roField name = textField state form ReadOnly name
+        roCondField name = if ((Form.getFieldAsString name form |> .value) /= Just "")
+                           then roField name
+                           else div [] []
     in
 
     div [ id "metadataForm" ] <|
         [ field "lemma"
         , condField ((Form.getFieldAsString "lemma" form |> .value) /= Just "") "definition"
         , roField "old-tag"
+        , roCondField "case"
         ] ++
         if List.any ((==) Editing) <| Dict.values state
         then [ div [ class [SaveButtonContainer] ]
