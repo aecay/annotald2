@@ -79,7 +79,11 @@ update msg model =
                     else
                         (Selection.perform model.selected
                              (Return.singleton <| ContextMenu.show position path model)
-                             (\sel -> Actions.doMove sel path model |> R.handle model)
+                             (\sel -> if path == sel
+                                      then Return.singleton model |> -- Rightclick only selection -> show context menu
+                                           Return.map (Lens.modify selected (Selection.updateWith sel)) |>
+                                           Return.map (ContextMenu.show position path)
+                                      else Actions.doMove sel path model |> R.handle model)
                              (\_ _ -> Return.singleton model)) -- TODO: support moving multiple nodes
                 RightClickRoot ->
                     if disableMouse
