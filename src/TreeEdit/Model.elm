@@ -1,5 +1,6 @@
 module TreeEdit.Model exposing ( init
                                , root
+                               , config
                                , contextMenu
                                , selected
                                , labelForm
@@ -9,6 +10,7 @@ import Monocle.Lens exposing (Lens, modify)
 import Monocle.Optional exposing (Optional)
 import RemoteData exposing (WebData, RemoteData(..))
 
+import TreeEdit.Config as Config
 import TreeEdit.Tree.Type exposing (Tree)
 import TreeEdit.Selection as Selection
 import TreeEdit.ContextMenuTypes as ContextMenuTypes
@@ -39,6 +41,18 @@ root =
         set tree m = case m.webdata of
                          Success (_, config) -> { m | webdata = Success (tree, config) }
                          _ -> Debug.crash "Tried to set the root when no data was loaded"
+    in
+        Lens get set
+
+config : Lens Model Config.Config
+config =
+    let
+        get m = case m.webdata of
+                    Success (_, config) -> config
+                    _ -> Debug.crash "Tried to get the config when no data was loaded"
+        set config m = case m.webdata of
+                           Success (tree, _) -> { m | webdata = Success (tree, config) }
+                           _ -> Debug.crash "Tried to set the config when no data was loaded"
     in
         Lens get set
 

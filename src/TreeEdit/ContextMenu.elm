@@ -71,6 +71,7 @@ view : ModelType.Model -> Html Msg
 view parent =
     let
         model = .get Model.contextMenu parent
+        config = .get Model.config parent
     in
         case model.target of
             Nothing -> H.div [] []
@@ -94,9 +95,7 @@ view parent =
                                             , lb constants.comment
                                             , la constants.comment
                                             ]
-                        , column "Toggle ext." [ tx "SPE"
-                                               , tx "XXX"
-                                               ] -- TODO: real list of extensions to toggle
+                        , column "Toggle ext." <| List.map tx config.dashTags
                         ]
 
 update : Msg -> ModelType.Model -> Return Msg.Msg ModelType.Model
