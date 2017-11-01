@@ -152,7 +152,7 @@ oldTagU = genericU "OLD-TAG"
 definitionU : Updater
 definitionU newDef sel =
     let
-        lemma = (.get Tree.metadata) sel |> Dict.get "METADATA"
+        l = (.get Tree.metadata) sel |> Dict.get "LEMMA"
         updateCmd def lemma = Net.post
                               "/dictentry"
                               (always <| Msg.Metadata <| SaveSuccess lemma)
@@ -161,7 +161,7 @@ definitionU newDef sel =
                                         , ("definition", E.string def)
                                         ])
     in
-        Maybe.map2 updateCmd newDef lemma |>
+        Maybe.map2 updateCmd newDef l |>
         Maybe.withDefault Cmd.none |>
         Return.return sel
 
