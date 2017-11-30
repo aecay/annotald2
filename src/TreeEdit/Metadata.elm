@@ -7,6 +7,7 @@ import Html exposing (div, text, button, Html, span)
 import Html.Attributes as Attr exposing (id)
 import Html.CssHelpers
 import Html.Events exposing (onClick)
+import Http exposing (encodeUri)
 import Json.Decode as D
 import Json.Encode as E
 import Keyboard.Key as K
@@ -72,18 +73,11 @@ capitalize s = String.toUpper (String.left 1 s) ++ String.dropLeft 1 s
 
 type FieldType = Writable | ReadOnly
 
-textField : FieldStates -> MetadataForm -> FieldType -> String -> Html Msg
-textField fs form fieldType name =
+textField : FieldStates -> MetadataForm -> FieldType -> String -> (String -> Html Msg) -> Html Msg
+textField fs form fieldType name format =
     let
         state = Dict.get name fs |> Maybe.withDefault Hidden
         contents = Form.getFieldAsString name form
-        formatValue x =
-            let
-                value = x.value |> Maybe.withDefault ""
-            in
-                if value == ""
-                then Html.i [ class [TextFieldAbsent] ] [ text <| "no " ++ name ]
-                else text value
         editButton name = case fieldType of
                            ReadOnly -> span [] []
                            Writable -> button [ onClick <| Edit name , class [EditButton] ] [ text "✎" ]
@@ -97,7 +91,7 @@ textField fs form fieldType name =
                  , case state of
                        Editing -> Html.map Form <| Input.textInput contents [ class [TextFieldEditBox] ]
                        Visible -> span [ class [TextFieldEditContainer] ]
-                                  [ formatValue contents
+                                  [ format (contents.value |> Maybe.withDefault "")
                                   , span [ Attr.style [("flex-grow", "2")]] []
                                   , editButton name
                                   , deleteButton name
@@ -105,22 +99,48 @@ textField fs form fieldType name =
                        Hidden -> Debug.crash "impossible"
                  ]
 
+formatValue : String -> Html Msg
+formatValue value =
+    if value == ""
+    then Html.i [ class [TextFieldAbsent] ] [ text <| "not present" ]
+    else text value
+
+formatValueDefinition : String -> Html Msg
+formatValueDefinition value =
+    if (Debug.log "hi" value) == ""
+    then Html.i [ class [TextFieldAbsent] ] [ text <| "not present" ]
+    else if String.startsWith "[de]" (Debug.log "hi" value)
+         then
+             let
+                 linkify x = Html.a [Attr.href <| "https://www.dict.cc/?s=" ++ encodeUri x] [text x]
+                 pieces = String.split "," (String.dropLeft 5 value) |>
+                          List.map String.trim |>
+                          List.map linkify
+             in
+                 Html.span [] <| List.intersperse (text ", ") pieces
+         else text value
+
 formView : MetadataForm -> FieldStates -> Html Msg
 formView form state =
     let
-        field name = div [id ("formField-" ++ name)] [textField state form Writable name]
+        field name = div [id ("formField-" ++ name)] [textField state form Writable name formatValue]
         condField condition name = if condition then field name else div [] []
-        roField name = textField state form ReadOnly name
-        roCondField name = if ((Form.getFieldAsString name form |> .value) /= Just "")
+        roField name = textField state form ReadOnly name formatValue
+        roCondField name = if (Form.getFieldAsString name form |> .value) /= Just ""
                            then roField name
                            else div [] []
     in
 
     div [ id "metadataForm" ] <|
         [ field "lemma"
-        , condField ((Form.getFieldAsString "lemma" form |> .value) /= Just "") "definition"
+        , if (Form.getFieldAsString "lemma" form |> .value) /= Just ""
+          then div [id ("formField-" ++ "definition")]
+              [textField state form Writable "definition" formatValueDefinition]
+          else div [] []
         , roField "old-tag"
         , roCondField "case"
+        , roCondField "gender"
+        , roCondField "number"
         ] ++
         if List.any ((==) Editing) <| Dict.values state
         then [ div [ class [SaveButtonContainer] ]
