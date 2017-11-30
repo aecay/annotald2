@@ -104,12 +104,11 @@ update msg model =
                     ContextMenu.update contextMsg model
                 LoadedData (Success (trees, config)) ->
                     Return.singleton { model |
-                                       webdata = Success (Tree.t "wtf" trees, config)
-                                     , viewRootWithConfig = Just <| View.viewRootTree config
+                                       webdata = Success (Tree.t "wtf" trees, config, View.viewRootTree config)
                                      }
                 LoadedData x ->
                     Debug.log ("fetch error: " ++ (toString x)) <| Return.singleton model
-                DoSave ->
+                Save ->
                     let
                         root = .get Model.root model
                         handle : (RemoteData.WebData () -> Msg)

@@ -1,6 +1,6 @@
 module TreeEdit.Model.Type exposing (Model)
 
-import Html exposing (Html)
+import Html.Styled exposing (Html)
 import RemoteData exposing (WebData)
 
 import TreeEdit.Config exposing (Config)
@@ -18,8 +18,7 @@ type alias Model = { selected: Selection.Selection
                    , contextMenu: ContextMenuTypes.Model
                    , fileName : String
                    , metadataForm : Maybe (Metadata.MetadataForm, Metadata.FieldStates)
-                   , webdata : WebData (Tree, Config)
+                   , webdata : WebData (Tree, Config, (Maybe (List Path.Path, Maybe LabelForm) -> Int -> Tree -> Html Msg.Msg))
                    , labelForm: Maybe LabelForm
-                   , viewRootWithConfig : Maybe (Maybe (List Path.Path, Maybe LabelForm) -> Int -> Tree -> Html Msg.Msg)
                    , dialog : Maybe Dialog
                    }

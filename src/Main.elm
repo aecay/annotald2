@@ -1,7 +1,8 @@
 module Main exposing (..)
 
 import Platform.Cmd as Cmd
-import Html exposing (Html)
+import Html
+import Html.Styled
 import Platform.Cmd as Cmd
 import Platform.Sub as Sub
 import Navigation exposing (Location)
@@ -47,11 +48,11 @@ update msg model =
         (_, _) ->
             Return.singleton model
 
-view : Model -> Html Msg
+view : Model -> Html.Html Msg
 view model =
     case model.page of
         FileList submodel -> FileList.view submodel |> Html.map FileListMsg
-        TreeEdit submodel -> TreeEdit.view submodel |> Html.map TreeEditMsg
+        TreeEdit submodel -> TreeEdit.view submodel |> Html.Styled.map TreeEditMsg |> Html.Styled.toUnstyled
 
 subscriptions : Model -> Sub Msg
 subscriptions model =

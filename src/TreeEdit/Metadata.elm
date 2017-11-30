@@ -1,12 +1,15 @@
 module TreeEdit.Metadata exposing (view, update)
 
+import Css exposing ( backgroundColor, paddingBottom, px, pct, color
+                    , width, height,fontWeight, bold, textAlign, center
+                    , rgb)
+import Css.Colors exposing (white)
 import Cmd.Extra
-import Color exposing (rgb, white)
 import Dict exposing (Dict)
-import Html exposing (div, text, button, Html, span)
-import Html.Attributes as Attr exposing (id)
-import Html.CssHelpers
-import Html.Events exposing (onClick)
+import Html.Styled as Html exposing (div, text, button, Html, span)
+import Html.Styled.Attributes as Attr exposing (id)
+import Html.Styled.Events exposing (onClick)
+import Html.Attributes as UnstyledAttr -- TODO: ugly
 import Http exposing (encodeUri)
 import Json.Decode as D
 import Json.Encode as E
@@ -18,9 +21,6 @@ import Monocle.Common exposing (first, second, maybe)
 import RemoteData exposing (RemoteData(..), WebData)
 import RemoteData.Http as Net
 import Return exposing (Return)
-import TypedStyles exposing ( px, border, solid, margin, width, height, prc
-                            , color, backgroundColor, paddingBottom, padding
-                            , textCenter)
 
 import Form exposing (Form)
 import Form.Input as Input
@@ -29,7 +29,7 @@ import Form.Field
 import Form.Validate as V exposing (Validation)
 
 import TreeEdit.Metadata.Type exposing (..)
-import TreeEdit.Metadata.Css exposing (Classes(..))
+import TreeEdit.Metadata.Css as Css
 import TreeEdit.Selection exposing (Selection)
 import TreeEdit.Tree as Tree
 import TreeEdit.Tree.Type exposing (Tree)
@@ -40,9 +40,6 @@ import TreeEdit.Selection as Selection
 import TreeEdit.Result as R
 import TreeEdit.View.Theme exposing (theme)
 import TreeEdit.Msg as Msg
-import TreeEdit.View.Css exposing (ns)
-
-{id, class, classList} = Html.CssHelpers.withNamespace ns
 
 origTagState : Tree -> Bool
 origTagState t =
@@ -80,17 +77,18 @@ textField fs form fieldType name format =
         contents = Form.getFieldAsString name form
         editButton name = case fieldType of
                            ReadOnly -> span [] []
-                           Writable -> button [ onClick <| Edit name , class [EditButton] ] [ text "✎" ]
-        deleteButton name = button [ onClick <| Delete name , class [EditButton] ] [ text "X" ]
+                           Writable -> button [ onClick <| Edit name , Css.editButton ] [ text "✎" ]
+        deleteButton name = button [ onClick <| Delete name , Css.editButton ] [ text "X" ]
     in
         case state of
             Hidden -> div [] []
-            _ -> div [ class [TextField] ]
-                 [ div [ class [TextFieldInner] ]
+            _ -> div [ Css.textField ]
+                 [ div [ Css.textFieldInner ]
                        [ text <| capitalize name ]
                  , case state of
-                       Editing -> Html.map Form <| Input.textInput contents [ class [TextFieldEditBox] ]
-                       Visible -> span [ class [TextFieldEditContainer] ]
+                       Editing -> Html.map Form <| Html.fromUnstyled <|
+                                  Input.textInput contents [ UnstyledAttr.style [("width", "100%")] ]
+                       Visible -> span [ Css.textFieldEditContainer ]
                                   [ format (contents.value |> Maybe.withDefault "")
                                   , span [ Attr.style [("flex-grow", "2")]] []
                                   , editButton name
@@ -102,13 +100,13 @@ textField fs form fieldType name format =
 formatValue : String -> Html Msg
 formatValue value =
     if value == ""
-    then Html.i [ class [TextFieldAbsent] ] [ text <| "not present" ]
+    then Html.i [ Css.textFieldAbsent ] [ text <| "not present" ]
     else text value
 
 formatValueDefinition : String -> Html Msg
 formatValueDefinition value =
     if (Debug.log "hi" value) == ""
-    then Html.i [ class [TextFieldAbsent] ] [ text <| "not present" ]
+    then Html.i [ Css.textFieldAbsent ] [ text <| "not present" ]
     else if String.startsWith "[de]" (Debug.log "hi" value)
          then
              let
@@ -143,7 +141,7 @@ formView form state =
         , roCondField "number"
         ] ++
         if List.any ((==) Editing) <| Dict.values state
-        then [ div [ class [SaveButtonContainer] ]
+        then [ div [ Css.saveButtonContainer ]
                    [ button [ onClick Save ] [ text "Save" ] ] ]
         else []
 
@@ -331,17 +329,17 @@ view : Model -> Html Msg
 view model =
     case model.metadataForm of
         Just (form, state) -> div [ id "metadata-editor"
-                                  , Attr.style [ backgroundColor theme.offWhite2
-                                               , paddingBottom 2 px
-                                               ]
+                                  , Attr.css [ backgroundColor theme.offWhite2
+                                             , paddingBottom (px 2)
+                                             ]
                                   ]
-                              [ div [ Attr.style [ backgroundColor theme.darkGrey
-                                                 , color white
-                                                 , width 100 prc
-                                                 , height 16 px
-                                                 , ("font-weight", "bold")
-                                                 , textCenter
-                                                 ]
+                              [ div [ Attr.css [ backgroundColor theme.darkGrey
+                                               , color white
+                                               , width (pct 100)
+                                               , height (px 16)
+                                               , fontWeight bold
+                                               , textAlign center
+                                               ]
                                     ] [ text "Metadata" ]
                               , formView form state
                               ]

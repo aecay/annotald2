@@ -1,6 +1,6 @@
 module TreeEdit.View.Theme exposing (theme)
 
-import Color exposing (Color, rgb)
+import Css exposing (Color, rgb)
 
 theme : { offWhite : Color, salmon : Color, silver : Color, blue : Color
         , darkGrey : Color, tan : Color, offWhite2 : Color, darkTan : Color

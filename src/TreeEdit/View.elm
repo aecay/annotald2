@@ -3,15 +3,17 @@ module TreeEdit.View exposing ( view
                               )
 
 import Dict
-import Html.CssHelpers
 import Guards exposing (..)
-import Html exposing (..)
-import Html.Events as Ev
-import Html.Lazy exposing (lazy3)
+import Html.Styled as Html exposing (..)
+import Html.Styled.Attributes as Attr
+import Html.Styled.Events as Ev
+import Html.Styled.Lazy exposing (lazy3)
 import Json.Decode as Json
 import Maybe.Extra exposing (isJust)
 import RemoteData exposing (RemoteData(..))
 import Toolkit.Helpers exposing (applyList)
+
+import Css as XCss
 
 import TreeEdit.Config exposing (Config)
 import TreeEdit.Dialog as Dialog
@@ -29,12 +31,10 @@ import TreeEdit.View.LabelEdit as LabelEdit
 import TreeEdit.View.LabelEdit.Type exposing (LabelForm)
 
 import TreeEdit.Utils as Utils exposing (fromJust)
-import TreeEdit.ViewUtils exposing (onClick, blockAll)
+import TreeEdit.View.Utils exposing (onClick, blockAll)
 
 import TreeEdit.ContextMenuTypes as ContextMenuTypes
 import TreeEdit.ContextMenu as ContextMenu
-
-{id, class, classList} = Html.CssHelpers.withNamespace Css.ns
 
 blockAll : Ev.Options
 blockAll = { stopPropagation = True
@@ -53,10 +53,16 @@ isIP config label =
     in
         List.any identity <| applyList predicates label
 
-snodeClass : Bool -> Bool -> Css.Classes
-snodeClass selected ip = selected => Css.SnodeSelected
-                       |= ip => Css.SnodeIp
-                       |= Css.Snode
+snodeCss : Bool -> Bool -> Bool -> XCss.Style
+snodeCss selected ip isRoot =
+    let
+        prelim = selected => XCss.batch [ Css.snode, Css.selected ]
+                     |= ip => Css.ip
+                     |= Css.snode
+    in
+        if isRoot
+        then XCss.batch [prelim, Css.rootSnode]
+        else prelim
 
 labelHtml : Tree -> Html Msg
 labelHtml tree =
@@ -65,7 +71,7 @@ labelHtml tree =
         labelStr = labelString tree
     in
         if hasCorrection
-        then span [] [text labelStr, span [class [Css.CorrectionFlag]] [text "CORR"] ]
+        then span [] [text labelStr, span [Css.correctionFlag] [text "CORR"] ]
         else text <| labelStr
 
 type alias ViewInfo =
@@ -85,15 +91,14 @@ snode info self tree children =
                     (True, Just form) -> Html.map Msg.Label <| LabelEdit.view form
                     _ -> labelHtml tree
     in
-        div
-        [ class <| [snodeClass selected isIP_]
-        , onClick <| ToggleSelect self
-        , rightClick
-        ] <| label :: children
+        div [ Attr.css [ snodeCss selected isIP_ (Path.parent self == Path.RootPath) ]
+            , onClick <| ToggleSelect self
+            , rightClick
+            ] <| label :: children
 
 wnode : Tree -> Html Msg
 wnode t = span
-             [ class [Css.Wnode] ]
+             [ Css.wnode ]
              [text <| terminalString t]
 
 viewTree : ViewInfo -> Path -> Tree -> Html Msg
@@ -129,13 +134,12 @@ viewRootTree config dataPack selfIndex tree =
 -- Nothing if 1) nothing is selected or 2) the selection is not inside the
 -- current tree.  There might be further performance optimizations we could
 -- make here, but for now it's Good Enough™
-viewRoot : Model -> Tree -> Config -> List (Html Msg)
-viewRoot model root config =
+viewRoot : Model -> Tree -> (Maybe (List Path, Maybe LabelForm) -> Int -> Tree -> Html Msg) -> List (Html Msg)
+viewRoot model root vrt =
     let
         selectedTrees = Selection.get model.selected
         selectedRoots = (List.map Path.root selectedTrees)
         labelForm = model.labelForm
-        vrt = model.viewRootWithConfig |> Maybe.withDefault (viewRootTree config)
     in
         root |>
         -- Possibly can make this a Lens, if the children of a terminal are
@@ -157,7 +161,7 @@ wrapSn0 nodes =
                      Json.map (\_ -> RightClickRoot) decodeMouse
     in
         nodes |>
-        div [ id [Css.Sn0]
+        div [ Css.sn0
             , rightClick
             ]
 
@@ -170,14 +174,15 @@ view model =
             NotAsked -> loading
             Loading -> loading
             Failure e -> div [] [ text <| "error " ++ toString e ]
-            Success (root, config) -> div [] [ model.dialog |> Maybe.map Dialog.view |> Maybe.withDefault (div [] [])
-                                             , div [ id Css.Toolbar ]
-                                                   [ ToolBar.view model.fileName
-                                                   , Metadata.view model |> Html.map Msg.Metadata
-                                                   ]
-                                             , div [ id Css.Messages ]
-                                                   [ div [ class [Css.Titlebar] ] [ text "Messages" ]
-                                                   , text model.lastMessage ]
-                                             , viewRoot model root config |> wrapSn0
-                                             , map Msg.Context <| ContextMenu.view model
-                                             ]
+            Success (root, _, viewRootFn) ->
+                div [] [ model.dialog |> Maybe.map Dialog.view |> Maybe.withDefault (div [] [])
+                       , div [ Css.toolbar ]
+                           [ ToolBar.view model.fileName
+                           , Metadata.view model |> Html.map Msg.Metadata
+                           ]
+                       , div [ Css.messages ]
+                           [ div [ Css.titlebar ] [ text "Messages" ]
+                           , text model.lastMessage ]
+                       , viewRoot model root viewRootFn |> wrapSn0
+                       , map Msg.Context <| ContextMenu.view model
+                       ]

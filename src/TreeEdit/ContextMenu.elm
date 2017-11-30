@@ -4,11 +4,11 @@ module TreeEdit.ContextMenu exposing ( show
                                      , hide
                                      )
 
-import TreeEdit.ViewUtils as ViewUtils exposing (onClick)
+import TreeEdit.View.Utils as ViewUtils exposing (onClick)
 
-import Html as H exposing (Html)
-import Html.Attributes as Attr
-import Html.CssHelpers
+import Css exposing (width, px, left, top)
+import Html.Styled as H exposing (Html)
+import Html.Styled.Attributes as Attr
 import Mouse
 import Return exposing (Return)
 
@@ -20,13 +20,10 @@ import TreeEdit.Actions as Actions
 import TreeEdit.Msg as Msg
 import TreeEdit.Model as Model
 import TreeEdit.Model.Type as ModelType
-import TreeEdit.View.Css exposing (ns)
 import TreeEdit.Result as R exposing (modify)
 
 import TreeEdit.ContextMenuTypes exposing (..)
-import TreeEdit.ContextMenu.Css exposing (Classes(..), Ids(..))
-
-{id, class, classList} = Html.CssHelpers.withNamespace ns
+import TreeEdit.ContextMenu.Css as CMCss
 
 show : Position -> Path -> ModelType.Model -> ModelType.Model
 show position path =
@@ -36,7 +33,7 @@ hide : ModelType.Model -> ModelType.Model
 hide = .set Model.contextMenu emptyModel
 
 entry : List (H.Attribute Msg) -> String -> Html Msg
-entry attrs s = H.div ([ class [ Entry ] ] ++ attrs) [ H.a [] [ H.text s ] ]
+entry attrs s = H.div ([ CMCss.entry ] ++ attrs) [ H.a [] [ H.text s ] ]
 
 leaf : String ->
        (Path -> Tree -> Msg) ->
@@ -56,14 +53,14 @@ toggleExtension path ext =
     entry [ onClick <| ToggleExtension path ext ] ext
 
 heading : String -> Html Msg
-heading title = H.div [ class [Heading]] [ H.text title ]
+heading title = H.div [ CMCss.heading ] [ H.text title ]
 
-colWidth : Int
+colWidth : Float
 colWidth = 150
 
 column : String -> List (Html Msg) -> Html Msg
-column headingText children = H.div [ class [Column]
-                                    , Attr.style [ ("width", toString colWidth ++ "px") ]
+column headingText children = H.div [ CMCss.column
+                                    , Attr.css [ width (px colWidth) ]
                                     ] <|
                           [ heading headingText ] ++ children
 
@@ -71,7 +68,7 @@ view : ModelType.Model -> Html Msg
 view parent =
     let
         model = .get Model.contextMenu parent
-        config = .get Model.config parent
+        config = Model.config parent
     in
         case model.target of
             Nothing -> H.div [] []
@@ -81,11 +78,11 @@ view parent =
                     la = leafAfter path
                     tx = toggleExtension path
                 in
-                    H.div [ id ContextMenu
-                          , Attr.style [ ("width", toString (colWidth * 3) ++ "px")
-                                       , ("left", toString model.position.x ++ "px")
-                                       , ("top", toString model.position.y ++ "px")
-                                       ]
+                    H.div [ CMCss.contextMenu
+                          , Attr.css [ width (px <| 3 * colWidth)
+                                     , left (px <| toFloat model.position.x)
+                                     , top (px <| toFloat model.position.y)
+                                     ]
                           , ViewUtils.onClick Ignore
                           ]
                         [ column "Label" []

@@ -1,6 +1,6 @@
 module Page.TreeEdit exposing (init, update, subscriptions, view, Msg, Model)
 
-import Html
+import Html.Styled as Html
 import Return
 import RemoteData
 import RemoteData.Http exposing (getTask, url)

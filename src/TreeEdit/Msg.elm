@@ -16,7 +16,7 @@ type Msg = ToggleSelect Path |
     RightClickRoot |
     Context ContextMenuTypes.Msg |
     LoadedData (WebData ((List Tree), Config)) |
-    DoSave |
+    Save |
     LogMessage String |
     CancelContext |
     Metadata Metadata.Msg |
@@ -24,4 +24,6 @@ type Msg = ToggleSelect Path |
     LabelKey KeyboardEvent |
     Copy (WebData String) |
     DismissDialog |
+    --Validate |
+    --ValidateDone (WebData (List Tree)) |
     Ignore

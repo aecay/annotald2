@@ -5,8 +5,8 @@ import Form.Field as Field
 import Form.Input as Input
 import Form.Validate as V exposing (Validation)
 import Guards exposing (..)
-import Html exposing (Html)
-import Html.Attributes as Attr
+import Html.Styled as Html exposing (Html)
+import Html.Attributes as UnstyledAttr
 import Return exposing (Return)
 import TypedStyles exposing (width, px)
 
@@ -20,10 +20,10 @@ validation : Validation () Label
 validation = V.field "label" V.string
 
 view : LabelForm -> Html Msg
-view form = Html.map FormMsg <| Input.textInput
+view form = Html.map FormMsg <| Html.fromUnstyled <| Input.textInput
             (Form.getFieldAsString "label" form)
-            [ Attr.style [(width 150 px)]
-            , Attr.id "labelEditor"
+            [ UnstyledAttr.style [(width 150 px)]
+            , UnstyledAttr.id "labelEditor"
             ]
 
 init : String -> LabelForm

@@ -26,7 +26,6 @@ init filename = { webdata = NotAsked
                 , fileName = filename
                 , metadataForm = Nothing
                 , labelForm = Nothing
-                , viewRootWithConfig = Nothing
                 , dialog = Nothing
                 }
 
@@ -37,25 +36,18 @@ root : Lens Model Tree
 root =
     let
         get m = case m.webdata of
-                    Success (root, _) -> root
+                    Success (root, _, _) -> root
                     _ -> Debug.crash "Tried to get the root when no data was loaded"
         set tree m = case m.webdata of
-                         Success (_, config) -> { m | webdata = Success (tree, config) }
+                         Success (_, config, viewFn) -> { m | webdata = Success (tree, config, viewFn) }
                          _ -> Debug.crash "Tried to set the root when no data was loaded"
     in
         Lens get set
 
-config : Lens Model Config.Config
-config =
-    let
-        get m = case m.webdata of
-                    Success (_, config) -> config
-                    _ -> Debug.crash "Tried to get the config when no data was loaded"
-        set config m = case m.webdata of
-                           Success (tree, _) -> { m | webdata = Success (tree, config) }
-                           _ -> Debug.crash "Tried to set the config when no data was loaded"
-    in
-        Lens get set
+config : Model -> Config.Config
+config m = case m.webdata of
+               Success (_, config, _) -> config
+               _ -> Debug.crash "Tried to get the config when no data was loaded"
 
 selected : Lens Model Selection.Selection
 selected = Lens .selected (\s m -> { m | selected = s })

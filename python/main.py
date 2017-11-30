@@ -1,4 +1,5 @@
 import glob
+import importlib.util
 import json
 import os
 import uuid
@@ -13,6 +14,14 @@ from lovett.format import Json, Deep
 CORPUS_PATH = "/home/aecay/projects/chlg/parsing"
 DICT_FILE = "/home/aecay/projects/chlg/dict.json"
 CONFIG_FILE = "/home/aecay/projects/chlg/config.json"
+VALIDATORS_PATH = "/home/aecay/projects/chlg/doc/validate.py"
+
+validate = None
+
+if os.path.exists(VALIDATORS_PATH):
+    spec = importlib.util.spec_from_file_location("validate", VALIDATORS_PATH)
+    validate = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(validate)
 
 with open(DICT_FILE, "r") as fin:
     DICT = json.load(fin)
@@ -66,6 +75,12 @@ def set_dict_entry(lemma: hug.types.text, definition: hug.types.text):
 def as_text(tree: hug.types.json):
     t = lovett.tree.from_object(tree[0])
     return t.format(lovett.format.Penn)
+
+@hug.post("/validate")
+def validate(corpus: hug.types.json):
+    c = lovett.corpus.from_objects(trees)
+    validate.validate(c)
+    return json.loads(corpus.format(Json))
 
 
 # @click.command()

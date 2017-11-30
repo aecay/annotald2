@@ -1,48 +1,60 @@
-module TreeEdit.Metadata.Css exposing (css, Classes(..))
+module TreeEdit.Metadata.Css exposing (..)
 
 import Css exposing (..)
 import Css.Colors exposing (gray, white)
-import Css.Namespace exposing (namespace)
+import Html.Styled
+import Html.Styled.Attributes exposing (css)
 
-import TreeEdit.View.Css exposing (ns, convertColor)
 import TreeEdit.View.Theme exposing (theme)
 
-type Classes = TextField | TextFieldInner | TextFieldEditContainer | TextFieldAbsent |
-    EditButton | TextFieldEditBox | SaveButtonContainer | MetadataEditor | MetadataInner
+type alias Style msg = Html.Styled.Attribute msg
 
-css : Stylesheet
-css = (stylesheet << namespace ns) <|
-      [ class TextField [ border3 (px 1) solid <| convertColor theme.darkGrey
-                        , margin (px 2)
-                        ]
-      , class TextFieldInner [ backgroundColor (rgb 85 85 85)
-                             , color (rgb 238 238 238)
-                             , width (pct 100)
-                             , height (px 16)
-                             , fontWeight bold
-                             , textAlign center
+textField : Style msg
+textField = css [ border3 (px 1) solid theme.darkGrey
+                , margin (px 2)
+                ]
+
+textFieldInner : Style msg
+textFieldInner = css [ backgroundColor (rgb 85 85 85)
+                     , color (rgb 238 238 238)
+                     , width (pct 100)
+                     , height (px 16)
+                     , fontWeight bold
+                     , textAlign center
+                     ]
+
+textFieldEditContainer : Style msg
+textFieldEditContainer = css [ displayFlex
+                             , justifyContent spaceBetween
+                             , alignItems center
+                             , padding (px 2)
                              ]
-      , class TextFieldEditContainer [ displayFlex
-                                     , justifyContent spaceBetween
-                                     , alignItems center
-                                     , padding (px 2)
-                                     ]
-      , class TextFieldAbsent [ color gray ]
-      , class EditButton [ padding (px 1) ]
-      , class TextFieldEditBox [ width (pct 100) ]
-      -- TODO: could be ids instead...
-      , class SaveButtonContainer [ margin (px 2)
-                                  , displayFlex
-                                  , flexDirection rowReverse
-                                  ]
-      , class MetadataEditor [ backgroundColor <| convertColor theme.offWhite2
-                             , paddingBottom (px 2)
-                             ]
-      , class MetadataInner [ backgroundColor <| convertColor theme.darkGrey
-                            , color white
-                            , width (pct 100)
-                            , height (px 16)
-                            , fontWeight bold
-                            , textAlign center
-                            ]
-      ]
+
+textFieldAbsent : Style msg
+textFieldAbsent = css [ color gray ]
+
+editButton : Style msg
+editButton = css [ padding (px 1) ]
+
+textFieldEditBox : Style msg
+textFieldEditBox = css [ width (pct 100) ]
+
+saveButtonContainer : Style msg
+saveButtonContainer = css [ margin (px 2)
+                          , displayFlex
+                          , flexDirection rowReverse
+                          ]
+
+metadataEditor : Style msg
+metadataEditor = css [ backgroundColor theme.offWhite2
+                     , paddingBottom (px 2)
+                     ]
+
+metadataInner : Style msg
+metadataInner = css [ backgroundColor theme.darkGrey
+                    , color white
+                    , width (pct 100)
+                    , height (px 16)
+                    , fontWeight bold
+                    , textAlign center
+                    ]
