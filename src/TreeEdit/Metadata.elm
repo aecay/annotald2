@@ -9,6 +9,7 @@ import Html.CssHelpers
 import Html.Events exposing (onClick)
 import Json.Decode as D
 import Json.Encode as E
+import Keyboard.Key as K
 import Maybe.Extra as MX
 import Monocle.Lens as Lens
 import Monocle.Optional as Optional
@@ -300,8 +301,8 @@ update model msg =
                                 False -> Return.singleton { model | metadataForm = Nothing }
                     _ -> Return.singleton { model | metadataForm = Nothing }
         SaveSuccess lemma -> Return.singleton { model | lastMessage = "Saved definition for lemma " ++ lemma }
-        Key code -> case code of
-                        27 -> Return.return { model | metadataForm = Nothing } (TreeEdit.Ports.editing False)
+        Key {keyCode} -> case keyCode of
+                        K.Escape -> Return.return { model | metadataForm = Nothing } (TreeEdit.Ports.editing False)
                         _ -> Return.singleton model
 
 view : Model -> Html Msg

@@ -10,7 +10,9 @@
     "dependencies": {
         "Fresheyeball/elm-guards": "1.0.1 <= v < 2.0.0",
         "Fresheyeball/elm-return": "6.0.3 <= v < 7.0.0",
+        "Gizra/elm-keyboard-event": "1.0.0 <= v < 2.0.0",
         "GlobalWebIndex/cmd-extra": "1.0.0 <= v < 2.0.0",
+        "SwiftsNamesake/proper-keyboard": "3.0.1 <= v < 4.0.0",
         "arturopala/elm-monocle": "1.4.0 <= v < 2.0.0",
         "danielnarey/elm-toolkit": "5.1.0 <= v < 6.0.0",
         "elm-community/array-extra": "1.0.2 <= v < 2.0.0",

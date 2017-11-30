@@ -70,9 +70,11 @@ update msg model =
                                  model) |>
                         -- TODO: use return.optics here
                         Return.andThen (\x -> Metadata.update x MetadataType.NewSelection)
-                KeyMsg k ->
+                KeyMsg {shiftKey, keyCode} ->
                     let
-                        binding = R.lift "Key is not bound" (Dict.get k) bindings
+                        key = Maybe.map (\x -> (if shiftKey then 1 else 0, x)) (K.code keyCode)
+                        binding = Maybe.andThen (flip Dict.get bindings) key |>
+                                  R.liftVal "Key is not bound"
                     in
                         R.andThen (\x -> x model) binding |>
                         R.handle model |>
@@ -131,21 +133,22 @@ update msg model =
                     in
                         Return.return newmodel subcmd
                 Label submsg -> Return.singleton model |> refracto Model.labelForm Msg.Label (LabelEdit.update submsg)
-                LabelKey code -> case code of
-                                     13 -> R.handle model <| Actions.finishLabelEdit model
-                                     27 -> Return.singleton { model | labelForm = Nothing }
-                                     _ -> Return.singleton model
+                LabelKey {keyCode} -> case keyCode of
+                                          K.Enter -> R.handle model <| Actions.finishLabelEdit model
+                                          K.Escape -> Return.singleton { model | labelForm = Nothing }
+                                          _ -> Return.singleton model
                 Ignore -> Return.singleton model
 
 subscriptions : Model -> Sub Msg
 subscriptions m =
     let
-        keySub = if editingMetadata m
-                 then Keyboard.ups (Metadata << MetadataType.Key)
-                 else
-                     if m.labelForm == Nothing
-                     then Keyboard.presses KeyMsg
-                     else Keyboard.ups LabelKey
+        keySubMsg = if editingMetadata m
+                    then Metadata << MetadataType.Key
+                    else
+                        if m.labelForm == Nothing
+                        then KeyMsg
+                        else LabelKey
+        keySub = onWindow "keyup" (D.map keySubMsg decodeKeyboardEvent)
         clickSub = if m.contextMenu.target == Nothing then Sub.none else (Mouse.clicks (\_ -> CancelContext))
     in
         Sub.batch [keySub, clickSub]

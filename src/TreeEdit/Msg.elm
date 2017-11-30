@@ -1,6 +1,6 @@
 module TreeEdit.Msg exposing (Msg(..))
 
-import Keyboard
+import Keyboard.Event exposing (KeyboardEvent)
 import RemoteData exposing (WebData)
 
 import TreeEdit.Config exposing (Config)
@@ -11,7 +11,7 @@ import TreeEdit.Metadata.Type as Metadata
 import TreeEdit.View.LabelEdit.Type as Label
 
 type Msg = ToggleSelect Path |
-    KeyMsg Keyboard.KeyCode |
+    KeyMsg KeyboardEvent |
     RightClick Path ContextMenuTypes.Position |
     RightClickRoot |
     Context ContextMenuTypes.Msg |
@@ -21,5 +21,5 @@ type Msg = ToggleSelect Path |
     CancelContext |
     Metadata Metadata.Msg |
     Label Label.Msg |
-    LabelKey Keyboard.KeyCode |
+    LabelKey KeyboardEvent |
     Ignore
