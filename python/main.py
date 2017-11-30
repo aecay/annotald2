@@ -62,6 +62,11 @@ def set_dict_entry(lemma: hug.types.text, definition: hug.types.text):
     with open(DICT_FILE, "w") as fout:
         fout.write(json.dumps(DICT, sort_keys=True, indent=4))
 
+@hug.post("/as_text")
+def as_text(tree: hug.types.json):
+    t = lovett.tree.from_object(tree[0])
+    return t.format(lovett.format.Penn)
+
 
 # @click.command()
 # @click.option("--path", type=click.Path())

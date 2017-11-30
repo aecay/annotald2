@@ -22,4 +22,6 @@ type Msg = ToggleSelect Path |
     Metadata Metadata.Msg |
     Label Label.Msg |
     LabelKey KeyboardEvent |
+    Copy (WebData String) |
+    DismissDialog |
     Ignore

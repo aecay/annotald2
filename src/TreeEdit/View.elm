@@ -14,6 +14,7 @@ import RemoteData exposing (RemoteData(..))
 import Toolkit.Helpers exposing (applyList)
 
 import TreeEdit.Config exposing (Config)
+import TreeEdit.Dialog as Dialog
 import TreeEdit.Model.Type exposing (Model)
 import TreeEdit.Tree as Tree
 import TreeEdit.Tree.Type exposing (Tree)
@@ -169,7 +170,8 @@ view model =
             NotAsked -> loading
             Loading -> loading
             Failure e -> div [] [ text <| "error " ++ toString e ]
-            Success (root, config) -> div [] [ div [ id Css.Toolbar ]
+            Success (root, config) -> div [] [ model.dialog |> Maybe.map Dialog.view |> Maybe.withDefault (div [] [])
+                                             , div [ id Css.Toolbar ]
                                                    [ ToolBar.view model.fileName
                                                    , Metadata.view model |> Html.map Msg.Metadata
                                                    ]

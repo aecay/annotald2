@@ -5,6 +5,7 @@ import RemoteData exposing (WebData)
 
 import TreeEdit.Config exposing (Config)
 import TreeEdit.ContextMenuTypes as ContextMenuTypes
+import TreeEdit.Dialog exposing (Dialog)
 import TreeEdit.Metadata.Type as Metadata
 import TreeEdit.Selection as Selection
 import TreeEdit.Msg as Msg
@@ -20,4 +21,5 @@ type alias Model = { selected: Selection.Selection
                    , webdata : WebData (Tree, Config)
                    , labelForm: Maybe LabelForm
                    , viewRootWithConfig : Maybe (Maybe (List Path.Path, Maybe LabelForm) -> Int -> Tree -> Html Msg.Msg)
+                   , dialog : Maybe Dialog
                    }

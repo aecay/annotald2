@@ -137,6 +137,9 @@ update msg model =
                                           K.Enter -> R.handle model <| Actions.finishLabelEdit model
                                           K.Escape -> Return.singleton { model | labelForm = Nothing }
                                           _ -> Return.singleton model
+                Copy (Success text) -> Return.singleton { model | dialog = Just <| Dialog.Copy text }
+                Copy _ -> Return.singleton model
+                DismissDialog -> Return.singleton { model | dialog = Nothing }
                 Ignore -> Return.singleton model
 
 subscriptions : Model -> Sub Msg
