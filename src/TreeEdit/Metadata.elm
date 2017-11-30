@@ -52,6 +52,8 @@ fieldNames = [ ("lemma", Tree.isTerminal)
              , ("definition", Tree.isTerminal)
              , ("old-tag", origTagState)
              , ("case", Tree.isTerminal) -- TODO: improvements
+             , ("gender", Tree.isTerminal) -- TODO: improvements
+             , ("number", Tree.isTerminal) -- TODO: improvements
              ]
 
 validation : Validation () Metadata
