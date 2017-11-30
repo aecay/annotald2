@@ -17,6 +17,7 @@ module TreeEdit.Result exposing ( fail
                                 , andMap
                                 -- , map3
                                 , do
+                                , andDo
                                 , handle
                                 , ifThen
                              )
@@ -146,6 +147,18 @@ ifThen flag thn els =
 
 do : Cmd Msg -> Result a -> Result a
 do cmd (Result msgs cmds val) = Result msgs (cmds ++ [cmd]) val
+
+andDo : (a -> Result (Cmd Msg)) -> Result a -> Result a
+andDo fn result =
+    case result of
+        Result msgs cmds (Just val) ->
+            let
+                cmd = fn val
+            in
+                case cmd of
+                    Result c_msgs c_cmds (Just c_val) -> Result (msgs ++ c_msgs) (cmds ++ c_cmds ++ [c_val]) (Just val)
+                    Result _ _ Nothing -> result
+        Result _ _ Nothing -> result
 
 handle : Model -> Result Model -> Return.Return Msg Model
 handle model result =
