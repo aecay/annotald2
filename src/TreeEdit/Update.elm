@@ -1,38 +1,42 @@
 module TreeEdit.Update exposing (update, subscriptions)
 
-import TreeEdit.Model as Model exposing (root, selected, contextMenu)
-import TreeEdit.Model.Type exposing (Model)
-import TreeEdit.Selection as Selection
-import TreeEdit.ContextMenu as ContextMenu
-import TreeEdit.Msg as Msg exposing (Msg(..))
-import TreeEdit.Tree.Json exposing (toJson)
-import TreeEdit.Tree as Tree exposing (children)
-import TreeEdit.Metadata.Type as MetadataType
-import TreeEdit.Metadata as Metadata
-import TreeEdit.View as View
-import TreeEdit.View.LabelEdit as LabelEdit
-
-import TreeEdit.Utils as Utils
-
-import TreeEdit.Bindings exposing (bindings)
-
-import Return exposing (Return, singleton)
-import Return.Optics exposing (refracto)
-import Monocle.Lens as Lens
-import RemoteData exposing (RemoteData(..))
-import RemoteData.Http
-
+-- Core libraries
 import Dict
 import Json.Decode as D
 import Json.Encode as E
+import Mouse
 
-import TreeEdit.Result as R
+-- Third party libraries
+
+import Keyboard.Event exposing (KeyboardEvent, decodeKeyboardEvent)
+import Keyboard.Key as K
+import Monocle.Lens as Lens
+import RemoteData exposing (RemoteData(..))
+import RemoteData.Http
+import Return exposing (Return, singleton)
+import Return.Optics exposing (refracto)
+import ThirdParty.WindowEvents exposing (onWindow)
+
+-- Project libraries
 
 import TreeEdit.Actions as Actions
+import TreeEdit.Bindings exposing (bindings)
+import TreeEdit.ContextMenu as ContextMenu
+import TreeEdit.Dialog as Dialog
+import TreeEdit.Metadata as Metadata
+import TreeEdit.Metadata.Type as MetadataType
+import TreeEdit.Model as Model exposing (root, selected, contextMenu)
+import TreeEdit.Model.Type exposing (Model)
+import TreeEdit.Msg as Msg exposing (Msg(..))
 import TreeEdit.Path as Path
+import TreeEdit.Result as R
+import TreeEdit.Selection as Selection
+import TreeEdit.Tree as Tree exposing (children)
+import TreeEdit.Tree.Json exposing (toJson)
+import TreeEdit.Utils as Utils
+import TreeEdit.View as View
+import TreeEdit.View.LabelEdit as LabelEdit
 
-import Keyboard
-import Mouse
 
 editingMetadata : Model -> Bool
 editingMetadata model = model.metadataForm |>
