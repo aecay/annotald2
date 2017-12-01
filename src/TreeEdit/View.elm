@@ -4,16 +4,14 @@ module TreeEdit.View exposing ( view
 
 import Dict
 import Guards exposing (..)
-import Html.Styled as Html exposing (..)
-import Html.Styled.Attributes as Attr
-import Html.Styled.Events as Ev
-import Html.Styled.Lazy exposing (lazy3)
+import Html exposing (..)
+import Html.Attributes as Attr
+import Html.Events as Ev
+import Html.Lazy exposing (lazy3)
 import Json.Decode as Json
 import Maybe.Extra exposing (isJust)
 import RemoteData exposing (RemoteData(..))
 import Toolkit.Helpers exposing (applyList)
-
-import Css as XCss
 
 import TreeEdit.Config exposing (Config)
 import TreeEdit.Dialog as Dialog
@@ -53,16 +51,11 @@ isIP config label =
     in
         List.any identity <| applyList predicates label
 
-snodeCss : Bool -> Bool -> Bool -> XCss.Style
-snodeCss selected ip isRoot =
-    let
-        prelim = selected => XCss.batch [ Css.snode, Css.selected ]
-                     |= ip => Css.ip
-                     |= Css.snode
-    in
-        if isRoot
-        then XCss.batch [prelim, Css.rootSnode]
-        else prelim
+snodeClass : Bool -> Bool -> List String
+snodeClass selected ip  =
+    selected => ["snode", "selected"]
+                      |= ip => ["snode", "ip"]
+                      |= ["snode"]
 
 labelHtml : Tree -> Html Msg
 labelHtml tree =
@@ -71,7 +64,7 @@ labelHtml tree =
         labelStr = labelString tree
     in
         if hasCorrection
-        then span [] [text labelStr, span [Css.correctionFlag] [text "CORR"] ]
+        then span [] [text labelStr, span [Attr.style Css.correctionFlag] [text "CORR"] ]
         else text <| labelStr
 
 type alias ViewInfo =
@@ -91,14 +84,17 @@ snode info self tree children =
                     (True, Just form) -> Html.map Msg.Label <| LabelEdit.view form
                     _ -> labelHtml tree
     in
-        div [ Attr.css [ snodeCss selected isIP_ (Path.parent self == Path.RootPath) ]
+        div [ Attr.classList [ ("snode", True)
+                             , ("selected", selected)
+                             , ("ip", not selected && isIP_)
+                             ]
             , onClick <| ToggleSelect self
             , rightClick
             ] <| label :: children
 
 wnode : Tree -> Html Msg
 wnode t = span
-             [ Css.wnode ]
+             [ Attr.class "wnode" ]
              [text <| terminalString t]
 
 viewTree : ViewInfo -> Path -> Tree -> Html Msg
@@ -161,7 +157,7 @@ wrapSn0 nodes =
                      Json.map (\_ -> RightClickRoot) decodeMouse
     in
         nodes |>
-        div [ Css.sn0
+        div [ Attr.id "sn0"
             , rightClick
             ]
 
@@ -176,12 +172,12 @@ view model =
             Failure e -> div [] [ text <| "error " ++ toString e ]
             Success (root, _, viewRootFn) ->
                 div [] [ model.dialog |> Maybe.map Dialog.view |> Maybe.withDefault (div [] [])
-                       , div [ Css.toolbar ]
+                       , div [ Attr.style Css.toolbar ]
                            [ ToolBar.view model.fileName
                            , Metadata.view model |> Html.map Msg.Metadata
                            ]
-                       , div [ Css.messages ]
-                           [ div [ Css.titlebar ] [ text "Messages" ]
+                       , div [ Attr.style Css.messages ]
+                           [ div [ Attr.style Css.titlebar ] [ text "Messages" ]
                            , text model.lastMessage ]
                        , viewRoot model root viewRootFn |> wrapSn0
                        , map Msg.Context <| ContextMenu.view model

@@ -1,15 +1,10 @@
 module TreeEdit.Metadata exposing (view, update)
 
-import Css exposing ( backgroundColor, paddingBottom, px, pct, color
-                    , width, height,fontWeight, bold, textAlign, center
-                    , rgb)
-import Css.Colors exposing (white)
 import Cmd.Extra
 import Dict exposing (Dict)
-import Html.Styled as Html exposing (div, text, button, Html, span)
-import Html.Styled.Attributes as Attr exposing (id)
-import Html.Styled.Events exposing (onClick)
-import Html.Attributes as UnstyledAttr -- TODO: ugly
+import Html as Html exposing (div, text, button, Html, span)
+import Html.Attributes as Attr exposing (id)
+import Html.Events exposing (onClick)
 import Http exposing (encodeUri)
 import Json.Decode as D
 import Json.Encode as E
@@ -77,18 +72,18 @@ textField fs form fieldType name format =
         contents = Form.getFieldAsString name form
         editButton name = case fieldType of
                            ReadOnly -> span [] []
-                           Writable -> button [ onClick <| Edit name , Css.editButton ] [ text "✎" ]
-        deleteButton name = button [ onClick <| Delete name , Css.editButton ] [ text "X" ]
+                           Writable -> button [ onClick <| Edit name , Attr.style Css.editButton ] [ text "✎" ]
+        deleteButton name = button [ onClick <| Delete name , Attr.style Css.editButton ] [ text "X" ]
     in
         case state of
             Hidden -> div [] []
-            _ -> div [ Css.textField ]
-                 [ div [ Css.textFieldInner ]
+            _ -> div [ Attr.style Css.textField ]
+                 [ div [ Attr.style Css.textFieldInner ]
                        [ text <| capitalize name ]
                  , case state of
-                       Editing -> Html.map Form <| Html.fromUnstyled <|
-                                  Input.textInput contents [ UnstyledAttr.style [("width", "100%")] ]
-                       Visible -> span [ Css.textFieldEditContainer ]
+                       Editing -> Html.map Form <|
+                                  Input.textInput contents [ Attr.style [("width", "100%")] ]
+                       Visible -> span [ Attr.style Css.textFieldEditContainer ]
                                   [ format (contents.value |> Maybe.withDefault "")
                                   , span [ Attr.style [("flex-grow", "2")]] []
                                   , editButton name
@@ -100,13 +95,13 @@ textField fs form fieldType name format =
 formatValue : String -> Html Msg
 formatValue value =
     if value == ""
-    then Html.i [ Css.textFieldAbsent ] [ text <| "not present" ]
+    then Html.i [ Attr.style Css.textFieldAbsent ] [ text <| "not present" ]
     else text value
 
 formatValueDefinition : String -> Html Msg
 formatValueDefinition value =
     if (Debug.log "hi" value) == ""
-    then Html.i [ Css.textFieldAbsent ] [ text <| "not present" ]
+    then Html.i [ Attr.style Css.textFieldAbsent ] [ text <| "not present" ]
     else if String.startsWith "[de]" (Debug.log "hi" value)
          then
              let
@@ -141,7 +136,7 @@ formView form state =
         , roCondField "number"
         ] ++
         if List.any ((==) Editing) <| Dict.values state
-        then [ div [ Css.saveButtonContainer ]
+        then [ div [ Attr.style Css.saveButtonContainer ]
                    [ button [ onClick Save ] [ text "Save" ] ] ]
         else []
 
@@ -329,17 +324,17 @@ view : Model -> Html Msg
 view model =
     case model.metadataForm of
         Just (form, state) -> div [ id "metadata-editor"
-                                  , Attr.css [ backgroundColor theme.offWhite2
-                                             , paddingBottom (px 2)
-                                             ]
-                                  ]
-                              [ div [ Attr.css [ backgroundColor theme.darkGrey
-                                               , color white
-                                               , width (pct 100)
-                                               , height (px 16)
-                                               , fontWeight bold
-                                               , textAlign center
+                                  , Attr.style [ ("background-color", theme.offWhite2)
+                                               , ("padding-bottom", "2px")
                                                ]
+                                  ]
+                              [ div [ Attr.style [ ("background-color", theme.darkGrey)
+                                                 , ("color", "white")
+                                                 , ("width", "100%")
+                                                 , ("height", "16px")
+                                                 , ("font-weight", "bold")
+                                                 , ("text-align", "center")
+                                                 ]
                                     ] [ text "Metadata" ]
                               , formView form state
                               ]

@@ -1,90 +1,83 @@
 module TreeEdit.View.Css exposing (..)
 
-import Html.Styled
-import Html.Styled.Attributes exposing (css)
-
-import Css exposing (..)
-import Css.Colors exposing (black, white)
-
-import TreeEdit.Msg exposing (Msg)
 import TreeEdit.View.Theme exposing (theme)
 
-type alias Style = Html.Styled.Attribute Msg
+type alias Style = List (String, String)
 
-ip : Css.Style
-ip = Css.batch [ borderTopColor black
-               , borderTopWidth (px 1)
-               , borderBottomColor black
-               , borderBottomWidth (px 1)
-               , backgroundColor theme.salmon
-               ]
+-- ip : Style
+-- ip = [ ("border-top-color", "black")
+--      , ("border-top-width", "1px")
+--      , ("border-bottom-color", "black")
+--      , ("border-bottom-width", "1px")
+--      , ("background-color", theme.salmon)
+--      ]
 
-selected : Css.Style
-selected = Css.batch [ backgroundColor theme.blue ]
+-- selected : Style
+-- selected = [ ("background-color", theme.blue) ]
 
-snode : Css.Style
-snode = Css.batch [ marginLeft (px 20)
-                  , border3 (px 1) solid theme.silver
-                  , borderLeftColor theme.blue
-                  , borderLeftWidth (px 4)
-                  , padding (px 2)
-                  , color black
-                  , backgroundColor theme.offWhite
-                  , cursor pointer
-                  ]
+-- snode : Style
+-- snode = [ ("margin-left", "20px")
+--         , ("border3", "1px solid " ++ theme.silver)
+--         , ("border-left-color", theme.blue)
+--         , ("border-left-width", "4px")
+--         , ("padding", "2px")
+--         , ("color", "black")
+--         , ("background-color", theme.offWhite)
+--         , ("cursor", "pointer")
+--         ]
 
 toolbar : Style
-toolbar = css [ top (px 30)
-              , left (px 0)
-              , marginLeft (px 5)
-              , width (pct 15)
-              , position fixed
-              ]
-
-messages : Style
-messages = css [ bottom (px 30)
-               , left (px 0)
-               , marginLeft (px 5)
-               , width (pct 15)
-               , backgroundColor theme.offWhite2
-               , position fixed
-               ]
-
-titlebar : Style
-titlebar = css [ backgroundColor theme.darkGrey
-               , color white
-               , width (pct 100)
-               , height (px 16)
-               , fontWeight bold
-               , textAlign center
-               ]
-
-sn0 : Style
-sn0 = css [ backgroundColor theme.tan
-          , border3 (px 1) solid black
-          , marginRight (pct 5)
-          , marginLeft <| calc (pct 15) plus (px 12)
-          -- In order for the trees to shrink to the correct width
-          , display inlineBlock
+toolbar = [ ("top", "30px")
+          , ("left", "0px")
+          , ("margin-left", "5px")
+          , ("width", "15%")
+          , ("position", "fixed")
           ]
 
-rootSnode : Css.Style
-rootSnode = Css.batch [ border3 (px 2) solid black ]
+messages : Style
+messages = [ ("bottom", "30px")
+           , ("left", "0px")
+           , ("margin-left", "5px")
+           , ("width", "15%")
+           , ("background-color", theme.offWhite2)
+           , ("position", "fixed")
+           ]
 
-wnode : Style
-wnode = css [ marginLeft (px 20)
-            , paddingLeft (px 4)
-            , paddingRight (px 4)
-            , border3 (px 1) solid black
-            , backgroundColor white
-            , color black
-            ]
+titlebar : Style
+titlebar = [ ("background-color", theme.darkGrey)
+           , ("color", "white")
+           , ("width", "100%")
+           , ("height", "16px")
+           , ("font-weight", "bold")
+           , ("text-align", "center")
+           ]
+
+-- sn0 : Style
+-- sn0 = [ ("background-color", theme.tan)
+--       , ("border", "1px solid black")
+--       , ("margin-right", "5%")
+--       , ("margin-left", "calc(15% + 12px)")
+--       -- In order for the trees to shrink to the correct width
+--       , ("display", "inline-block")
+--       ]
+
+-- rootSnode : Style
+-- rootSnode = [ ("border", "2px solid black") ]
+
+-- wnode : Style
+-- wnode = [ ("margin-left", "20px")
+--         , ("padding-left", "4px")
+--         , ("padding-right", "4px")
+--         , ("border", "1px solid black")
+--         , ("background-color", "white")
+--         , ("color", "black")
+--         ]
 
 correctionFlag : Style
-correctionFlag = css [ border3 (px 1) solid (hex "C17900")
-                     , backgroundColor (hex "FCD271")
-                     , color black
-                     , fontSize (px 6)
-                     , padding (px 1)
-                     , verticalAlign textTop
-                     ]
+correctionFlag = [ ("border", "1px solid #C17900")
+                 , ("background-color", "#FCD271")
+                 , ("color", "black")
+                 , ("fontSize", "6px")
+                 , ("padding", "1px")
+                 , ("verticalAlign", "text-top")
+                 ]

@@ -1,7 +1,7 @@
 module TreeEdit.View.Utils exposing (onClick, blockAll)
 
-import Html.Styled as H
-import Html.Styled.Events as Ev
+import Html as H
+import Html.Events as Ev
 import Json.Decode as Json
 
 blockAll : Ev.Options

@@ -1,6 +1,6 @@
 module TreeEdit.Model.Type exposing (Model)
 
-import Html.Styled exposing (Html)
+import Html exposing (Html)
 import RemoteData exposing (WebData)
 
 import TreeEdit.Config exposing (Config)

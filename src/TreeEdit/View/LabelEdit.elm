@@ -5,10 +5,9 @@ import Form.Field as Field
 import Form.Input as Input
 import Form.Validate as V exposing (Validation)
 import Guards exposing (..)
-import Html.Styled as Html exposing (Html)
-import Html.Attributes as UnstyledAttr
+import Html as Html exposing (Html)
+import Html.Attributes as Attr
 import Return exposing (Return)
-import TypedStyles exposing (width, px)
 
 import TreeEdit.Tree as Tree
 import TreeEdit.Result as R exposing (Result)
@@ -20,10 +19,10 @@ validation : Validation () Label
 validation = V.field "label" V.string
 
 view : LabelForm -> Html Msg
-view form = Html.map FormMsg <| Html.fromUnstyled <| Input.textInput
+view form = Html.map FormMsg <| Input.textInput
             (Form.getFieldAsString "label" form)
-            [ UnstyledAttr.style [(width 150 px)]
-            , UnstyledAttr.id "labelEditor"
+            [ Attr.style [("width", "150px")]
+            , Attr.id "labelEditor"
             ]
 
 init : String -> LabelForm

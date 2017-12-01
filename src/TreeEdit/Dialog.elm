@@ -1,13 +1,8 @@
 module TreeEdit.Dialog exposing (Dialog(..), view)
 
-import Html.Styled exposing (div, textarea, text, button, Html)
-import Html.Styled.Attributes as Attr exposing (css)
-import Html.Styled.Events as E
-
-import Css exposing ( zIndex, color, rgba, rgb, width, height, position
-                    , fixed, left, top, pct, opacity, backgroundColor
-                    , int, num
-                    )
+import Html exposing (div, textarea, text, button, Html)
+import Html.Attributes as Attr exposing (style)
+import Html.Events as E
 
 import TreeEdit.Msg exposing (Msg(DismissDialog))
 import TreeEdit.View.Css as ViewCss
@@ -28,26 +23,26 @@ view dialog =
                                             [text "Copy"]
                                       ]
     in
-        div [ css [ zIndex (int 998)
-                  , color (rgba 0 0 0 0.25)
-                  , width (pct 100)
-                  , height (pct 100)
-                  , position fixed
-                  , left (pct 0)
-                  , top (pct 0)
+        div [ style [ ("z-index", "998")
+                    , ("color", "rgba(0,0,0,0.25)")
+                    , ("width", "100%")
+                    , ("height", "100%")
+                    , ("position", "fixed")
+                    , ("left", "0%")
+                    , ("top", "0%")
                   ]
             ]
-        [ div [ css [ position fixed
-                    , top (pct 25)
-                    , left (pct 25)
-                    , width (pct 50)
-                    , height (pct 50)
-                    , zIndex (int 999)
-                    , opacity (num 0.85)
-                    , backgroundColor (rgb 210 180 140)
-                    ]
+        [ div [ style [ ("position", "fixed")
+                      , ("top", "25%")
+                      , ("left", "25%")
+                      , ("width", "50%")
+                      , ("height", "50%")
+                      , ("z-index", "999")
+                      , ("opacity", "0.85")
+                      , ("background-color", "rgb(210,180,140)")
+                      ]
               ]
-              [ div [ ViewCss.titlebar ] [text title]
+              [ div [ style ViewCss.titlebar ] [text title]
               , view
               ]
         ]

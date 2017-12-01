@@ -6,9 +6,8 @@ module TreeEdit.ContextMenu exposing ( show
 
 import TreeEdit.View.Utils as ViewUtils exposing (onClick)
 
-import Css exposing (width, px, left, top)
-import Html.Styled as H exposing (Html)
-import Html.Styled.Attributes as Attr
+import Html as H exposing (Html)
+import Html.Attributes as Attr
 import Mouse
 import Return exposing (Return)
 
@@ -33,7 +32,7 @@ hide : ModelType.Model -> ModelType.Model
 hide = .set Model.contextMenu emptyModel
 
 entry : List (H.Attribute Msg) -> String -> Html Msg
-entry attrs s = H.div ([ CMCss.entry ] ++ attrs) [ H.a [] [ H.text s ] ]
+entry attrs s = H.div ([ Attr.style CMCss.entry, Attr.class "contextMenuEntry" ] ++ attrs) [ H.a [] [ H.text s ] ]
 
 leaf : String ->
        (Path -> Tree -> Msg) ->
@@ -53,14 +52,13 @@ toggleExtension path ext =
     entry [ onClick <| ToggleExtension path ext ] ext
 
 heading : String -> Html Msg
-heading title = H.div [ CMCss.heading ] [ H.text title ]
+heading title = H.div [ Attr.style CMCss.heading ] [ H.text title ]
 
 colWidth : Float
 colWidth = 150
 
 column : String -> List (Html Msg) -> Html Msg
-column headingText children = H.div [ CMCss.column
-                                    , Attr.css [ width (px colWidth) ]
+column headingText children = H.div [ Attr.style <| CMCss.column ++ [ ("width", toString colWidth ++ "px") ]
                                     ] <|
                           [ heading headingText ] ++ children
 
@@ -78,11 +76,11 @@ view parent =
                     la = leafAfter path
                     tx = toggleExtension path
                 in
-                    H.div [ CMCss.contextMenu
-                          , Attr.css [ width (px <| 3 * colWidth)
-                                     , left (px <| toFloat model.position.x)
-                                     , top (px <| toFloat model.position.y)
-                                     ]
+                    H.div [ Attr.style <| CMCss.contextMenu ++
+                                [ ("width", (toString <| 3 * colWidth) ++ "px")
+                                , ("left", toString model.position.x ++ "px")
+                                , ("top", toString model.position.y ++ "px")
+                                ]
                           , ViewUtils.onClick Ignore
                           ]
                         [ column "Label" []

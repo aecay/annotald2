@@ -2,7 +2,7 @@ module Main exposing (..)
 
 import Platform.Cmd as Cmd
 import Html
-import Html.Styled
+import Html
 import Platform.Cmd as Cmd
 import Platform.Sub as Sub
 import Navigation exposing (Location)
@@ -52,7 +52,7 @@ view : Model -> Html.Html Msg
 view model =
     case model.page of
         FileList submodel -> FileList.view submodel |> Html.map FileListMsg
-        TreeEdit submodel -> TreeEdit.view submodel |> Html.Styled.map TreeEditMsg |> Html.Styled.toUnstyled
+        TreeEdit submodel -> TreeEdit.view submodel |> Html.map TreeEditMsg
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
