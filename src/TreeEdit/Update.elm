@@ -153,8 +153,9 @@ update msg model =
                                            )
                                          ]
                 ValidateDone webdata -> case webdata of
-                                            Success trees -> Return.singleton <|
-                                                             .set Model.root (Tree.t "wtf" trees) model
+                                            Success trees -> Return.return
+                                                             (.set Model.root (Tree.t "wtf" trees) model)
+                                                             (Cmd.Extra.perform (Metadata MetadataType.NewSelection))
                                             f -> Return.return model (Cmd.Extra.perform <| LogMessage <|
                                                                           "Save failure: " ++ toString f)
                 Ignore -> Return.singleton model
