@@ -8,7 +8,7 @@ import uuid
 import hug
 
 import lovett.corpus
-from lovett.format import Json, Deep
+from lovett.format import Json, Deep, _Object   # TODO: don't use _Object
 
 
 CORPUS_PATH = "/home/aecay/projects/chlg/parsing"
@@ -49,7 +49,7 @@ def get_file(name: hug.types.text):
     path = os.path.join(CORPUS_PATH, name)
     with open(path) as fin:
         corpus = lovett.corpus.from_file(fin, Deep)
-    return json.loads(corpus.format(Json))
+    return _Object.corpus(corpus)
 
 
 @hug.post("/save")
@@ -73,14 +73,14 @@ def set_dict_entry(lemma: hug.types.text, definition: hug.types.text):
 
 @hug.post("/as_text")
 def as_text(tree: hug.types.json):
-    t = lovett.tree.from_object(tree[0])
+    t = lovett.tree.from_object(tree)
     return t.format(lovett.format.Penn)
 
 @hug.post("/validate")
-def validate(corpus: hug.types.json):
+def do_validate(trees: hug.types.json):
     c = lovett.corpus.from_objects(trees)
     validate.validate(c)
-    return json.loads(corpus.format(Json))
+    return _Object.corpus(c)
 
 
 # @click.command()
