@@ -29,20 +29,9 @@ import TreeEdit.View.LabelEdit as LabelEdit
 import TreeEdit.View.LabelEdit.Type exposing (LabelForm)
 
 import TreeEdit.Utils as Utils exposing (fromJust)
-import TreeEdit.View.Utils exposing (onClick, blockAll)
+import TreeEdit.View.Utils exposing (onClick, blockAll, decodeMouse)
 
-import TreeEdit.ContextMenuTypes as ContextMenuTypes
 import TreeEdit.ContextMenu as ContextMenu
-
-blockAll : Ev.Options
-blockAll = { stopPropagation = True
-           , preventDefault = True
-           }
-
-decodeMouse : Json.Decoder ContextMenuTypes.Position
-decodeMouse = Json.map2 (\x y -> { x = x, y = y })
-              (Json.field "pageX" Json.int)
-              (Json.field "pageY" Json.int)
 
 isIP : Config -> String -> Bool
 isIP config label =
