@@ -12,7 +12,7 @@ import TreeEdit.View
 import TreeEdit.Update
 import TreeEdit.Model
 import TreeEdit.Model.Type
-import TreeEdit.Tree as Tree
+import TreeEdit.Tree.Decode exposing (decodeTrees)
 
 type alias Msg = Msg.Msg
 
@@ -24,7 +24,7 @@ view = TreeEdit.View.view
 init : String -> ( TreeEdit.Model.Type.Model, Cmd Msg )
 init filename =
     let
-        treesTask = getTask (url "/file" [("name", filename)]) Tree.receiveTrees
+        treesTask = getTask (url "/file" [("name", filename)]) decodeTrees
         configTask = getTask "/config" Config.decode
         combine = RemoteData.map2 (,)
         jointTask = Task.map2 combine treesTask configTask

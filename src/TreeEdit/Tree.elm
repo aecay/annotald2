@@ -18,7 +18,6 @@ module TreeEdit.Tree exposing (l, t, trace, either,
                               , children
                               , constants
                               , map
-                              , receiveTrees
                               , metadata
                               , illegalLabelChar
                               )
@@ -28,13 +27,11 @@ import List
 import List.Extra exposing (getAt, removeAt)
 import Dict
 import Maybe
-import Json.Decode exposing (Decoder)
 import Monocle.Optional as Optional exposing (Optional)
 import Monocle.Common exposing ((=>), maybe)
 import Monocle.Lens as Lens exposing (Lens)
 
 import TreeEdit.Tree.Type as Type exposing (..)
-import TreeEdit.Tree.Decoder
 
 import TreeEdit.Utils as Utils
 
@@ -44,9 +41,6 @@ import TreeEdit.Path as Path exposing (Path(..), PathFragment)
 import TreeEdit.Result as R exposing (succeed, fail)
 
 type alias Result a = R.Result a
-
-receiveTrees : Decoder (List Tree)
-receiveTrees = TreeEdit.Tree.Decoder.receiveTrees
 
 -- Functions we expose for testing only
 internals :

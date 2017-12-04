@@ -1,4 +1,4 @@
-module TreeEdit.Tree.Json exposing (toJson)
+module TreeEdit.Tree.Encode exposing (encodeTrees, encodeTree)
 
 import Dict
 import Json.Encode as E exposing (Value)
@@ -10,8 +10,8 @@ import TreeEdit.Index as Index exposing (Index)
 list_ : (a -> Value) -> List a -> Value
 list_ fn l = E.list <| List.map fn l
 
-toJson : List Tree -> Value
-toJson trees = list_ treeToJson trees
+encodeTrees : List Tree -> Value
+encodeTrees trees = list_ encodeTree trees
 
 indexToJson : Maybe Index -> List (String, String)
 indexToJson idx =  case idx of
@@ -23,8 +23,8 @@ indexToJson idx =  case idx of
                                  ]
 
 
-treeToJson : Tree -> Value
-treeToJson tree =
+encodeTree : Tree -> Value
+encodeTree tree =
     let
         metadata idx = E.object <| List.map (\(k, v) -> (k, E.string v)) <| (Dict.toList tree.metadata) ++ (indexToJson idx)
     in
@@ -34,7 +34,7 @@ treeToJson tree =
                     kids = []
                 in
                     E.object <| [ ("label", E.string tree.label)
-                                , ("children", E.list <| List.map treeToJson children)
+                                , ("children", E.list <| List.map encodeTree children)
                                 , ("metadata", metadata idx)
                                 ]
             Terminal text index -> E.object <| [ ("label", tree.label |> E.string)

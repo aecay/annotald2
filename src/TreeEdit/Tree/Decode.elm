@@ -1,4 +1,4 @@
-module TreeEdit.Tree.Decoder exposing (receiveTrees, internals)
+module TreeEdit.Tree.Decode exposing (decodeTrees, decodeTree)
 
 import TreeEdit.Tree.Type exposing (..)
 
@@ -6,9 +6,6 @@ import TreeEdit.Index as Index
 
 import Json.Decode as D exposing (list, string, Decoder, dict, field, lazy, int)
 import Dict exposing (Dict)
-
-internals : { decode : Decoder Tree }
-internals = { decode = decode }
 
 decodeString : Decoder String
 decodeString =
@@ -78,7 +75,7 @@ type NTDecoded = NTDecoded String (List Tree) (Dict String String)
 decodeNonterminal : Decoder Tree
 decodeNonterminal = D.map3 NTDecoded
                     (field "label" string )
-                    (field "children" (list <| lazy <| \_ -> decode))
+                    (field "children" (list <| lazy <| \_ -> decodeTree))
                     (field "metadata" (dict decodeString)) |>
                     D.map mungeNT
 
@@ -90,11 +87,11 @@ mungeNT n =
         in
             { label = label, contents = Nonterminal children i, metadata = metadata }
 
-decode : Decoder Tree
-decode =
+decodeTree : Decoder Tree
+decodeTree =
     D.oneOf [ decodeNonterminal
             , decodeLeaf
             ]
 
-receiveTrees : Decoder (List Tree)
-receiveTrees = (list decode)
+decodeTrees : Decoder (List Tree)
+decodeTrees = (list decodeTree)

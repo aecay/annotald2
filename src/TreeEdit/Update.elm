@@ -32,7 +32,8 @@ import TreeEdit.Path as Path
 import TreeEdit.Result as R
 import TreeEdit.Selection as Selection
 import TreeEdit.Tree as Tree exposing (children)
-import TreeEdit.Tree.Json exposing (toJson)
+import TreeEdit.Tree.Decode exposing (decodeTrees)
+import TreeEdit.Tree.Encode exposing (encodeTrees)
 import TreeEdit.Utils as Utils
 import TreeEdit.View as View
 import TreeEdit.View.LabelEdit as LabelEdit
@@ -122,7 +123,7 @@ update msg model =
                                 handle
                                 (D.succeed ())
                                 (E.object [ ("filename", E.string model.fileName)
-                                          , ("trees", toJson <| Utils.fromJust <| .getOption children root)
+                                          , ("trees", encodeTrees <| Utils.fromJust <| .getOption children root)
                                           ])
                 LogMessage m -> Return.singleton { model | lastMessage = m }
                 CancelContext -> Return.singleton <| ContextMenu.hide model
