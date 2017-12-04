@@ -24,6 +24,6 @@ type Msg = ToggleSelect Path |
     LabelKey KeyboardEvent |
     Copy (WebData String) |
     DismissDialog |
-    --Validate |
-    --ValidateDone (WebData (List Tree)) |
+    Validate |
+    ValidateDone (WebData (List Tree)) |
     Ignore

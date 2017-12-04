@@ -8,6 +8,7 @@ import Mouse
 
 -- Third party libraries
 
+import Cmd.Extra
 import Keyboard.Event exposing (KeyboardEvent, decodeKeyboardEvent)
 import Keyboard.Key as K
 import Monocle.Lens as Lens
@@ -140,6 +141,22 @@ update msg model =
                 Copy (Success text) -> Return.singleton { model | dialog = Just <| Dialog.Copy text }
                 Copy _ -> Return.singleton model
                 DismissDialog -> Return.singleton { model | dialog = Nothing }
+                Validate -> Return.return model <|
+                            RemoteData.Http.post "/validate"
+                                Msg.ValidateDone
+                                decodeTrees <|
+                                E.object [ ("trees",
+                                           .get Model.root model |>
+                                           .getOption children |>
+                                           Utils.fromJust |>
+                                           encodeTrees
+                                           )
+                                         ]
+                ValidateDone webdata -> case webdata of
+                                            Success trees -> Return.singleton <|
+                                                             .set Model.root (Tree.t "wtf" trees) model
+                                            f -> Return.return model (Cmd.Extra.perform <| LogMessage <|
+                                                                          "Save failure: " ++ toString f)
                 Ignore -> Return.singleton model
 
 subscriptions : Model -> Sub Msg
