@@ -50,11 +50,12 @@ labelHtml : Tree -> Html Msg
 labelHtml tree =
     let
         hasCorrection = tree.metadata |> Dict.get "OLD-TAG" |> isJust
-        labelStr = labelString tree
+        hasError = tree.metadata |> Dict.get "VALIDATION-ERROR" |> isJust
+        label = labelString tree
     in
-        if hasCorrection
-        then span [] [text labelStr, span [Attr.style Css.correctionFlag] [text "CORR"] ]
-        else text <| labelStr
+        span [] <| [text label] ++
+            if hasCorrection then [span [Attr.style Css.correctionFlag] [text "CORR"]] else [] ++
+            if hasError then [span [Attr.style Css.correctionFlag] [text "ERR"]] else []
 
 type alias ViewInfo =
     { config : Config

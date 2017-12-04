@@ -16,13 +16,6 @@ DICT_FILE = "/home/aecay/projects/chlg/dict.json"
 CONFIG_FILE = "/home/aecay/projects/chlg/config.json"
 VALIDATORS_PATH = "/home/aecay/projects/chlg/doc/validate.py"
 
-validate = None
-
-if os.path.exists(VALIDATORS_PATH):
-    spec = importlib.util.spec_from_file_location("validate", VALIDATORS_PATH)
-    validate = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(validate)
-
 with open(DICT_FILE, "r") as fin:
     DICT = json.load(fin)
 
@@ -78,6 +71,15 @@ def as_text(tree: hug.types.json):
 
 @hug.post("/validate")
 def do_validate(trees: hug.types.json):
+    if not os.path.exists(VALIDATORS_PATH):
+        raise Exception("Could not find validator library")
+
+    # Import the validation library each time.  This is to make iterative
+    # development simpler
+    spec = importlib.util.spec_from_file_location("validate", VALIDATORS_PATH)
+    validate = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(validate)
+
     c = lovett.corpus.from_objects(trees)
     validate.validate(c)
     return _Object.corpus(c)

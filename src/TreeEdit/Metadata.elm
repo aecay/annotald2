@@ -25,6 +25,7 @@ import Form.Validate as V exposing (Validation)
 
 import TreeEdit.Metadata.Type exposing (..)
 import TreeEdit.Metadata.Css as Css
+import TreeEdit.Metadata.Util exposing (..)
 import TreeEdit.Selection exposing (Selection)
 import TreeEdit.Tree as Tree
 import TreeEdit.Tree.Type exposing (Tree)
@@ -36,17 +37,14 @@ import TreeEdit.Result as R
 import TreeEdit.View.Theme exposing (theme)
 import TreeEdit.Msg as Msg
 
-origTagState : Tree -> Bool
-origTagState t =
-    Tree.isTerminal t && (.get Tree.metadata t |> Dict.get "OLD-TAG" |> (/=) Nothing)
-
 fieldNames : List (String, Tree -> Bool)
 fieldNames = [ ("lemma", Tree.isTerminal)
              , ("definition", Tree.isTerminal)
-             , ("old-tag", origTagState)
-             , ("case", Tree.isTerminal) -- TODO: improvements
-             , ("gender", Tree.isTerminal) -- TODO: improvements
-             , ("number", Tree.isTerminal) -- TODO: improvements
+             , ("old-tag", hasMetadata "OLD-TAG")
+             , ("case", isNominal)
+             , ("gender", isNominal)
+             , ("number", \x -> isNominal x || isVerb x)
+             , ("validation-error", hasMetadata "VALIDATION-ERROR")
              ]
 
 validation : Validation () Metadata
@@ -59,9 +57,6 @@ validation =
         init = V.succeed Dict.empty
     in
         List.foldl do init (List.map Tuple.first fieldNames)
-
-capitalize : String -> String
-capitalize s = String.toUpper (String.left 1 s) ++ String.dropLeft 1 s
 
 type FieldType = Writable | ReadOnly
 
@@ -119,9 +114,10 @@ formView form state =
         field name = div [id ("formField-" ++ name)] [textField state form Writable name formatValue]
         condField condition name = if condition then field name else div [] []
         roField name = textField state form ReadOnly name formatValue
-        roCondField name = if (Form.getFieldAsString name form |> .value) /= Just ""
-                           then roField name
-                           else div [] []
+        -- TODO: remove, not needed(?)
+        -- roCondField name = if (Form.getFieldAsString name form |> .value) /= Just ""
+        --                    then roField name
+        --                    else div [] []
     in
 
     div [ id "metadataForm" ] <|
@@ -131,9 +127,10 @@ formView form state =
               [textField state form Writable "definition" formatValueDefinition]
           else div [] []
         , roField "old-tag"
-        , roCondField "case"
-        , roCondField "gender"
-        , roCondField "number"
+        , roField "validation-error"
+        , roField "case"
+        , roField "gender"
+        , roField "number"
         ] ++
         if List.any ((==) Editing) <| Dict.values state
         then [ div [ Attr.style Css.saveButtonContainer ]
@@ -297,11 +294,11 @@ update model msg =
                     Just p ->
                         let
                             node = Tree.get p root |> R.withDefault (Tree.l "foo" "bar")
+                            metadata = (.get Tree.metadata) node
                         in
                             case Tree.isTerminal node of
                                 True ->
                                     let
-                                        metadata = (.get Tree.metadata) node
                                         lemma = Dict.get "LEMMA" metadata
                                         req x = Net.get
                                                 (Net.url "/dictentry" [("lemma", x)])
@@ -313,7 +310,7 @@ update model msg =
                                                       }
                                             (lemma |> Maybe.map req |>
                                                  Maybe.withDefault Cmd.none |> Cmd.map Msg.Metadata)
-                                False -> Return.singleton { model | metadataForm = Nothing }
+                                False -> Return.singleton { model | metadataForm =  Just <| init metadata node}
                     _ -> Return.singleton { model | metadataForm = Nothing }
         SaveSuccess lemma -> Return.singleton { model | lastMessage = "Saved definition for lemma " ++ lemma }
         Key {keyCode} -> case keyCode of
