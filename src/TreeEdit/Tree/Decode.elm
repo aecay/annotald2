@@ -38,7 +38,7 @@ extractIndex metadata =
                 (Nothing, Nothing) -> Nothing
                 _ -> Debug.crash "bad index 2"
     in
-        ( metadata |> Dict.remove "index" |> Dict.remove "idx-type"
+        ( metadata |> Dict.remove "INDEX" |> Dict.remove "IDX-TYPE"
         , i
         )
 
