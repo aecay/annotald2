@@ -1,3 +1,6 @@
 click
 hug
 decorator
+pygit2
+marshmallow
+pytest
