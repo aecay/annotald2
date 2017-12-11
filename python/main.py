@@ -1,8 +1,8 @@
 import glob
 import importlib.util
+import io
 import json
 import os
-import uuid
 
 # import click
 import hug
@@ -10,7 +10,9 @@ import marshmallow.fields as fields
 import pygit2
 
 import lovett.corpus
-from lovett.format import Json, Deep, _Object   # TODO: don't use _Object
+from lovett.format import Deep, _Object   # TODO: don't use _Object
+
+import git_fns
 
 
 # TODO: make these paths more modular
@@ -19,6 +21,12 @@ CORPUS_PATH = "/home/aecay/projects/chlg/parsing"
 DICT_FILE = "/home/aecay/projects/chlg/dict.json"
 CONFIG_FILE = "/home/aecay/projects/chlg/config.json"
 VALIDATORS_PATH = "/home/aecay/projects/chlg/doc/validate.py"
+VALIDATOR_DB_PATH = "/home/aecay/projects/chlg/validators.json"
+
+signature_annotald = pygit2.Signature("Annotald", "aaronecay+annotald@gmail.com")
+global_config = pygit2.Config.get_global_config()
+signature_user = pygit2.Signature(global_config["user.name"],
+                                  global_config["user.email"])
 
 with open(DICT_FILE, "r") as fin:
     DICT = json.load(fin)
@@ -68,10 +76,12 @@ def set_dict_entry(lemma: hug.types.text, definition: hug.types.text):
     with open(DICT_FILE, "w") as fout:
         fout.write(json.dumps(DICT, sort_keys=True, indent=4))
 
+
 @hug.post("/as_text")
 def as_text(tree: hug.types.json):
     t = lovett.tree.from_object(tree)
     return t.format(lovett.format.Penn)
+
 
 def import_validate():
     if not os.path.exists(VALIDATORS_PATH):
@@ -84,6 +94,7 @@ def import_validate():
     spec.loader.exec_module(validate)
     return validate
 
+
 @hug.post("/validate")
 def do_validate(trees: hug.types.json):
     validate = import_validate()
@@ -91,41 +102,30 @@ def do_validate(trees: hug.types.json):
     validate.validate(c)
     return _Object.corpus(c)
 
+
 def get_id(corpus, tree_id):
     tree = filter(lambda x: x.metadata.id == tree_id, corpus).next()
     return tree
+
 
 def get_path(tree, path):
     for component in path:
         tree = tree[component]
     return tree
 
+
 @hug.post("/fix_validator")
 def git_info(filename: hug.types.string, trees: hug.types.json,
-             validator_name: hug.types.string
+             validator_name: hug.types.string,
              tree_id: hug.types.string, path: fields.List(fields.Int())):
     repo = pygit2.Repository(GIT_PATH)
-    # status = repo.status()
     filepath = os.relpath(os.path.join(CORPUS_PATH, filename),
                           repo.workdir)
-    # try:
-    #     if status[filepath] & (pygit2.GIT_STATUS_WT_NEW |
-    #                                pygit2.GIT_STATUS_WT_MODIFIED):
-    #         raise Exception("File is dirty")
-    # except KeyError:
-    #     pass
     validate = import_validate()
     new_corpus = lovett.corpus.from_objects(trees)
-    head = repo.lookup_reference("HEAD").get_object()
-    trees = head.tree
-    dirname = os.path.dirname(filepath)
-    if dirname != "":
-        for component in dirname.split("/"):
-            trees.insert(0, repo[trees[0][component].oid])
-    assert len(filepath.split("/")) == len(trees)
-
-    old_text = trees[0][os.path.basename(filepath)].data.decode("utf-8")
-    old_corpus = lovett.corpus.from_file(io.StringIO(old_text), Deep)
+    old_corpus = lovett.corpus.from_file(
+        io.StringIO(git_fns.file_at_revision(repo, filepath, "HEAD")),
+        Deep)
     old_tree = get_id(old_corpus, tree_id)
     old_target = get_path(old_tree, path)
     new_tree = get_id(new_corpus, tree_id)
@@ -147,22 +147,41 @@ def git_info(filename: hug.types.string, trees: hug.types.json,
     except AssertionError:
         raise Exception("New tree doesn't pass")
 
-    replacement_corpus = ListCorpus([tree if tree.id != tree_id else new_tree for tree in old_corpus])
-    new_blob = repo.create_blob(replacement_corpus.format(Deep).encode("utf-8"))
-    for component in filepath.split("/").reverse():
-        tb = repo.TreeBuilder(trees.pop(0))
-        assert isinstance(to_insert, pygit2.Blob) or isinstance(to_insert, pygit2.Tree)
-        tb.insert(component, to_insert,
-                  pygit2.GIT_FILEMODE_BLOB if isinstance(to_insert, pygit2.Blob) else pygit2.GIT_FILEMODE_TREE)
-        to_insert = tb.write()
+    replacement_corpus = lovett.corpus.ListCorpus(
+        [tree if tree.id != tree_id else new_tree for tree in old_corpus])
 
-    annotald = pygit2.Signature("Annotald", "aaronecay+annotald@gmail.com")
-    global_config = pygit2.Config.get_global_config()
-    user = pygit2.Signature(global_config["user.name"], global_config["user.email"])
+    head = repo.revparse_single("HEAD")
+    tree = head.tree
+    tree = git_fns.write_file(repo, tree, filepath,
+                              replacement_corpus.format(Deep))
 
+    commit = repo.create_commit("refs/heads/master",
+                                signature_annotald, signature_user,
+                                """Annotald-generated validation sample
 
-    return {'revision': repo.lookup_reference("HEAD").resolve().target.hex}
+Validator {validator_name} run against tree {tree_id} at {path}""".format(
+                                    validator_name=validator_name,
+                                    tree_id=tree_id,
+                                    path=path),
+                                tree,
+                                [head.oid])
 
+    with open(VALIDATOR_DB_PATH) as fin:
+        db = json.read(fin)
+    db.append({'validator': validator_name,
+               'commit_bad': str(head.oid),
+               'commit_good': str(commit),
+               'tree': tree_id,
+               'path': path})
+
+    tree = repo[commit]
+    tree = git_fns.write_file(repo, tree, os.relpath(VALIDATOR_DB_PATH,
+                                                     repo.workdir),
+                              json.dumps(db, indent=4))
+    repo.create_commit("refs/heads/master",
+                       signature_annotald, signature_user,
+                       "Update validation database for commit %s" % str(commit)[0:8],
+                       tree, [commit])
 
 # @click.command()
 # @click.option("--path", type=click.Path())
