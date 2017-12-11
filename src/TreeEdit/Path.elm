@@ -14,7 +14,10 @@ module TreeEdit.Path exposing ( Path(..)
                               , toFragment
                               , internals
                               , advance
+                              , encode
                               )
+
+import Json.Encode as E
 
 import List.Extra
 
@@ -153,3 +156,7 @@ advance p =
     case p of
         RootPath -> RootPath
         Path h t -> Path (h+1) t
+
+encode : Path -> E.Value
+encode path =
+    toList path |> List.reverse |> List.map E.int |> E.list
