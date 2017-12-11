@@ -4,3 +4,5 @@ decorator
 pygit2
 marshmallow
 pytest
+pytest-git
+typeguard
