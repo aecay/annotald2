@@ -15,7 +15,6 @@ module TreeEdit.Result exposing ( fail
                                 -- , Failure(..)
                                 -- , foldr
                                 , andMap
-                                -- , map3
                                 , do
                                 , andDo
                                 , handle
