@@ -60,6 +60,14 @@ def get_file(name: hug.types.text):
 @hug.post("/save")
 def save(filename: hug.types.text, trees: hug.types.json):
     c = lovett.corpus.from_objects(trees)
+    for tree in c:
+        for node in tree.nodes():
+            for key in ("VALIDATION-ERROR", "VALIDATOR-NAME"):
+                if key in node.metadata:
+                    del node.metadata[key]
+        if tree.metadata.id == "MISSING_ID":
+            tree.metadata.id = lovett.util.fresh_id()  # TODO: won't be
+            # reflected in the Elm version -- reload trees after save?
     with open(os.path.join(CORPUS_PATH, filename), "w") as fout:
         fout.write(c.format(lovett.format.Deep))
 
