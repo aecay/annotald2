@@ -20,7 +20,7 @@ import ThirdParty.WindowEvents exposing (onWindow)
 
 -- Project libraries
 
-import TreeEdit.Actions as Actions
+import TreeEdit.Action as Action
 import TreeEdit.Bindings exposing (bindings)
 import TreeEdit.ContextMenu as ContextMenu
 import TreeEdit.Dialog as Dialog
@@ -91,7 +91,7 @@ update msg model =
                                       then Return.singleton model |> -- Rightclick only selection -> show context menu
                                            Return.map (Lens.modify selected (Selection.updateWith sel)) |>
                                            Return.map (ContextMenu.show position path)
-                                      else Actions.doMove sel path model |> R.handle model)
+                                      else Action.doMove sel path model |> R.handle model)
                              (\_ _ -> Return.singleton model)) -- TODO: support moving multiple nodes
                 RightClickRoot ->
                     if disableMouse
@@ -99,7 +99,7 @@ update msg model =
                     else
                         (Selection.perform model.selected
                              (Return.singleton model)
-                             (\sel -> Actions.doMove sel Path.RootPath model |> R.handle model)
+                             (\sel -> Action.doMove sel Path.RootPath model |> R.handle model)
                              (\_ _ -> Return.singleton model)) -- TODO: support moving multiple
                                                                      -- nodes
                 Context contextMsg ->
@@ -135,7 +135,7 @@ update msg model =
                         Return.return newmodel subcmd
                 Label submsg -> Return.singleton model |> refracto Model.labelForm Msg.Label (LabelEdit.update submsg)
                 LabelKey {keyCode} -> case keyCode of
-                                          K.Enter -> R.handle model <| Actions.finishLabelEdit model
+                                          K.Enter -> R.handle model <| Action.finishLabelEdit model
                                           K.Escape -> Return.singleton { model | labelForm = Nothing }
                                           _ -> Return.singleton model
                 Copy (Success text) -> Return.singleton { model | dialog = Just <| Dialog.Copy text }

@@ -109,7 +109,7 @@ update msg model =
                 (Tree.do path (\x -> {x | label = newLabel }))
                 model |>
             R.handle model
-        ToggleExtension path ext -> Actions.toggleDashTag ext path model |> R.handle model |> Return.map hide
+        ToggleExtension path ext -> Action.toggleDashTag ext path model |> R.handle model |> Return.map hide
         Ignore -> Return.singleton model
         Hide -> Return.singleton <| hide model
         Show position path -> Return.singleton <| show position path model

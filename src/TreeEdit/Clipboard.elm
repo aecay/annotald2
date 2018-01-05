@@ -5,7 +5,7 @@ import Json.Encode as E
 
 import RemoteData.Http as Http
 
-import TreeEdit.Actions exposing (Action)
+import TreeEdit.Action exposing (Action)
 import TreeEdit.Model as Model
 import TreeEdit.Msg exposing (Msg(Copy))
 import TreeEdit.Result as R exposing (Result)

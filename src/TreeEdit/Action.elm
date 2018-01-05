@@ -1,17 +1,17 @@
-module TreeEdit.Actions exposing ( clearSelection
-                                 , changeLabel
-                                 , coIndex
-                                 , Action
-                                 , doMove
-                                 , createParent
-                                 , deleteNode
-                                 , leafBefore
-                                 , leafBeforeInner -- For ContextMenu TODO:
-                                                   -- consolidate with createLeaf
-                                 , leafAfter
-                                 , finishLabelEdit
-                                 , editLabel
-                                 , toggleDashTag
+module TreeEdit.Action exposing ( clearSelection
+                                , changeLabel
+                                , coIndex
+                                , Action
+                                , doMove
+                                , createParent
+                                , deleteNode
+                                , leafBefore
+                                , leafBeforeInner -- For ContextMenu TODO:
+                                                  -- consolidate with createLeaf
+                                , leafAfter
+                                , finishLabelEdit
+                                , editLabel
+                                , toggleDashTag
                         )
 
 -- This module contains the types and functions for creating *actions*, or
