@@ -115,9 +115,12 @@ def get_path(tree, path):
 
 
 @hug.post("/fix_validator")
-def git_info(filename: hug.types.string, trees: hug.types.json,
-             validator_name: hug.types.string,
-             tree_id: hug.types.string, path: fields.List(fields.Int())):
+def git_info(filename: hug.types.text, trees: hug.types.json,
+             validator_name: hug.types.text,
+             tree_id: hug.types.text, path: fields.List(fields.Int())):
+    print(filename, validator_name, tree_id, path)
+    return
+    # TODO: verify that the file is git-controlled
     repo = pygit2.Repository(GIT_PATH)
     filepath = os.relpath(os.path.join(CORPUS_PATH, filename),
                           repo.workdir)

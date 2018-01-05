@@ -1,10 +1,11 @@
-module TreeEdit.Validate exposing (..)
+module TreeEdit.Validate exposing (fix)
 
 import Dict
 import Json.Decode as D
 import Json.Encode as E
 
 import RemoteData.Http as Http
+import Return exposing (Return)
 
 import TreeEdit.Model as Model
 import TreeEdit.Model.Type exposing (Model)
@@ -24,11 +25,12 @@ validatorName tree =
             tree |>
             .get Tree.metadata |>
             Dict.get "VALIDATOR-NAME" |>
-            Maybe.map (String.split "\n")
+            Maybe.map (String.split "\n") |>
+            Maybe.map (List.filter ((/=) ""))
     in
         case names of
             (Just [name]) -> R.succeed name
-            Nothing -> R.fail "The selected tree passes validations"
+            Nothing -> R.fail "The selected tree passes validation"
             _ -> R.fail "The selected tree fails multiple validators"
 
 id : Tree -> R.Result String
@@ -45,11 +47,10 @@ request model =
         root = .get Model.root model
         tree_ = Tree.get selected root
         fileName = .fileName model
-        validatorName_ = R.map validatorName tree_ |>
-                         R.andThen getOnly
+        validatorName_ = R.andThen validatorName tree_
         treeId_ = Path.root selected |>
                  flip Tree.get root |>
-                 R.map id
+                 R.andThen id
 
     in
         R.map (\tree validatorName treeId ->
@@ -63,3 +64,7 @@ request model =
             tree_ |>
             R.andMap validatorName_ |>
             R.andMap treeId_
+
+fix : Model -> Return Msg Model
+fix model =
+    R.succeed model |> R.andDo request |> R.handle model

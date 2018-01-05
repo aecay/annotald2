@@ -36,6 +36,7 @@ import TreeEdit.Tree as Tree exposing (children)
 import TreeEdit.Tree.Decode exposing (decodeTrees)
 import TreeEdit.Tree.Encode exposing (encodeTrees)
 import TreeEdit.Utils as Utils
+import TreeEdit.Validate as Validate
 import TreeEdit.View as View
 import TreeEdit.View.LabelEdit as LabelEdit
 
@@ -158,6 +159,13 @@ update msg model =
                                                              (Cmd.Extra.perform (Metadata MetadataType.NewSelection))
                                             f -> Return.return model (Cmd.Extra.perform <| LogMessage <|
                                                                           "Save failure: " ++ toString f)
+                FixValidator -> Validate.fix model
+                FixValidatorDone data -> case data of
+                                             Success _ -> Return.singleton model
+                                             fail -> Return.return model <|
+                                                     Cmd.Extra.perform <|
+                                                     LogMessage <|
+                                                     "Fix failure: " ++ toString fail
                 Ignore -> Return.singleton model
 
 subscriptions : Model -> Sub Msg
