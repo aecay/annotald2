@@ -2,7 +2,7 @@ module TreeEdit.Metadata exposing (view, update)
 
 import Cmd.Extra
 import Dict exposing (Dict)
-import Html as Html exposing (div, text, button, Html, span)
+import Html as Html exposing (div, text, button, Html, span, ul, li)
 import Html.Attributes as Attr exposing (id)
 import Html.Events exposing (onClick)
 import Http exposing (encodeUri)
@@ -37,14 +37,46 @@ import TreeEdit.Result as R
 import TreeEdit.View.Theme exposing (theme)
 import TreeEdit.Msg as Msg
 
-fieldNames : List (String, Tree -> Bool)
-fieldNames = [ ("lemma", Tree.isTerminal)
-             , ("definition", Tree.isTerminal)
-             , ("old-tag", hasMetadata "OLD-TAG")
-             , ("case", isNominal)
-             , ("gender", isNominal)
-             , ("number", \x -> isNominal x || isVerb x)
-             , ("validation-error", hasMetadata "VALIDATION-ERROR")
+formatValue : String -> Html Msg
+formatValue value =
+    if value == ""
+    then Html.i [ Attr.style Css.textFieldAbsent ] [ text <| "not present" ]
+    else text value
+
+formatDefinition : String -> Html Msg
+formatDefinition value =
+    if (Debug.log "hi" value) == ""
+    then Html.i [ Attr.style Css.textFieldAbsent ] [ text <| "not present" ]
+    else if String.startsWith "[de]" (Debug.log "hi" value)
+         then
+             let
+                 linkify x = Html.a [Attr.href <| "https://www.dict.cc/?s=" ++ encodeUri x] [text x]
+                 pieces = String.split "," (String.dropLeft 5 value) |>
+                          List.map String.trim |>
+                          List.map linkify
+             in
+                 Html.span [] <| List.intersperse (text ", ") pieces
+         else text value
+
+formatValidationError : String -> Html Msg
+formatValidationError str =
+    String.split "\n" str |>
+    List.map (\x -> li [] [text x]) |>
+    ul []
+
+type alias Field = { name : String
+                   , predicate : Tree -> Bool
+                   , formatter : String -> Html Msg
+                   }
+
+fieldNames : List Field
+fieldNames = [ Field "lemma" Tree.isTerminal formatValue
+             , Field "definition" Tree.isTerminal formatDefinition
+             , Field "old-tag" (hasMetadata "OLD-TAG") formatValue
+             , Field "case" isNominal formatValue
+             , Field "gender" isNominal formatValue
+             , Field "number" (\x -> isNominal x || isVerb x) formatValue
+             , Field "validation-error" (hasMetadata "VALIDATION-ERROR") formatValidationError
              ]
 
 validation : Validation () Metadata
@@ -56,7 +88,7 @@ validation =
                      V.andThen (\dict -> V.field str (V.string |> V.maybe |> V.map (update str dict)))
         init = V.succeed Dict.empty
     in
-        List.foldl do init (List.map Tuple.first fieldNames)
+        List.foldl do init (List.map .name fieldNames)
 
 type FieldType = Writable | ReadOnly
 
@@ -87,31 +119,15 @@ textField fs form fieldType name format =
                        Hidden -> Debug.crash "impossible"
                  ]
 
-formatValue : String -> Html Msg
-formatValue value =
-    if value == ""
-    then Html.i [ Attr.style Css.textFieldAbsent ] [ text <| "not present" ]
-    else text value
-
-formatValueDefinition : String -> Html Msg
-formatValueDefinition value =
-    if (Debug.log "hi" value) == ""
-    then Html.i [ Attr.style Css.textFieldAbsent ] [ text <| "not present" ]
-    else if String.startsWith "[de]" (Debug.log "hi" value)
-         then
-             let
-                 linkify x = Html.a [Attr.href <| "https://www.dict.cc/?s=" ++ encodeUri x] [text x]
-                 pieces = String.split "," (String.dropLeft 5 value) |>
-                          List.map String.trim |>
-                          List.map linkify
-             in
-                 Html.span [] <| List.intersperse (text ", ") pieces
-         else text value
-
 formView : MetadataForm -> FieldStates -> Html Msg
 formView form state =
     let
-        field name = div [id ("formField-" ++ name)] [textField state form Writable name formatValue]
+        formatter name = fieldNames |>
+                         List.filter (\x -> .name x == name) |>
+                         List.map .formatter |>
+                         List.head |>
+                         Maybe.withDefault formatValue
+        field name = div [id ("formField-" ++ name)] [textField state form Writable name (formatter name)]
         condField condition name = if condition then field name else div [] []
         roField name = textField state form ReadOnly name formatValue
         -- TODO: remove, not needed(?)
@@ -122,9 +138,8 @@ formView form state =
 
     div [ id "metadataForm" ] <|
         [ field "lemma"
-        , if (Form.getFieldAsString "lemma" form |> .value) /= Just ""
-          then div [id ("formField-" ++ "definition")]
-              [textField state form Writable "definition" formatValueDefinition]
+        , if (Form.getFieldAsString "lemma" form |> .value) /= Just "" -- TODO: smelly
+          then field "definition"
           else div [] []
         , roField "old-tag"
         , roField "validation-error"
@@ -139,12 +154,12 @@ formView form state =
 
 init : Metadata -> Tree -> (MetadataForm, FieldStates)
 init metadata node = ( fieldNames |>
-                           List.map (\(name, _) -> Dict.get (String.toUpper name) metadata |>
+                           List.map (\{name} -> Dict.get (String.toUpper name) metadata |>
                                          Maybe.map (Form.Init.setString name)) |>
                            MX.values |>
                            flip Form.initial validation
-                     , Dict.fromList <| List.map (\(name, initState) ->
-                                                      (name, if initState node then Visible else Hidden))
+                     , Dict.fromList <| List.map (\{name, predicate} ->
+                                                      (name, if predicate node then Visible else Hidden))
                          fieldNames
                      )
 
