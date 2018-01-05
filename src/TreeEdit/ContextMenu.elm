@@ -11,11 +11,12 @@ import Html.Attributes as Attr
 import Mouse
 import Return exposing (Return)
 
+import TreeEdit.Config exposing (Config)
 import TreeEdit.Path as Path exposing (Path)
 import TreeEdit.Tree as Tree exposing (constants)
 import TreeEdit.Tree.Type exposing (Tree)
 import TreeEdit.Tree.View exposing (toPenn)
-import TreeEdit.Actions as Actions
+import TreeEdit.Action as Action
 import TreeEdit.Msg as Msg
 import TreeEdit.Model as Model
 import TreeEdit.Model.Type as ModelType
@@ -62,43 +63,41 @@ column headingText children = H.div [ Attr.style <| CMCss.column ++ [ ("width", 
                                     ] <|
                           [ heading headingText ] ++ children
 
+view1 : Config -> {x: Int, y: Int} -> Path -> Html Msg
+view1 config {x, y} path =
+    let
+        lb = leafBefore path
+        la = leafAfter path
+        tx = toggleExtension path
+        emptyCat {before, node} = ((if before then lb else la) node)
+    in
+        H.div [ Attr.style <| CMCss.contextMenu ++
+                    [ ("width", (toString <| 3 * colWidth) ++ "px")
+                    , ("left", toString x ++ "px")
+                    , ("top", toString y ++ "px")
+                    ]
+              , ViewUtils.onClick Ignore
+              ]
+            [ column "Label" []
+            , column "Add leaf" <| List.map emptyCat config.insertables
+            , column "Toggle ext." <| List.map tx config.dashTags
+            ]
+
 view : ModelType.Model -> Html Msg
 view parent =
     let
         model = .get Model.contextMenu parent
-        config = Model.config parent
+        viewPartial = view1 (Model.config parent) model.position
     in
-        case model.target of
-            Nothing -> H.div [] []
-            Just path ->
-                let
-                    lb = leafBefore path
-                    la = leafAfter path
-                    tx = toggleExtension path
-                in
-                    H.div [ Attr.style <| CMCss.contextMenu ++
-                                [ ("width", (toString <| 3 * colWidth) ++ "px")
-                                , ("left", toString model.position.x ++ "px")
-                                , ("top", toString model.position.y ++ "px")
-                                ]
-                          , ViewUtils.onClick Ignore
-                          ]
-                        [ column "Label" []
-                        , column "Add leaf" [ lb constants.con
-                                            , lb constants.pro
-                                            , lb constants.czero
-                                            , lb constants.comment
-                                            , la constants.comment
-                                            ]
-                        , column "Toggle ext." <| List.map tx config.dashTags
-                        ]
+        Maybe.map viewPartial model.target |>
+        Maybe.withDefault (H.div [] [])
 
 update : Msg -> ModelType.Model -> Return Msg.Msg ModelType.Model
 update msg model =
     case msg of
         LeafBefore path leaf ->
             .get Model.root model |>
-            Actions.leafBeforeInner leaf path |>
+            Action.leafBeforeInner leaf path |>
             R.map (flip (.set Model.root) model) |>
             R.handle model |>
             Return.map hide
