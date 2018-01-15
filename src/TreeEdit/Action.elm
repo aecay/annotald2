@@ -222,11 +222,16 @@ createParent label model =
 doMovement : Model -> Path -> Path -> Result
 doMovement model dest src =
     let
-        ind = (.get Model.root) model |>
-              Tree.get (Path.root src) |>
-              R.map Tree.highestIndex |>
-              R.withDefault 0 |>
-              (+) 1
+        root = (.get Model.root) model
+        indDef = root |>
+                 Tree.get (Path.root src) |>
+                 R.map Tree.highestIndex |>
+                 R.withDefault 0 |>
+                 (+) 1
+        ind = root |>
+              Tree.get src |>
+              R.andThen ((.get Tree.index) >> Maybe.map (.get Index.number) >> R.liftVal "index") |>
+              R.withDefault indDef
         m = doAt src (.set Tree.index <| Just <| Index.normal ind) model
         -- TODO: can get the trace from the passed in node, no need to
         -- separately pass the index
