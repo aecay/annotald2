@@ -21,6 +21,7 @@ node = D.map2 (,) (D.field "type" D.string) (D.field "text" D.string) |>
                                           "pro" -> D.succeed Pro
                                           "con" -> D.succeed Con
                                           "zero" -> D.succeed Zero
+                                          "exp" -> D.succeed Exp
                                           _ -> D.fail <| "Unknown ec type" ++ text
                          in
                              ectype |> D.map (\x -> EmptyCat x Nothing)
