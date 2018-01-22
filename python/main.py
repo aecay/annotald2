@@ -35,10 +35,11 @@ with open(DICT_FILE, "r") as fin:
 @hug.static("/static")
 def static():
     return (os.path.join(os.path.dirname(__file__), "static"),)
+
+
 @hug.get("/")
 def root():
     hug.redirect.permanent("/static/index.html")
-
 
 
 @hug.get('/files')
