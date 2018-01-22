@@ -4,6 +4,7 @@ module TreeEdit.Model exposing ( init
                                , contextMenu
                                , selected
                                , labelForm
+                               , Model
                                )
 
 import Monocle.Lens exposing (Lens, modify)
@@ -11,12 +12,15 @@ import Monocle.Optional exposing (Optional)
 import RemoteData exposing (WebData, RemoteData(..))
 
 import TreeEdit.Config as Config
+import TreeEdit.Dialog exposing (Dialog(Processing))
 import TreeEdit.Tree.Type exposing (Tree)
 import TreeEdit.Selection as Selection
 import TreeEdit.ContextMenuTypes as ContextMenuTypes
 import TreeEdit.View.LabelEdit.Type exposing (LabelForm)
 
-import TreeEdit.Model.Type exposing (Model)
+import TreeEdit.Model.Type
+
+type alias Model = TreeEdit.Model.Type.Model
 
 init : String -> Model
 init filename = { webdata = NotAsked

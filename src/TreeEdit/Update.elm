@@ -31,6 +31,7 @@ import TreeEdit.Model.Type exposing (Model)
 import TreeEdit.Msg as Msg exposing (Msg(..))
 import TreeEdit.Path as Path
 import TreeEdit.Result as R
+import TreeEdit.Save as Save
 import TreeEdit.Selection as Selection
 import TreeEdit.Tree as Tree exposing (children)
 import TreeEdit.Tree.Decode exposing (decodeTrees)
@@ -111,22 +112,9 @@ update msg model =
                                      }
                 LoadedData x ->
                     Debug.log ("fetch error: " ++ (toString x)) <| Return.singleton model
-                Save ->
-                    let
-                        root = .get Model.root model
-                        handle : (RemoteData.WebData () -> Msg)
-                        handle d = case d of
-                                       Success _ -> LogMessage "Save success"
-                                       f -> LogMessage <| "Save failure: " ++ toString f
-                    in
-                        Return.return model <|
-                            RemoteData.Http.post
-                                "/save"
-                                handle
-                                (D.succeed ())
-                                (E.object [ ("filename", E.string model.fileName)
-                                          , ("trees", encodeTrees <| Utils.fromJust <| .getOption children root)
-                                          ])
+                Save -> Save.perform model
+                SaveFailure reason -> Save.failure model reason
+                SaveSuccess -> Save.success model
                 LogMessage m -> Return.singleton { model | lastMessage = m }
                 CancelContext -> Return.singleton <| ContextMenu.hide model
                 Metadata submsg ->

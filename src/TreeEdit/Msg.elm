@@ -17,6 +17,8 @@ type Msg = ToggleSelect Path |
     Context ContextMenuTypes.Msg |
     LoadedData (WebData ((List Tree), Config)) |
     Save |
+    SaveSuccess |
+    SaveFailure String |
     LogMessage String |
     CancelContext |
     Metadata Metadata.Msg |
