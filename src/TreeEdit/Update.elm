@@ -3,17 +3,14 @@ module TreeEdit.Update exposing (update, subscriptions)
 -- Core libraries
 import Dict
 import Json.Decode as D
-import Json.Encode as E
 import Mouse
 
 -- Third party libraries
 
-import Cmd.Extra
 import Keyboard.Event exposing (KeyboardEvent, decodeKeyboardEvent)
 import Keyboard.Key as K
 import Monocle.Lens as Lens
 import RemoteData exposing (RemoteData(..))
-import RemoteData.Http
 import Return exposing (Return, singleton)
 import Return.Optics exposing (refracto)
 import ThirdParty.WindowEvents exposing (onWindow)
@@ -35,9 +32,6 @@ import TreeEdit.Result as R
 import TreeEdit.Save as Save
 import TreeEdit.Selection as Selection
 import TreeEdit.Tree as Tree exposing (children)
-import TreeEdit.Tree.Decode exposing (decodeTrees)
-import TreeEdit.Tree.Encode exposing (encodeTrees)
-import TreeEdit.Utils as Utils
 import TreeEdit.Validate as Validate
 import TreeEdit.View as View
 import TreeEdit.View.LabelEdit as LabelEdit
@@ -132,30 +126,15 @@ update msg model =
                 Copy (Success text) -> Return.singleton { model | dialog = Just <| Dialog.Copy text }
                 Copy _ -> Return.singleton model
                 DismissDialog -> Return.singleton { model | dialog = Nothing }
-                Validate -> Return.return model <|
-                            RemoteData.Http.post "/validate"
-                                Msg.ValidateDone
-                                decodeTrees <|
-                                E.object [ ("trees",
-                                           .get Model.root model |>
-                                           .getOption children |>
-                                           Utils.fromJust |>
-                                           encodeTrees
-                                           )
-                                         ]
-                ValidateDone webdata -> case webdata of
-                                            Success trees -> Return.return
-                                                             (.set Model.root (Tree.t "wtf" trees) model)
-                                                             (Cmd.Extra.perform (Metadata MetadataType.NewSelection))
-                                            f -> Return.return model (Cmd.Extra.perform <| LogMessage <|
-                                                                          "Save failure: " ++ toString f)
-                FixValidator -> Validate.fix model
-                FixValidatorDone data -> case data of
-                                             Success _ -> Return.singleton model
-                                             fail -> Return.return model <|
-                                                     Cmd.Extra.perform <|
-                                                     LogMessage <|
-                                                     "Fix failure: " ++ toString fail
+                Validate -> Validate.perform model
+                ValidateDone webdata -> Validate.done model webdata
+                -- FixValidator -> Validate.fix model
+                -- FixValidatorDone data -> case data of
+                --                              Success _ -> Return.singleton model
+                --                              fail -> Return.return model <|
+                --                                      Cmd.Extra.perform <|
+                --                                      LogMessage <|
+                --                                      "Fix failure: " ++ toString fail
                 Ignore -> Return.singleton model
 
 subscriptions : Model -> Sub Msg

@@ -28,6 +28,6 @@ type Msg = ToggleSelect Path |
     DismissDialog |
     Validate |
     ValidateDone (WebData (List Tree)) |
-    FixValidator |
-    FixValidatorDone (WebData ()) |
+    -- FixValidator |
+    -- FixValidatorDone (WebData ()) |
     Ignore
