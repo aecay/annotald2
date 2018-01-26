@@ -1,5 +1,5 @@
 click
-hug
+aiohttp
 decorator
 pygit2
 marshmallow
