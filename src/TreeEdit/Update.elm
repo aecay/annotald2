@@ -30,6 +30,7 @@ import TreeEdit.Model as Model exposing (root, selected, contextMenu)
 import TreeEdit.Model.Type exposing (Model)
 import TreeEdit.Msg as Msg exposing (Msg(..))
 import TreeEdit.Path as Path
+import TreeEdit.Ports as Ports
 import TreeEdit.Result as R
 import TreeEdit.Save as Save
 import TreeEdit.Selection as Selection
@@ -107,9 +108,10 @@ update msg model =
                 Context contextMsg ->
                     ContextMenu.update contextMsg model
                 LoadedData (Success (trees, config)) ->
-                    Return.singleton { model |
-                                       webdata = Success (Tree.t "wtf" trees, config, View.viewRootTree config)
-                                     }
+                    Return.return { model |
+                                        webdata = Success (Tree.t "wtf" trees, config, View.viewRootTree config)
+                                  }
+                        (Ports.openFile model.fileName)
                 LoadedData x ->
                     Debug.log ("fetch error: " ++ (toString x)) <| Return.singleton model
                 Save -> Save.perform model

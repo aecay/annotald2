@@ -33,6 +33,26 @@
           }
       });
 
+      var fileName;
+      app.ports.openFile.subscribe(function (fname) {
+          fileName = fname;
+          // Why do we do the below dance?  We want to scroll after the page
+          // has been populated by the Elm app.  The elm code runs on the
+          // animation frames.  So, we requestAnimationFrame to get there.
+          // But the page will only be complete *after* the animation frame is
+          // complete.  So we further do a setTimeout to run immediately after
+          // that, at which time we can do our scrolling.
+          window.requestAnimationFrame(function () {
+              setTimeout(function () {
+                  window.scrollTo(0, localStorage["scroll-" + fileName]);
+              }, 0);
+          });
+      });
+
+      window.addEventListener("beforeunload", function () {
+          localStorage["scroll-" + fileName] = window.pageYOffset;
+      });
+
       new Clipboard("#copyButton")
     </script>
   </body>
