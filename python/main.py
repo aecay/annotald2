@@ -1,18 +1,24 @@
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
+
 import glob
 import importlib.util
-import io
+# import io
 import json
 import os
 
 # import click
 from aiohttp import web
-import marshmallow.fields as fields
+# import marshmallow.fields as fields
 import pygit2
 
 import lovett.corpus
 from lovett.format import Deep, _Object   # TODO: don't use _Object
 
-import git_fns
+# import git_fns
+
+executor = ThreadPoolExecutor(max_workers=10)
+loop = asyncio.get_event_loop()
 
 
 # TODO: make these paths more modular
@@ -125,7 +131,7 @@ async def do_validate(request):
     trees = data["trees"]
     validate = import_validate()
     c = lovett.corpus.from_objects(trees)
-    validate.validate(c)
+    await loop.run_in_executor(executor, validate.validate, c)
     return web.Response(text=json.dumps(_Object.corpus(c)))
 
 
