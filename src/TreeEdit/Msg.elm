@@ -30,4 +30,6 @@ type Msg = ToggleSelect Path |
     ValidateDone (WebData (List Tree)) |
     -- FixValidator |
     -- FixValidatorDone (WebData ()) |
-    Ignore
+    Ignore |
+    Undo |
+    Redo

@@ -28,4 +28,6 @@ bindings = Dict.fromList <|
            , ( (0, toCode 'B'), Action.leafBefore constants.con )
            , ( (0, toCode 'L'), Action.editLabel )
            , ( (1, toCode 'C'), Clipboard.copy )
+           , ( (0, toCode 'Z'), Action.undo )
+           , ( (1, toCode 'Z'), Action.redo )
            ]

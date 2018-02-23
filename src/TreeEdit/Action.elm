@@ -29,6 +29,7 @@ import Monocle.Common exposing ((=>), maybe)
 
 -- Third party
 
+import Cmd.Extra exposing (perform)
 import List.Extra exposing (zip)
 
 -- Annotald packages
@@ -39,6 +40,7 @@ import TreeEdit.Path as Path exposing (Path)
 import TreeEdit.Utils as Utils
 import TreeEdit.Model as Model
 import TreeEdit.Model.Type exposing (Model)
+import TreeEdit.Msg exposing (Msg(Undo, Redo))
 import TreeEdit.Selection as Selection
 import TreeEdit.Index as Index exposing (normal, Variety(..))
 import TreeEdit.View.LabelEdit as LabelEdit
@@ -347,3 +349,9 @@ toggleDashTag tag path model =
             (labels |> R.map (List.filter ((/=) tag) >> String.join "-"))
             (labels |> R.map ((\x -> x ++ [tag]) >> String.join "-")) |>
         R.andThen (\x -> doAt path (setLabel x) model)
+
+undo : Model -> Result
+undo _ = R.fail "bogus message" |> R.do (perform Undo)
+
+redo : Model -> Result
+redo _ = R.fail "bogus message" |> R.do (perform Redo)

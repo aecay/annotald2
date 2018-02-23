@@ -32,6 +32,7 @@ import TreeEdit.Result as R
 import TreeEdit.Save as Save
 import TreeEdit.Selection as Selection
 import TreeEdit.Tree as Tree exposing (children)
+import TreeEdit.Undo as Undo
 import TreeEdit.Validate as Validate
 import TreeEdit.View as View
 import TreeEdit.View.LabelEdit as LabelEdit
@@ -128,13 +129,8 @@ update msg model =
                 DismissDialog -> Return.singleton { model | dialog = Nothing }
                 Validate -> Validate.perform model
                 ValidateDone webdata -> Validate.done model webdata
-                -- FixValidator -> Validate.fix model
-                -- FixValidatorDone data -> case data of
-                --                              Success _ -> Return.singleton model
-                --                              fail -> Return.return model <|
-                --                                      Cmd.Extra.perform <|
-                --                                      LogMessage <|
-                --                                      "Fix failure: " ++ toString fail
+                Undo -> Undo.undo model
+                Redo -> Undo.redo model
                 Ignore -> Return.singleton model
 
 subscriptions : Model -> Sub Msg

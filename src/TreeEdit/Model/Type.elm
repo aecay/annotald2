@@ -21,4 +21,6 @@ type alias Model = { selected: Selection.Selection
                    , webdata : WebData (Tree, Config, (Maybe (List Path.Path, Maybe LabelForm) -> Int -> Tree -> Html Msg.Msg))
                    , labelForm: Maybe LabelForm
                    , dialog : Maybe Dialog
+                   , undo : List Tree
+                   , redo: List Tree
                    }

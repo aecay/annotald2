@@ -28,6 +28,7 @@ import Return
 import Toolkit.Helpers exposing (uncurry3)
 
 import TreeEdit.Msg exposing (Msg)
+import TreeEdit.Model as Model
 import TreeEdit.Model.Type exposing (Model)
 
 type alias Message = String
@@ -163,7 +164,16 @@ handle : Model -> Result Model -> Return.Return Msg Model
 handle model result =
     case result of
         Result msgs cmds (Just newModel) ->
-            Return.return { newModel | lastMessage = String.join "\n" msgs } (Cmd.batch cmds)
+            let
+                oldRoot = .get Model.root model
+            in
+                Return.return { newModel |
+                                lastMessage = String.join "\n" msgs
+                              , undo = oldRoot :: model.undo
+                              , redo = []
+                              }
+                (Cmd.batch cmds)
         Result msgs cmds Nothing ->
-            -- TODO: cmds should always be empty in this case
+            -- TODO: cmds should always be empty in this case...update: not
+            -- true for undo/redo
             Return.return { model | lastMessage = String.join "\n" msgs } (Cmd.batch cmds)
