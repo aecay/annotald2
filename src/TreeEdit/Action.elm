@@ -12,6 +12,8 @@ module TreeEdit.Action exposing ( clearSelection
                                 , finishLabelEdit
                                 , editLabel
                                 , toggleDashTag
+                                , undo
+                                , redo
                         )
 
 -- This module contains the types and functions for creating *actions*, or
