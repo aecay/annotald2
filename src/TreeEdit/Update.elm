@@ -56,82 +56,79 @@ update msg model =
     let
         disableMouse = editingMetadata model || editingLabel model
     in
-        if False -- TODO: dummy to prevent reindenting everything yet
-        then Return.singleton model
-        else
-            case msg of
-                ToggleSelect z -> -- TODO: probably want to name this
-                                  -- something like "click"
-                    if disableMouse
-                    then Return.singleton model
-                    else
-                        Return.singleton
-                            ((ContextMenu.hide >> Lens.modify selected (Selection.updateWith z))
-                                 model) |>
-                        -- TODO: use return.optics here
-                        Return.andThen (\x -> Metadata.update x MetadataType.NewSelection)
-                KeyMsg {shiftKey, keyCode} ->
-                    let
-                        key = Maybe.map (\x -> (if shiftKey then 1 else 0, x)) (K.code keyCode)
-                        binding = Maybe.andThen (flip Dict.get bindings) key |>
-                                  R.liftVal "Key is not bound"
-                    in
-                        R.andThen (\x -> x model) binding |>
-                        R.handle model |>
-                        Return.andThen (\x -> Metadata.update x MetadataType.NewSelection)
-                RightClick path position ->
-                    if disableMouse
-                    then Return.singleton model
-                    else
-                        (Selection.perform model.selected
-                             (Return.singleton <| ContextMenu.show position path model)
-                             (\sel -> if path == sel
-                                      then Return.singleton model |> -- Rightclick only selection -> show context menu
-                                           Return.map (Lens.modify selected (Selection.updateWith sel)) |>
-                                           Return.map (ContextMenu.show position path)
-                                      else Action.doMove sel path model |> R.handle model)
-                             (\_ _ -> Return.singleton model)) -- TODO: support moving multiple nodes
-                RightClickRoot ->
-                    if disableMouse
-                    then Return.singleton model
-                    else
-                        (Selection.perform model.selected
-                             (Return.singleton model)
-                             (\sel -> Action.doMove sel Path.RootPath model |> R.handle model)
-                             (\_ _ -> Return.singleton model)) -- TODO: support moving multiple
-                                                                     -- nodes
-                Context contextMsg ->
-                    ContextMenu.update contextMsg model
-                LoadedData (Success (trees, config)) ->
-                    Return.return { model |
-                                        webdata = Success (Tree.t "wtf" trees, config, View.viewRootTree config)
-                                  }
-                        (Ports.openFile model.fileName)
-                LoadedData x ->
-                    Debug.log ("fetch error: " ++ (toString x)) <| Return.singleton model
-                Save -> Save.perform model
-                SaveFailure reason -> Save.failure model reason
-                SaveSuccess -> Save.success model
-                LogMessage m -> Return.singleton { model | lastMessage = m }
-                CancelContext -> Return.singleton <| ContextMenu.hide model
-                Metadata submsg ->
-                    let
-                        (newmodel, subcmd) = Metadata.update model submsg
-                    in
-                        Return.return newmodel subcmd
-                Label submsg -> Return.singleton model |> refracto Model.labelForm Msg.Label (LabelEdit.update submsg)
-                LabelKey {keyCode} -> case keyCode of
-                                          K.Enter -> R.handle model <| Action.finishLabelEdit model
-                                          K.Escape -> Return.singleton { model | labelForm = Nothing }
-                                          _ -> Return.singleton model
-                Copy (Success text) -> Return.singleton { model | dialog = Just <| Dialog.Copy text }
-                Copy _ -> Return.singleton model
-                DismissDialog -> Return.singleton { model | dialog = Nothing }
-                Validate -> Validate.perform model
-                ValidateDone webdata -> Validate.done model webdata
-                Undo -> Undo.undo model
-                Redo -> Undo.redo model
-                Ignore -> Return.singleton model
+        case msg of
+            ToggleSelect z -> -- TODO: probably want to name this
+                              -- something like "click"
+                if disableMouse
+                then Return.singleton model
+                else
+                    Return.singleton
+                        ((ContextMenu.hide >> Lens.modify selected (Selection.updateWith z))
+                             model) |>
+                    -- TODO: use return.optics here
+                    Return.andThen (\x -> Metadata.update x MetadataType.NewSelection)
+            KeyMsg {shiftKey, keyCode} ->
+                let
+                    key = Maybe.map (\x -> (if shiftKey then 1 else 0, x)) (K.code keyCode)
+                    binding = Maybe.andThen (flip Dict.get bindings) key |>
+                              R.liftVal "Key is not bound"
+                in
+                    R.andThen (\x -> x model) binding |>
+                    R.handle model |>
+                    Return.andThen (\x -> Metadata.update x MetadataType.NewSelection)
+            RightClick path position ->
+                if disableMouse
+                then Return.singleton model
+                else
+                    (Selection.perform model.selected
+                         (Return.singleton <| ContextMenu.show position path model)
+                         (\sel -> if path == sel
+                                  then Return.singleton model |> -- Rightclick only selection -> show context menu
+                                       Return.map (Lens.modify selected (Selection.updateWith sel)) |>
+                                       Return.map (ContextMenu.show position path)
+                                  else Action.doMove sel path model |> R.handle model)
+                         (\_ _ -> Return.singleton model)) -- TODO: support moving multiple nodes
+            RightClickRoot ->
+                if disableMouse
+                then Return.singleton model
+                else
+                    (Selection.perform model.selected
+                         (Return.singleton model)
+                         (\sel -> Action.doMove sel Path.RootPath model |> R.handle model)
+                         (\_ _ -> Return.singleton model)) -- TODO: support moving multiple
+                                                                 -- nodes
+            Context contextMsg ->
+                ContextMenu.update contextMsg model
+            LoadedData (Success (trees, config)) ->
+                Return.return { model |
+                                    webdata = Success (Tree.t "wtf" trees, config, View.viewRootTree config)
+                              }
+                    (Ports.openFile model.fileName)
+            LoadedData x ->
+                Debug.log ("fetch error: " ++ (toString x)) <| Return.singleton model
+            Save -> Save.perform model
+            SaveFailure reason -> Save.failure model reason
+            SaveSuccess -> Save.success model
+            LogMessage m -> Return.singleton { model | lastMessage = m }
+            CancelContext -> Return.singleton <| ContextMenu.hide model
+            Metadata submsg ->
+                let
+                    (newmodel, subcmd) = Metadata.update model submsg
+                in
+                    Return.return newmodel subcmd
+            Label submsg -> Return.singleton model |> refracto Model.labelForm Msg.Label (LabelEdit.update submsg)
+            LabelKey {keyCode} -> case keyCode of
+                                      K.Enter -> R.handle model <| Action.finishLabelEdit model
+                                      K.Escape -> Return.singleton { model | labelForm = Nothing }
+                                      _ -> Return.singleton model
+            Copy (Success text) -> Return.singleton { model | dialog = Just <| Dialog.Copy text }
+            Copy _ -> Return.singleton model
+            DismissDialog -> Return.singleton { model | dialog = Nothing }
+            Validate -> Validate.perform model
+            ValidateDone webdata -> Validate.done model webdata
+            Undo -> Undo.undo model
+            Redo -> Undo.redo model
+            Ignore -> Return.singleton model
 
 subscriptions : Model -> Sub Msg
 subscriptions m =
