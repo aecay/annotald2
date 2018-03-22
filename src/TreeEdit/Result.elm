@@ -30,6 +30,7 @@ import Toolkit.Helpers exposing (uncurry3)
 import TreeEdit.Msg exposing (Msg)
 import TreeEdit.Model as Model
 import TreeEdit.Model.Type exposing (Model)
+import TreeEdit.Ports exposing (dirty)
 
 type alias Message = String
 
@@ -172,7 +173,7 @@ handle model result =
                               , undo = oldRoot :: model.undo
                               , redo = []
                               }
-                (Cmd.batch cmds)
+                (Cmd.batch <| (dirty True) :: cmds)
         Result msgs cmds Nothing ->
             -- TODO: cmds should always be empty in this case...update: not
             -- true for undo/redo

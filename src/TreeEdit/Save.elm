@@ -11,6 +11,7 @@ import Return exposing (Return)
 import TreeEdit.Dialog exposing (Dialog(Processing))
 import TreeEdit.Model as Model exposing (Model)
 import TreeEdit.Msg exposing (Msg(SaveFailure, SaveSuccess, LogMessage))
+import TreeEdit.Ports exposing (dirty)
 import TreeEdit.Tree as Tree
 import TreeEdit.Tree.Encode exposing (encodeTrees)
 import TreeEdit.Utils as Utils
@@ -35,7 +36,9 @@ perform model =
 
 success : Model -> Return Msg Model
 success model =
-    Return.return { model | dialog = Nothing } (CX.perform <| LogMessage "Save success")
+    Return.return { model | dialog = Nothing } <| Cmd.batch [ (CX.perform <| LogMessage "Save success")
+                                                            , dirty False
+                                                            ]
 
 failure : Model -> String -> Return Msg Model
 failure model reason =

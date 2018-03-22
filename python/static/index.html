@@ -53,7 +53,18 @@
           localStorage["scroll-" + fileName] = window.pageYOffset;
       });
 
-      new Clipboard("#copyButton")
+      new Clipboard("#copyButton");
+
+      var dirty = false;
+      app.ports.dirty.subscribe(function (isDirty) {
+          dirty = isDirty;
+      });
+
+      window.addEventListener("beforeunload", function (e) {
+          if (dirty) {
+              e.returnValue = "Your work may not be saved."
+          }
+      });
     </script>
   </body>
 </html>
