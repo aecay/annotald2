@@ -35,7 +35,7 @@ perform model =
 done : Model -> WebData (List Tree) -> Return Msg Model
 done model webdata =
     let
-        newModel = {model | dialog = Nothing}
+        newModel = { model | dialog = Nothing }
     in
         case webdata of
             Success trees -> Return.return
