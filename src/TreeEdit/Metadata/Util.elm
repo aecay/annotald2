@@ -2,11 +2,24 @@ module TreeEdit.Metadata.Util exposing ( isNominal
                                        , isVerb
                                        , capitalize
                                        , hasMetadata
+                                       , formatters
+                                       , Formatter
+                                       , widgets
+                                       , EditWidget
                                        )
 
 import Dict
+import Html as Html exposing (Html, text, li, ul)
+import Html.Attributes as Attr
+import Http exposing (encodeUri)
 import Set exposing (Set)
 
+import Form
+import Form.Input as Input exposing (Input)
+import Guards exposing (..)
+
+import TreeEdit.Metadata.Css as Css
+import TreeEdit.Metadata.Type exposing (Msg(Form))
 import TreeEdit.Tree as Tree
 import TreeEdit.Tree.Type exposing (Tree)
 
@@ -31,3 +44,60 @@ hasMetadata key t = .get Tree.metadata t |> Dict.get key |> (/=) Nothing
 
 capitalize : String -> String
 capitalize s = String.toUpper (String.left 1 s) ++ String.dropLeft 1 s
+
+type alias Formatter = String -> Html Msg
+
+formatters :
+    { definition : Formatter
+    , validationError : Formatter
+    , value : Formatter
+    }
+formatters =
+    let
+        value val =
+            if val == ""
+            then Html.i [ Attr.style Css.textFieldAbsent ] [ text <| "not present" ]
+            else text val
+
+        -- Helper functions for definition
+        linkify x = Html.a [Attr.href <| "https://www.dict.cc/?s=" ++ encodeUri x] [text x]
+        pieces x = String.split "," (String.dropLeft 5 x) |>
+                   List.map String.trim |>
+                   List.map linkify
+        definition value =
+            let
+                empty = Html.i [ Attr.style Css.textFieldAbsent ] [ text <| "not present" ]
+                dictLink = Html.span [] <| List.intersperse (text ", ") (pieces value)
+            in
+                   value == ""                    => empty
+                |= String.startsWith "[de]" value => dictLink
+                |=                                   text value
+
+        validationError str =
+            String.split "\n" str |>
+            List.map (\x -> li [] [text x]) |>
+            ul []
+    in
+        { value = value
+        , definition = definition
+        , validationError = validationError
+        }
+
+type alias EditWidget = Form.FieldState () String -> Html Msg
+
+widgets :
+    { options : List String -> EditWidget
+    , textbox : EditWidget
+    }
+widgets =
+    let
+        textbox contents = Html.map Form <|
+                           Input.textInput contents [ Attr.style [("width", "100%")] ]
+
+        options opts contents =
+            Html.map Form <|
+            Input.selectInput (List.map (\x -> (x,x)) opts) contents [ Attr.style [("width", "100%")] ]
+    in
+        { textbox = textbox
+        , options = options
+        }

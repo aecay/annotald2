@@ -14,7 +14,7 @@ type alias Metadata = Dict String String
 
 type alias MetadataForm = Form () Metadata
 
-type FieldState = Visible | Editing | Hidden
+type FieldState = Hidden | Visible Bool
 
 type alias FieldStates = Dict String FieldState
 

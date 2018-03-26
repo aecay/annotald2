@@ -5,7 +5,6 @@ import Dict exposing (Dict)
 import Html as Html exposing (div, text, button, Html, span, ul, li)
 import Html.Attributes as Attr exposing (id)
 import Html.Events exposing (onClick)
-import Http exposing (encodeUri)
 import Json.Decode as D
 import Json.Encode as E
 import Keyboard.Key as K
@@ -18,7 +17,6 @@ import RemoteData.Http as Net
 import Return exposing (Return)
 
 import Form exposing (Form)
-import Form.Input as Input
 import Form.Init
 import Form.Field
 import Form.Validate as V exposing (Validation)
@@ -36,48 +34,39 @@ import TreeEdit.Selection as Selection
 import TreeEdit.Result as R
 import TreeEdit.View.Theme exposing (theme)
 import TreeEdit.Msg as Msg
+import TreeEdit.Utils exposing (fromJust)
 
-formatValue : String -> Html Msg
-formatValue value =
-    if value == ""
-    then Html.i [ Attr.style Css.textFieldAbsent ] [ text <| "not present" ]
-    else text value
+type alias FieldInfo = { predicate : Tree -> Bool
+                       , formatter : Formatter
+                       , widget : Maybe EditWidget
+                       }
 
-formatDefinition : String -> Html Msg
-formatDefinition value =
-    if (Debug.log "hi" value) == ""
-    then Html.i [ Attr.style Css.textFieldAbsent ] [ text <| "not present" ]
-    else if String.startsWith "[de]" (Debug.log "hi" value)
-         then
-             let
-                 linkify x = Html.a [Attr.href <| "https://www.dict.cc/?s=" ++ encodeUri x] [text x]
-                 pieces = String.split "," (String.dropLeft 5 value) |>
-                          List.map String.trim |>
-                          List.map linkify
-             in
-                 Html.span [] <| List.intersperse (text ", ") pieces
-         else text value
+lemma      : FieldInfo
+lemma      = FieldInfo Tree.isTerminal                 formatters.value      <| Just widgets.textbox
+definition : FieldInfo
+definition = FieldInfo Tree.isTerminal                 formatters.definition <| Just widgets.textbox
+gender     : FieldInfo
+gender     = FieldInfo isNominal                       formatters.value      Nothing
+number     : FieldInfo
+number     = FieldInfo (\x -> isNominal x || isVerb x) formatters.value      Nothing
 
-formatValidationError : String -> Html Msg
-formatValidationError str =
-    String.split "\n" str |>
-    List.map (\x -> li [] [text x]) |>
-    ul []
+case_ : FieldInfo
+case_ =
+    let
+        caseOptions = ["nom", "gen", "dat", "akk"]
+    in
+        FieldInfo isNominal formatters.value <| Just <| widgets.options caseOptions
 
-type alias Field = { name : String
-                   , predicate : Tree -> Bool
-                   , formatter : String -> Html Msg
-                   }
-
-fieldNames : List Field
-fieldNames = [ Field "lemma" Tree.isTerminal formatValue
-             , Field "definition" Tree.isTerminal formatDefinition
-             , Field "old-tag" (hasMetadata "OLD-TAG") formatValue
-             , Field "case" isNominal formatValue
-             , Field "gender" isNominal formatValue
-             , Field "number" (\x -> isNominal x || isVerb x) formatValue
-             , Field "validation-error" (hasMetadata "VALIDATION-ERROR") formatValidationError
-             ]
+fieldInfo : Dict String FieldInfo
+fieldInfo = Dict.fromList
+            [ ("lemma", lemma)
+            , ("definition", definition)
+            , ("old-tag", FieldInfo (hasMetadata "OLD-TAG") formatters.value Nothing)
+            , ("case", case_)
+            , ("gender", gender)
+            , ("number", number)
+            , ("validation-error", FieldInfo (hasMetadata "VALIDATION-ERROR") formatters.validationError Nothing)
+            ]
 
 validation : Validation () Metadata
 validation =
@@ -88,80 +77,80 @@ validation =
                      V.andThen (\dict -> V.field str (V.string |> V.maybe |> V.map (update str dict)))
         init = V.succeed Dict.empty
     in
-        List.foldl do init (List.map .name fieldNames)
+        List.foldl do init (Dict.keys fieldInfo)
 
-type FieldType = Writable | ReadOnly
-
-textField : FieldStates -> MetadataForm -> FieldType -> String -> (String -> Html Msg) -> Html Msg
-textField fs form fieldType name format =
+field : FieldStates -> MetadataForm -> String -> Html Msg
+field fs form name =
     let
         state = Dict.get name fs |> Maybe.withDefault Hidden
         contents = Form.getFieldAsString name form
-        editButton name = case fieldType of
-                           ReadOnly -> span [] []
-                           Writable -> button [ onClick <| Edit name , Attr.style Css.editButton ] [ text "✎" ]
+        info = Dict.get name fieldInfo |> fromJust
+        editButton name = case info.widget of
+                           Nothing -> span [] []
+                           Just _ -> button [ onClick <| Edit name , Attr.style Css.editButton ] [ text "✎" ]
         deleteButton name = button [ onClick <| Delete name , Attr.style Css.editButton ] [ text "X" ]
     in
         case state of
             Hidden -> div [] []
-            _ -> div [ Attr.style Css.textField ]
-                 [ div [ Attr.style Css.textFieldInner ]
-                       [ text <| capitalize name ]
-                 , case state of
-                       Editing -> Html.map Form <|
-                                  Input.textInput contents [ Attr.style [("width", "100%")] ]
-                       Visible -> span [ Attr.style Css.textFieldEditContainer ]
-                                  [ format (contents.value |> Maybe.withDefault "")
-                                  , span [ Attr.style [("flex-grow", "2")]] []
-                                  , editButton name
-                                  , deleteButton name
-                                  ]
-                       Hidden -> Debug.crash "impossible"
-                 ]
+            Visible editing -> div [ Attr.style Css.textField ]
+                               [ div [ Attr.style Css.textFieldInner ]
+                                 [ text <| capitalize name ]
+                               , case editing of
+                                     True -> (info.widget |> Maybe.withDefault widgets.textbox) contents
+                                     False -> span [ Attr.style Css.textFieldEditContainer ]
+                                              [ info.formatter (contents.value |> Maybe.withDefault "")
+                                              , span [ Attr.style [("flex-grow", "2")]] []
+                                              , editButton name
+                                              , deleteButton name
+                                              ]
+                               ]
 
 formView : MetadataForm -> FieldStates -> Html Msg
 formView form state =
     let
-        formatter name = fieldNames |>
-                         List.filter (\x -> .name x == name) |>
-                         List.map .formatter |>
-                         List.head |>
-                         Maybe.withDefault formatValue
-        field name = div [id ("formField-" ++ name)] [textField state form Writable name (formatter name)]
-        condField condition name = if condition then field name else div [] []
-        roField name = textField state form ReadOnly name formatValue
-        -- TODO: remove, not needed(?)
-        -- roCondField name = if (Form.getFieldAsString name form |> .value) /= Just ""
-        --                    then roField name
-        --                    else div [] []
+        formatter name = fieldInfo |>
+                         Dict.get name |>
+                         fromJust |>
+                         .formatter
+        f name = div [id ("formField-" ++ name)] [field state form name]
+        -- condField condition name = if condition then field name else div [] []
     in
 
-    div [ id "metadataForm" ] <|
-        [ field "lemma"
-        , if (Form.getFieldAsString "lemma" form |> .value) /= Just "" -- TODO: smelly
-          then field "definition"
-          else div [] []
-        , roField "old-tag"
-        , roField "validation-error"
-        , roField "case"
-        , roField "gender"
-        , roField "number"
-        ] ++
-        if List.any ((==) Editing) <| Dict.values state
-        then [ div [ Attr.style Css.saveButtonContainer ]
-                   [ button [ onClick Save ] [ text "Save" ] ] ]
-        else []
+        div [ id "metadataForm" ] <|
+            [ f "lemma"
+            , if (Form.getFieldAsString "lemma" form |> .value) /= Just "" -- TODO: smelly
+              then f "definition"
+              else div [] []
+            , f "old-tag"
+            , f "validation-error"
+            , f "case"
+            , f "gender"
+            , f "number"
+            ] ++
+            if List.any ((==) (Visible True)) <| Dict.values state
+            then [ div [ Attr.style Css.saveButtonContainer ]
+                       [ button [ onClick Save ] [ text "Save" ] ] ]
+            else []
 
 init : Metadata -> Tree -> (MetadataForm, FieldStates)
-init metadata node = ( fieldNames |>
-                           List.map (\{name} -> Dict.get (String.toUpper name) metadata |>
-                                         Maybe.map (Form.Init.setString name)) |>
-                           MX.values |>
-                           flip Form.initial validation
-                     , Dict.fromList <| List.map (\{name, predicate} ->
-                                                      (name, if predicate node then Visible else Hidden))
-                         fieldNames
-                     )
+init metadata node =
+    let
+        fieldNames = Dict.keys fieldInfo
+    in
+
+        ( fieldNames |>
+              List.map (\name -> Dict.get (String.toUpper name) metadata |>
+                            Maybe.map (Form.Init.setString name)) |>
+              MX.values |>
+              flip Form.initial validation
+        , fieldNames |>
+              List.map (\name ->
+                            let
+                                predicate = Dict.get name fieldInfo |> fromJust |> .predicate
+                            in
+                                (name, if predicate node then Visible False else Hidden)) |>
+              Dict.fromList
+        )
 
 type alias Updater = Maybe String -> Tree -> Return Msg.Msg Tree
 
@@ -173,6 +162,9 @@ genericU key newVal sel =
 
 lemmaU : Updater
 lemmaU = genericU "LEMMA"
+
+caseU : Updater
+caseU = genericU "CASE"
 
 oldTagU : Updater
 oldTagU = genericU "OLD-TAG"
@@ -201,7 +193,7 @@ performUpdate formOut metadataForm field updater ret =
         dirty = metadataForm |> -- TODO: could pass something smaller to this fn
                 Maybe.map Tuple.second |>
                 Maybe.andThen (Dict.get field) |>
-                Maybe.map ((==) Editing) |>
+                Maybe.map ((==) (Visible True)) |>
                 Maybe.withDefault False
         fieldValue = Dict.get field formOut
         do = updater fieldValue
@@ -238,6 +230,7 @@ save metadata model =
                     doUpdate "lemma" lemmaU |>
                     doUpdate "definition" definitionU |>
                     doUpdate "old-tag" oldTagU |>
+                    doUpdate "case" caseU |>
                     Debug.log "after updates" |>
                     Return.map (\newLeaf -> Tree.set selection newLeaf root |>
                                         R.withDefault root) |>
@@ -267,7 +260,7 @@ update model msg =
         Edit fieldName -> Return.return { model | metadataForm =
                                               Optional.modify
                                               (Optional.composeLens maybe second)
-                                              (Dict.update fieldName (always <| Just Editing))
+                                              (Dict.update fieldName (always <| Just <| Visible <| True))
                                               model.metadataForm
                                         }
                           (TreeEdit.Ports.editing True)

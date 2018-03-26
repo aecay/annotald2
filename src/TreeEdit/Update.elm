@@ -43,7 +43,7 @@ editingMetadata model = model.metadataForm |>
                         Maybe.map Tuple.second |>
                         Maybe.withDefault Dict.empty |>
                         Dict.values |>
-                        List.any ((==) MetadataType.Editing)
+                        List.any ((==) (MetadataType.Visible True))
 
 editingLabel : Model -> Bool
 editingLabel model =
