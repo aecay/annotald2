@@ -61,8 +61,8 @@ def config(request):
 
 
 @routes.get("/lemmata")
-def lemmata():
-    return web.response(text=json.dumps([{"original": lemma, "normalized": unidecode(lemma)}
+def lemmata(request):
+    return web.Response(text=json.dumps([{"original": lemma, "normalized": unidecode(lemma)}
                                          for lemma in DICT.keys()]))
 
 

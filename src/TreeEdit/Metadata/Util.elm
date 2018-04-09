@@ -26,6 +26,7 @@ import TreeEdit.Metadata.Css as Css
 import TreeEdit.Metadata.Type exposing (Msg(Form, LemmaSelect), Model, Lemma)
 import TreeEdit.Tree as Tree
 import TreeEdit.Tree.Type exposing (Tree)
+import TreeEdit.View.Theme as Theme
 
 nominalTagInitials : Set Char
 nominalTagInitials = Set.fromList [ 'N', 'D' ]
@@ -97,7 +98,11 @@ lemmaSelectConfig =
         Select.withCutoff 5 |>
         Select.withInputId "lemma-select" |>
         Select.withItemHtml (\i -> Html.li [] [ text i.original ]) |>
-        Select.withFuzzyMatching False
+        Select.withMenuStyles [ ("background-color", .tan Theme.theme)
+                              , ("border", "2px solid " ++ .darkTan Theme.theme)] |>
+        Select.withItemStyles [ ("list-style-type", "none")
+                              , ("align", "left")
+                              ]
 
 lemmaSelect : Model -> Form.FieldState () String -> Html Msg
 lemmaSelect model state =

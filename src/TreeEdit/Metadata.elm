@@ -336,13 +336,21 @@ update model msg =
                         _ -> Return.singleton model
         LemmaSelect msg ->
             let
-                state = model.metadataForm |> Maybe.map .lemmaSelectState |> fromJust
-                (newState, cmd) = Select.update lemmaSelectConfig msg state
-                newForm = model.metadataForm |> Maybe.map (\x -> { x | lemmaSelectState = newState })
+                -- State can be nothing in the case where we have used ESC to
+                -- cancel editing the metadata entirely.  So we need to handle
+                -- that case; otherwise this logic would be simpler
+                state_ = model.metadataForm |> Maybe.map .lemmaSelectState
             in
-                cmd |>
-                Cmd.map Msg.Metadata |>
-                Return.return { model | metadataForm = newForm }
+                case state_ of
+                    Just state ->
+                        let
+                            (newState, cmd) = Select.update lemmaSelectConfig msg state
+                            newForm = model.metadataForm |> Maybe.map (\x -> { x | lemmaSelectState = newState })
+                        in
+                            cmd |>
+                            Cmd.map Msg.Metadata |>
+                            Return.return { model | metadataForm = newForm }
+                    Nothing -> Return.singleton model
 
 view : BigModel.Model -> Html Msg
 view model =
