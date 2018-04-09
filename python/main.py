@@ -10,7 +10,7 @@ import os
 # import click
 from aiohttp import web
 # import marshmallow.fields as fields
-import pygit2
+# import pygit2
 
 import lovett.corpus
 from lovett.format import Deep, _Object   # TODO: don't use _Object
@@ -29,10 +29,10 @@ CONFIG_FILE = "/home/aecay/projects/chlg/config.json"
 VALIDATORS_PATH = "/home/aecay/projects/chlg/doc/validate.py"
 VALIDATOR_DB_PATH = "/home/aecay/projects/chlg/validators.json"
 
-signature_annotald = pygit2.Signature("Annotald", "aaronecay+annotald@gmail.com")
-global_config = pygit2.Config.get_global_config()
-signature_user = pygit2.Signature(global_config["user.name"],
-                                  global_config["user.email"])
+# signature_annotald = pygit2.Signature("Annotald", "aaronecay+annotald@gmail.com")
+# global_config = pygit2.Config.get_global_config()
+# signature_user = pygit2.Signature(global_config["user.name"],
+#                                   global_config["user.email"])
 
 with open(DICT_FILE, "r") as fin:
     DICT = json.load(fin)
