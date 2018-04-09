@@ -10,8 +10,6 @@ import Json.Encode as E
 import Keyboard.Key as K
 import Maybe.Extra as MX
 import Monocle.Lens as Lens
-import Monocle.Optional as Optional
-import Monocle.Common exposing (first, second, maybe)
 import RemoteData exposing (RemoteData(..), WebData)
 import RemoteData.Http as Net
 import Return exposing (Return)
@@ -21,6 +19,8 @@ import Form.Init
 import Form.Field
 import Form.Validate as V exposing (Validation)
 
+import Select
+
 import TreeEdit.Metadata.Type exposing (..)
 import TreeEdit.Metadata.Css as Css
 import TreeEdit.Metadata.Util exposing (..)
@@ -28,7 +28,7 @@ import TreeEdit.Selection exposing (Selection)
 import TreeEdit.Tree as Tree
 import TreeEdit.Tree.Type exposing (Tree)
 import TreeEdit.Model as Model
-import TreeEdit.Model.Type exposing (Model)
+import TreeEdit.Model.Type as BigModel
 import TreeEdit.Ports
 import TreeEdit.Selection as Selection
 import TreeEdit.Result as R
@@ -42,7 +42,7 @@ type alias FieldInfo = { predicate : Tree -> Bool
                        }
 
 lemma      : FieldInfo
-lemma      = FieldInfo Tree.isTerminal                 formatters.value      <| Just widgets.textbox
+lemma      = FieldInfo Tree.isTerminal                 formatters.value      <| Nothing
 definition : FieldInfo
 definition = FieldInfo Tree.isTerminal                 formatters.definition <| Just widgets.textbox
 gender     : FieldInfo
@@ -79,12 +79,15 @@ validation =
     in
         List.foldl do init (Dict.keys fieldInfo)
 
-field : FieldStates -> MetadataForm -> String -> Html Msg
-field fs form name =
+field : Model -> String -> Html Msg
+field model name =
     let
-        state = Dict.get name fs |> Maybe.withDefault Hidden
-        contents = Form.getFieldAsString name form
-        info = Dict.get name fieldInfo |> fromJust
+        state = Dict.get name model.fieldStates |> Maybe.withDefault Hidden
+        contents = Form.getFieldAsString name model.form
+        infoPre = Dict.get name fieldInfo |> fromJust
+        info = if name == "lemma"
+               then { infoPre | widget = Just <| lemmaSelect model }
+               else infoPre
         editButton name = case info.widget of
                            Nothing -> span [] []
                            Just _ -> button [ onClick <| Edit name , Attr.style Css.editButton ] [ text "✎" ]
@@ -105,15 +108,10 @@ field fs form name =
                                               ]
                                ]
 
-formView : MetadataForm -> FieldStates -> Html Msg
-formView form state =
+formView : Model -> Html Msg
+formView ({lemmata, form, fieldStates} as model) =
     let
-        formatter name = fieldInfo |>
-                         Dict.get name |>
-                         fromJust |>
-                         .formatter
-        f name = div [id ("formField-" ++ name)] [field state form name]
-        -- condField condition name = if condition then field name else div [] []
+        f name = div [id ("formField-" ++ name)] [field model name]
     in
 
         div [ id "metadataForm" ] <|
@@ -127,30 +125,31 @@ formView form state =
             , f "gender"
             , f "number"
             ] ++
-            if List.any ((==) (Visible True)) <| Dict.values state
+            if List.any ((==) (Visible True)) <| Dict.values fieldStates
             then [ div [ Attr.style Css.saveButtonContainer ]
                        [ button [ onClick Save ] [ text "Save" ] ] ]
             else []
 
-init : Metadata -> Tree -> (MetadataForm, FieldStates)
-init metadata node =
+init : List Lemma -> Metadata -> Tree -> Model
+init lemmata metadata node =
     let
         fieldNames = Dict.keys fieldInfo
     in
-
-        ( fieldNames |>
-              List.map (\name -> Dict.get (String.toUpper name) metadata |>
-                            Maybe.map (Form.Init.setString name)) |>
-              MX.values |>
-              flip Form.initial validation
-        , fieldNames |>
-              List.map (\name ->
-                            let
-                                predicate = Dict.get name fieldInfo |> fromJust |> .predicate
-                            in
-                                (name, if predicate node then Visible False else Hidden)) |>
-              Dict.fromList
-        )
+        { form = fieldNames |>
+                 List.map (\name -> Dict.get (String.toUpper name) metadata |>
+                           Maybe.map (Form.Init.setString name)) |>
+                 MX.values |>
+                 flip Form.initial validation
+        , fieldStates = fieldNames |>
+                        List.map (\name ->
+                                      let
+                                          predicate = Dict.get name fieldInfo |> fromJust |> .predicate
+                                      in
+                                          (name, if predicate node then Visible False else Hidden)) |>
+                        Dict.fromList
+        , lemmaSelectState = Select.newState "lemma"
+        , lemmata = lemmata
+        }
 
 type alias Updater = Maybe String -> Tree -> Return Msg.Msg Tree
 
@@ -185,13 +184,13 @@ definitionU newDef sel =
         Maybe.withDefault Cmd.none |>
         Return.return sel
 
-performUpdate : Dict String String -> Maybe (MetadataForm, FieldStates) ->
+performUpdate : Dict String String -> Maybe Model ->
                 String -> Updater ->
                 Return Msg.Msg Tree -> Return Msg.Msg Tree
 performUpdate formOut metadataForm field updater ret =
     let
         dirty = metadataForm |> -- TODO: could pass something smaller to this fn
-                Maybe.map Tuple.second |>
+                Maybe.map .fieldStates |>
                 Maybe.andThen (Dict.get field) |>
                 Maybe.map ((==) (Visible True)) |>
                 Maybe.withDefault False
@@ -202,7 +201,7 @@ performUpdate formOut metadataForm field updater ret =
         then Return.andThen do ret
         else ret
 
-save : Metadata -> Model -> Return Msg.Msg Model
+save : Metadata -> BigModel.Model -> Return Msg.Msg BigModel.Model
 save metadata model =
     let
         root = model |> .get Model.root
@@ -237,54 +236,62 @@ save metadata model =
                     Return.map (\x -> .set Model.root x model)
             _ -> Return.singleton model
 
-update : Model -> Msg -> Return Msg.Msg Model
+update : BigModel.Model -> Msg -> Return Msg.Msg BigModel.Model
 update model msg =
     case msg of
         ReceivedDefinition s -> case s of
                                     Success definition -> Return.singleton
                                                           { model | metadataForm =
-                                                                Optional.modify
-                                                                (Optional.composeLens maybe first)
-                                                                (Form.update
-                                                                     validation
-                                                                     (Form.Input "definition" Form.Text (Form.Field.String definition)))
+                                                                Maybe.map (\x -> { x |
+                                                                                   form = Form.update
+                                                                                          validation
+                                                                                          (Form.Input
+                                                                                               "definition"
+                                                                                               Form.Text
+                                                                                               (Form.Field.String definition))
+                                                                                          x.form
+                                                                                 })
                                                                 model.metadataForm
                                                           }
                                     _ -> Return.singleton model
         Form submsg -> Return.singleton { model | metadataForm =
-                                              Optional.modify
-                                              (Optional.composeLens maybe first)
-                                              (Form.update validation submsg)
+                                              Maybe.map (\x -> { x |
+                                                                 form = Form.update validation submsg x.form
+                                                               })
                                               model.metadataForm
                                         }
         Edit fieldName -> Return.return { model | metadataForm =
-                                              Optional.modify
-                                              (Optional.composeLens maybe second)
-                                              (Dict.update fieldName (always <| Just <| Visible <| True))
+                                              Maybe.map (\x -> { x |
+                                                                 fieldStates = Dict.update
+                                                                               fieldName
+                                                                               (always <| Just <| Visible <| True)
+                                                                               x.fieldStates
+                                                               })
                                               model.metadataForm
                                         }
                           (TreeEdit.Ports.editing True)
-        Delete fieldName -> let
-            root = model |> .get Model.root
-            selected = model |> .get Model.selected
-        in
-            case Selection.first selected of
-                Just path ->
-                    let
-                        selectedNode = Tree.get path root |> R.withDefault (Tree.l "foo" "bar")
-                    in
-                        Return.singleton selectedNode |>
-                        Return.andThen (genericU fieldName Nothing) |>
-                        Return.map (\newLeaf -> Tree.set path newLeaf root |>
-                                        R.withDefault root) |>
-                        Return.map (\x -> .set Model.root x model) |>
-                        Return.command (Cmd.Extra.perform (Msg.Metadata NewSelection))
-                Nothing -> Return.singleton model
+        Delete fieldName ->
+            let
+                root = model |> .get Model.root
+                selected = model |> .get Model.selected
+            in
+                case Selection.first selected of
+                    Just path ->
+                        let
+                            selectedNode = Tree.get path root
+                        in
+                            selectedNode |>
+                            R.map (Lens.modify Tree.metadata (Dict.update fieldName (always Nothing))) |>
+                            R.andThen (\newLeaf -> Tree.set path newLeaf root) |>
+                            R.map (\x -> .set Model.root x model) |>
+                            R.handle model |>
+                            Return.command (Cmd.Extra.perform (Msg.Metadata NewSelection))
+                    Nothing -> Return.singleton model
         Save ->
             let
-                _ = model.metadataForm |> Maybe.map (Tuple.first >> Form.getErrors) |> Debug.log "out"
+                _ = model.metadataForm |> Maybe.map (.form >> Form.getErrors) |> Debug.log "out"
             in
-                case model.metadataForm |> Maybe.andThen (Tuple.first >> Form.getOutput) |> Debug.log "out" of
+                case model.metadataForm |> Maybe.andThen (.form >> Form.getOutput) |> Debug.log "out" of
                     Just metadata -> save metadata model |>
                                      Return.command (Cmd.map Msg.Metadata <| Cmd.Extra.perform NewSelection) |>
                                      Return.command (TreeEdit.Ports.editing False)
@@ -314,21 +321,33 @@ update model msg =
                                                 D.string
                                     in
                                         Return.return { model | metadataForm = Just <|
-                                                            init metadata node
+                                                            init (Model.lemmata model) metadata node
                                                       }
                                             (lemma |> Maybe.map req |>
                                                  Maybe.withDefault Cmd.none |> Cmd.map Msg.Metadata)
-                                False -> Return.singleton { model | metadataForm =  Just <| init metadata node}
+                                False -> Return.singleton
+                                         { model | metadataForm =
+                                               Just <| init (Model.lemmata model) metadata node
+                                         }
                     _ -> Return.singleton { model | metadataForm = Nothing }
         SaveSuccess lemma -> Return.singleton { model | lastMessage = "Saved definition for lemma " ++ lemma }
         Key {keyCode} -> case keyCode of
                         K.Escape -> Return.return { model | metadataForm = Nothing } (TreeEdit.Ports.editing False)
                         _ -> Return.singleton model
+        LemmaSelect msg ->
+            let
+                state = model.metadataForm |> Maybe.map .lemmaSelectState |> fromJust
+                (newState, cmd) = Select.update lemmaSelectConfig msg state
+                newForm = model.metadataForm |> Maybe.map (\x -> { x | lemmaSelectState = newState })
+            in
+                cmd |>
+                Cmd.map Msg.Metadata |>
+                Return.return { model | metadataForm = newForm }
 
-view : Model -> Html Msg
+view : BigModel.Model -> Html Msg
 view model =
     case model.metadataForm of
-        Just (form, state) -> div [ id "metadata-editor"
+        Just model -> div [ id "metadata-editor"
                                   , Attr.style [ ("background-color", theme.offWhite2)
                                                , ("padding-bottom", "2px")
                                                ]
@@ -341,6 +360,6 @@ view model =
                                                  , ("text-align", "center")
                                                  ]
                                     ] [ text "Metadata" ]
-                              , formView form state
+                              , formView model
                               ]
         Nothing -> div [] []

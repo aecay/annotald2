@@ -6,6 +6,8 @@ module TreeEdit.Metadata.Util exposing ( isNominal
                                        , Formatter
                                        , widgets
                                        , EditWidget
+                                       , lemmaSelect
+                                       , lemmaSelectConfig
                                        )
 
 import Dict
@@ -15,11 +17,13 @@ import Http exposing (encodeUri)
 import Set exposing (Set)
 
 import Form
+import Form.Field as Field
 import Form.Input as Input exposing (Input)
 import Guards exposing (..)
+import Select
 
 import TreeEdit.Metadata.Css as Css
-import TreeEdit.Metadata.Type exposing (Msg(Form))
+import TreeEdit.Metadata.Type exposing (Msg(Form, LemmaSelect), Model, Lemma)
 import TreeEdit.Tree as Tree
 import TreeEdit.Tree.Type exposing (Tree)
 
@@ -82,6 +86,28 @@ formatters =
         , definition = definition
         , validationError = validationError
         }
+
+lemmaSelectConfig : Select.Config Msg Lemma
+lemmaSelectConfig =
+    let
+        reset value = Form.Reset [("lemma", Field.string value.original)]
+        onSelect item = item |> Maybe.map reset |> Maybe.withDefault Form.NoOp |> Form
+    in
+        Select.newConfig onSelect .normalized |>
+        Select.withCutoff 5 |>
+        Select.withInputId "lemma-select" |>
+        Select.withItemHtml (\i -> Html.li [] [ text i.original ]) |>
+        Select.withFuzzyMatching False
+
+lemmaSelect : Model -> Form.FieldState () String -> Html Msg
+lemmaSelect model state =
+    let
+        value = state.value |> Maybe.withDefault ""
+        initial = List.filter (\{original} -> original == value) model.lemmata |>
+                  List.head
+    in
+        Select.view lemmaSelectConfig model.lemmaSelectState model.lemmata initial |>
+        Html.map LemmaSelect
 
 type alias EditWidget = Form.FieldState () String -> Html Msg
 

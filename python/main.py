@@ -11,6 +11,8 @@ import os
 from aiohttp import web
 # import marshmallow.fields as fields
 # import pygit2
+from unidecode import unidecode
+
 
 import lovett.corpus
 from lovett.format import Deep, _Object   # TODO: don't use _Object
@@ -56,6 +58,12 @@ def files(request):
 def config(request):
     with open(CONFIG_FILE) as fin:
         return web.Response(text=fin.read())
+
+
+@routes.get("/lemmata")
+def lemmata():
+    return web.response(text=json.dumps([{"original": lemma, "normalized": unidecode(lemma)}
+                                         for lemma in DICT.keys()]))
 
 
 @routes.get("/file")

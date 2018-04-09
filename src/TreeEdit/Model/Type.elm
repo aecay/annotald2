@@ -17,8 +17,13 @@ type alias Model = { selected: Selection.Selection
                    , lastMessage: String
                    , contextMenu: ContextMenuTypes.Model
                    , fileName : String
-                   , metadataForm : Maybe (Metadata.MetadataForm, Metadata.FieldStates)
-                   , webdata : WebData (Tree, Config, (Maybe (List Path.Path, Maybe LabelForm) -> Int -> Tree -> Html Msg.Msg))
+                   , metadataForm : Maybe Metadata.Model
+                   , webdata : WebData { root : Tree
+                                       , config : Config
+                                       , viewFn : (Maybe (List Path.Path, Maybe LabelForm) ->
+                                                       Int -> Tree -> Html Msg.Msg)
+                                       , lemmata : List Metadata.Lemma
+                                       }
                    , labelForm: Maybe LabelForm
                    , dialog : Maybe Dialog
                    , undo : List Tree

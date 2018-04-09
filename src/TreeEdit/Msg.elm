@@ -15,7 +15,7 @@ type Msg = ToggleSelect Path |
     RightClick Path ContextMenuTypes.Position |
     RightClickRoot |
     Context ContextMenuTypes.Msg |
-    LoadedData (WebData ((List Tree), Config)) |
+    LoadedData (WebData (List Tree, Config, List Metadata.Lemma)) |
     Save |
     SaveSuccess |
     SaveFailure String |

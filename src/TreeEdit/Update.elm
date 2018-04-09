@@ -40,7 +40,7 @@ import TreeEdit.View.LabelEdit as LabelEdit
 
 editingMetadata : Model -> Bool
 editingMetadata model = model.metadataForm |>
-                        Maybe.map Tuple.second |>
+                        Maybe.map .fieldStates |>
                         Maybe.withDefault Dict.empty |>
                         Dict.values |>
                         List.any ((==) (MetadataType.Visible True))
@@ -99,9 +99,13 @@ update msg model =
                                                                  -- nodes
             Context contextMsg ->
                 ContextMenu.update contextMsg model
-            LoadedData (Success (trees, config)) ->
+            LoadedData (Success (trees, config, lemmata)) ->
                 Return.return { model |
-                                    webdata = Success (Tree.t "wtf" trees, config, View.viewRootTree config)
+                                    webdata = Success { root = Tree.t "wtf" trees
+                                                      , config = config
+                                                      , viewFn = View.viewRootTree config
+                                                      , lemmata = lemmata
+                                                      }
                               }
                     (Ports.openFile model.fileName)
             LoadedData x ->

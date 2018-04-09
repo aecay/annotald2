@@ -4,6 +4,7 @@ module TreeEdit.Model exposing ( init
                                , contextMenu
                                , selected
                                , labelForm
+                               , lemmata
                                , Model
                                )
 
@@ -12,7 +13,7 @@ import Monocle.Optional exposing (Optional)
 import RemoteData exposing (WebData, RemoteData(..))
 
 import TreeEdit.Config as Config
-import TreeEdit.Dialog exposing (Dialog(Processing))
+import TreeEdit.Metadata.Type exposing (Lemma)
 import TreeEdit.Tree.Type exposing (Tree)
 import TreeEdit.Selection as Selection
 import TreeEdit.ContextMenuTypes as ContextMenuTypes
@@ -42,17 +43,17 @@ root : Lens Model Tree
 root =
     let
         get m = case m.webdata of
-                    Success (root, _, _) -> root
+                    Success {root} -> root
                     _ -> Debug.crash "Tried to get the root when no data was loaded"
         set tree m = case m.webdata of
-                         Success (_, config, viewFn) -> { m | webdata = Success (tree, config, viewFn) }
+                         Success val -> { m | webdata = Success { val | root = tree } }
                          _ -> Debug.crash "Tried to set the root when no data was loaded"
     in
         Lens get set
 
 config : Model -> Config.Config
 config m = case m.webdata of
-               Success (_, config, _) -> config
+               Success {config} -> config
                _ -> Debug.crash "Tried to get the config when no data was loaded"
 
 selected : Lens Model Selection.Selection
@@ -65,6 +66,12 @@ labelForm =
         set form m = { m | labelForm = Just form }
     in
         Optional getOption set
+
+lemmata : Model -> List Lemma
+lemmata m =
+    case m.webdata of
+        Success {lemmata} -> lemmata
+        _ -> []
 
 -- doRoot : (Tree -> R.Result Tree) -> Model -> Model
 -- doRoot = R.modify root

@@ -3,12 +3,15 @@ module TreeEdit.Metadata.Type exposing ( Metadata
                                        , FieldState(..)
                                        , FieldStates
                                        , Msg(..)
+                                       , Model
+                                       , Lemma
                                        )
 
 import Dict exposing (Dict)
 import Keyboard.Event exposing (KeyboardEvent)
 import Form exposing (Form)
 import RemoteData exposing (WebData)
+import Select
 
 type alias Metadata = Dict String String
 
@@ -18,6 +21,16 @@ type FieldState = Hidden | Visible Bool
 
 type alias FieldStates = Dict String FieldState
 
+type alias Lemma = { original : String
+                   , normalized : String
+                   }
+
+type alias Model = { form : MetadataForm
+                   , fieldStates : FieldStates
+                   , lemmaSelectState : Select.State
+                   , lemmata : List Lemma
+                   }
+
 type Msg = ReceivedDefinition (WebData String) |
     Form Form.Msg |
     Edit String |
@@ -26,4 +39,5 @@ type Msg = ReceivedDefinition (WebData String) |
     Cancel |
     NewSelection |
     SaveSuccess String |
-    Key KeyboardEvent
+    Key KeyboardEvent |
+    LemmaSelect (Select.Msg Lemma)

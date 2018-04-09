@@ -160,7 +160,7 @@ view model =
             NotAsked -> loading
             Loading -> loading
             Failure e -> div [] [ text <| "error " ++ toString e ]
-            Success (root, _, viewRootFn) ->
+            Success {root, viewFn} ->
                 div [] [ model.dialog |> Maybe.map Dialog.view |> Maybe.withDefault (div [] [])
                        , div [ Attr.style Css.toolbar ]
                            [ ToolBar.view model.fileName
@@ -169,6 +169,6 @@ view model =
                        , div [ Attr.style Css.messages ]
                            [ div [ Attr.style Css.titlebar ] [ text "Messages" ]
                            , text model.lastMessage ]
-                       , viewRoot model root viewRootFn |> wrapSn0
+                       , viewRoot model root viewFn |> wrapSn0
                        , map Msg.Context <| ContextMenu.view model
                        ]
