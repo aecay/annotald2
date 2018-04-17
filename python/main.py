@@ -70,7 +70,7 @@ def lemmata(request):
 def get_file(request):
     name = request.query["name"]
     path = os.path.join(CORPUS_PATH, name)
-    with open(path) as fin:
+    with open(path) as fin:  # TODO: async
         corpus = lovett.corpus.from_file(fin, Deep)
     return web.json_response(text=json.dumps(_Object.corpus(corpus)))
 
