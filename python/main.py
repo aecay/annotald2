@@ -118,7 +118,9 @@ async def as_text(request):
     data = await request.json()
     tree = data["tree"]
     t = lovett.tree.from_object(tree)
-    return web.json_response(t.format(lovett.format.Penn))
+    # TODO: remove validation errors from result
+    return web.json_response({"penn": t.format(lovett.format.Penn),
+                              "deep": t.format(lovett.format.Deep)})
 
 
 def import_validate():

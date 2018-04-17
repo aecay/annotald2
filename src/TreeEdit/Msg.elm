@@ -4,6 +4,7 @@ import Keyboard.Event exposing (KeyboardEvent)
 import RemoteData exposing (WebData)
 
 import TreeEdit.Config exposing (Config)
+import TreeEdit.Clipboard.Type as Clipboard
 import TreeEdit.Path exposing (Path)
 import TreeEdit.ContextMenuTypes as ContextMenuTypes
 import TreeEdit.Tree.Type exposing (Tree)
@@ -24,7 +25,7 @@ type Msg = ToggleSelect Path |
     Metadata Metadata.Msg |
     Label Label.Msg |
     LabelKey KeyboardEvent |
-    Copy (WebData String) |
+    Copy (WebData Clipboard.Response) |
     DismissDialog |
     Validate |
     ValidateDone (WebData (List Tree)) |

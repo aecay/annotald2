@@ -54,6 +54,7 @@
       });
 
       new Clipboard("#copyButton");
+      new Clipboard("#copyDeepButton");
 
       var dirty = false;
       app.ports.dirty.subscribe(function (isDirty) {

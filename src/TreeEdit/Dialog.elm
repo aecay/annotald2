@@ -4,11 +4,22 @@ import Html exposing (div, textarea, text, button, Html, img)
 import Html.Attributes as Attr exposing (style, src)
 import Html.Events as E
 
+import TreeEdit.Clipboard.Type as Clipboard
 import TreeEdit.Msg exposing (Msg(DismissDialog))
 import TreeEdit.View.Css as ViewCss
 
-type Dialog = Copy String |
+type Dialog = Copy Clipboard.Response |
     Processing String
+
+copyField : String -> String -> String -> Html Msg
+copyField contents id btn =
+    div [] [ textarea [ Attr.id (id ++ "Source"), Attr.readonly True ] [text contents]
+           , button [ Attr.id id
+                    , E.onClick DismissDialog
+                    , Attr.attribute "data-clipboard-target" ("#" ++ id ++ "Source")
+                    ]
+                 [text btn]
+           ]
 
 view : Dialog -> Html Msg
 view dialog =
@@ -17,13 +28,9 @@ view dialog =
                     Copy _ -> "Copy tree"
                     Processing _ -> "Processing..."
         view = case dialog of
-                   Copy txt -> div [] [ textarea [ Attr.id "copySource", Attr.readonly True ] [text txt]
-                                      , button [ Attr.id "copyButton"
-                                               , E.onClick DismissDialog
-                                               , Attr.attribute "data-clipboard-target" "#copySource"
-                                               ]
-                                            [text "Copy"]
-                                      ]
+                   Copy response -> div [] [ copyField response.penn "copyButton" "Copy"
+                                           , copyField response.deep "copyDeepButton" "Copy deep format"
+                                           ]
                    Processing txt -> div [ style [ ("text-align", "center")
                                                  , ("margin-top", "16px")
                                                  ]

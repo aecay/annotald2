@@ -6,6 +6,7 @@ import Json.Encode as E
 import RemoteData.Http as Http
 
 import TreeEdit.Action exposing (Action)
+import TreeEdit.Clipboard.Type exposing (..)
 import TreeEdit.Model as Model
 import TreeEdit.Msg exposing (Msg(Copy))
 import TreeEdit.Result as R exposing (Result)
@@ -21,6 +22,7 @@ copy model =
         tree = Selection.withOne selected extract <| R.fail "foo"
         treeVal = R.map encodeTree tree
         requestData = R.map (\x -> E.object [("tree", x)]) treeVal
-        action = R.map (Http.post "/as_text" Copy D.string) requestData
+        decoder = D.map2 Response (D.field "penn" D.string) (D.field "deep" D.string)
+        action = R.map (Http.post "/as_text" Copy decoder) requestData
     in
         R.succeed model |> R.andDo (always action)
