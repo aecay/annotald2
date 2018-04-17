@@ -1,5 +1,7 @@
 module TreeEdit.Metadata.Util exposing ( isNominal
                                        , isVerb
+                                       , isPreposition
+                                       , eitherP
                                        , capitalize
                                        , hasMetadata
                                        , formatters
@@ -43,6 +45,12 @@ isNominal = hasInitial nominalTagInitials
 
 isVerb : Tree -> Bool
 isVerb = hasInitial <| Set.singleton 'V'
+
+isPreposition : Tree -> Bool
+isPreposition t = t.label == "APPR"
+
+eitherP : (Tree -> Bool) -> (Tree -> Bool) -> Tree -> Bool
+eitherP x y t = (x t) || (y t)
 
 hasMetadata : String -> Tree -> Bool
 hasMetadata key t = .get Tree.metadata t |> Dict.get key |> (/=) Nothing
@@ -99,10 +107,15 @@ lemmaSelectConfig =
         Select.withInputId "lemma-select" |>
         Select.withItemHtml (\i -> Html.li [] [ text i.original ]) |>
         Select.withMenuStyles [ ("background-color", .tan Theme.theme)
-                              , ("border", "2px solid " ++ .darkTan Theme.theme)] |>
+                              , ("border", "2px solid " ++ .darkTan Theme.theme)
+                              , ("width", "100%")
+                              ] |>
         Select.withItemStyles [ ("list-style-type", "none")
                               , ("align", "left")
-                              ]
+                              , ("padding", "4px")
+                              ] |>
+        Select.withHighlightedItemStyles [ ("background-color", .salmon Theme.theme) ] |>
+        Select.withClearStyles [ ("visibility", "hidden") ]
 
 lemmaSelect : Model -> Form.FieldState () String -> Html Msg
 lemmaSelect model state =

@@ -54,8 +54,9 @@ case_ : FieldInfo
 case_ =
     let
         caseOptions = ["nom", "gen", "dat", "akk"]
+        pred = eitherP isNominal isPreposition
     in
-        FieldInfo isNominal formatters.value <| Just <| widgets.options caseOptions
+        FieldInfo pred formatters.value <| Just <| widgets.options caseOptions
 
 fieldInfo : Dict String FieldInfo
 fieldInfo = Dict.fromList
