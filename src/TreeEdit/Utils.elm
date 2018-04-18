@@ -3,11 +3,14 @@ module TreeEdit.Utils exposing ( fromJust
                                , insert
                                , insertMany
                                , sort2
+                               , cmds
+                               , cmd
                                )
 
+import Debug
 import List
 
-import Debug
+import Cmd.Extra
 
 -- Zero-based indexing, returns items [i,j)
 splice : Int -> Int -> List a -> (List a, List a, List a)
@@ -34,3 +37,9 @@ fromJust x = case x of
 
 sort2 : comparable -> comparable -> (comparable, comparable)
 sort2 a b = if a < b then (a, b) else (b, a)
+
+cmds : List a -> Cmd a
+cmds msgs = List.map Cmd.Extra.perform msgs |> Cmd.batch
+
+cmd : a -> Cmd a
+cmd = Cmd.Extra.perform

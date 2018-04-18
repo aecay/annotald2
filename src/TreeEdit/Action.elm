@@ -31,7 +31,6 @@ import Monocle.Common exposing ((=>), maybe)
 
 -- Third party
 
-import Cmd.Extra exposing (perform)
 import List.Extra exposing (zip)
 
 -- Annotald packages
@@ -353,7 +352,7 @@ toggleDashTag tag path model =
         R.andThen (\x -> doAt path (setLabel x) model)
 
 undo : Model -> Result
-undo _ = R.fail "bogus message" |> R.do (perform Undo)
+undo _ = R.fail "bogus message" |> R.do (Utils.cmd Undo)
 
 redo : Model -> Result
-redo _ = R.fail "bogus message" |> R.do (perform Redo)
+redo _ = R.fail "bogus message" |> R.do (Utils.cmd Redo)

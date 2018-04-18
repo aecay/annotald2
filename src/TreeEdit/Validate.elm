@@ -2,7 +2,6 @@ module TreeEdit.Validate exposing (perform, done)
 
 import Json.Encode as E
 
-import Cmd.Extra
 import RemoteData exposing (RemoteData(..), WebData)
 import RemoteData.Http
 import Return exposing (Return)
@@ -40,9 +39,10 @@ done model webdata =
         case webdata of
             Success trees -> Return.return
                              (.set Model.root (Tree.t "wtf" trees) newModel)
-                             (Cmd.Extra.perform (Msg.Metadata MetadataType.NewSelection))
-            f -> Return.return newModel (Cmd.Extra.perform <| Msg.LogMessage <|
-                                             "Validation failure: " ++ toString f)
+                             <| Utils.cmds [ Msg.Metadata MetadataType.NewSelection
+                                           , Msg.LogMessage "Validate success"
+                                           ]
+            f -> Return.return newModel <| Utils.cmd <| Msg.LogMessage <| "Validation failure: " ++ toString f
 
 -- validatorName : Tree -> R.Result String
 -- validatorName tree =
