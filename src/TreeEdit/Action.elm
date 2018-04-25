@@ -240,9 +240,12 @@ doMovement model dest src =
         -- separately pass the index
         trace : R.Result Tree
         trace = m |> R.map (.get Model.root) |> R.andThen (Tree.get src) |> R.map (flip Tree.makeTrace <| Index.normal ind)
+        sameRoot = Path.root src == Path.root dest
     in
-        R.andThen3 createLeaf trace m (R.succeed dest) |>
-        R.map (.set Model.selected <| Selection.one dest)
+        if sameRoot
+        then R.andThen3 createLeaf trace m (R.succeed dest) |>
+             R.map (.set Model.selected <| Selection.one dest)
+        else R.fail "Can't make movement trace across different root nodes"
 
 leafBeforeInner : Tree -> Path -> Tree -> R.Result Tree
 leafBeforeInner newLeaf path tree =
