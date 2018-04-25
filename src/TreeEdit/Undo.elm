@@ -6,6 +6,7 @@ import Return exposing (Return, singleton, return)
 import TreeEdit.Model as Model
 import TreeEdit.Model.Type exposing (Model)
 import TreeEdit.Msg exposing (Msg(LogMessage))
+import TreeEdit.Selection as Selection
 
 undo : Model -> Return Msg Model
 undo ({undo, redo} as m) =
@@ -19,6 +20,7 @@ undo ({undo, redo} as m) =
                 singleton { newModel |
                             undo = rest
                           , redo = redoTree :: redo
+                          , selected = Selection.empty
                           }
 
 
@@ -34,4 +36,5 @@ redo ({undo, redo} as m) =
                 singleton { newModel |
                             redo = rest
                           , undo = undoTree :: undo
+                          , selected = Selection.empty
                           }
