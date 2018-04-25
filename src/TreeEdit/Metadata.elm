@@ -19,6 +19,8 @@ import Form.Init
 import Form.Field
 import Form.Validate as V exposing (Validation)
 
+import Maybe.Extra
+import OrderedDict as OD
 import Select
 
 import TreeEdit.Metadata.Type exposing (..)
@@ -36,19 +38,55 @@ import TreeEdit.View.Theme exposing (theme)
 import TreeEdit.Msg as Msg
 import TreeEdit.Utils exposing (fromJust)
 
+type alias Updater = String -> Maybe String -> Tree -> Return Msg.Msg Tree
+
+fnUpdater : (String -> String) -> Updater
+fnUpdater fn key newVal sel =
+    sel |>
+    Lens.modify Tree.metadata (Dict.update key (always <| Maybe.map fn newVal)) |>
+    Return.singleton
+
+genericUpdater : Updater
+genericUpdater =
+    fnUpdater identity
+
+definitionUpdater : Updater
+definitionUpdater _ newDef sel =
+    let
+        l = (.get Tree.metadata) sel |> Dict.get "LEMMA"
+        updateCmd def lemma = Net.post
+                              "/dictentry"
+                              (always <| Msg.Metadata <| SaveSuccess lemma)
+                              (D.succeed ())
+                              (E.object [ ("lemma", E.string lemma)
+                                        , ("definition", E.string def)
+                                        ])
+    in
+        Maybe.map2 updateCmd newDef l |>
+        Maybe.withDefault Cmd.none |>
+        Return.return sel
+
 type alias FieldInfo = { predicate : Tree -> Bool
                        , formatter : Formatter
-                       , widget : Maybe EditWidget
+                       , editInfo : Maybe (EditWidget, Updater)
                        }
 
 lemma      : FieldInfo
-lemma      = FieldInfo Tree.isTerminal                 formatters.value      <| Nothing
+lemma      = FieldInfo Tree.isTerminal                 formatters.value      <| Just (widgets.textbox,
+                                                                                          -- The widget will actually
+                                                                                          -- get swapped out below as
+                                                                                          -- a special case,
+                                                                                          -- since it needs to take the
+                                                                                          -- model as an argument
+                                                                                          genericUpdater)
 definition : FieldInfo
-definition = FieldInfo Tree.isTerminal                 formatters.definition <| Just widgets.textbox
+definition = FieldInfo (hasMetadata "LEMMA")           formatters.definition <| Just (widgets.textbox, definitionUpdater)
 gender     : FieldInfo
 gender     = FieldInfo isNominal                       formatters.value      Nothing
 number     : FieldInfo
 number     = FieldInfo (\x -> isNominal x || isVerb x) formatters.value      Nothing
+origTag    : FieldInfo
+origTag    = FieldInfo Tree.isTerminal                 formatters.value      <| Just (widgets.textbox, fnUpdater String.toUpper)
 
 case_ : FieldInfo
 case_ =
@@ -56,13 +94,13 @@ case_ =
         caseOptions = ["nom", "gen", "dat", "akk"]
         pred = eitherP isNominal isPreposition
     in
-        FieldInfo pred formatters.value <| Just <| widgets.options caseOptions
+        FieldInfo pred formatters.value <| Just (widgets.options caseOptions, genericUpdater)
 
-fieldInfo : Dict String FieldInfo
-fieldInfo = Dict.fromList
+fieldInfo : OD.OrderedDict String FieldInfo
+fieldInfo = OD.fromList
             [ ("lemma", lemma)
             , ("definition", definition)
-            , ("old-tag", FieldInfo (hasMetadata "OLD-TAG") formatters.value Nothing)
+            , ("orig-tag", origTag)
             , ("case", case_)
             , ("gender", gender)
             , ("number", number)
@@ -78,21 +116,29 @@ validation =
                      V.andThen (\dict -> V.field str (V.string |> V.maybe |> V.map (update str dict)))
         init = V.succeed Dict.empty
     in
-        List.foldl do init (Dict.keys fieldInfo)
+        List.foldl do init (OD.keys fieldInfo)
 
 field : Model -> String -> Html Msg
 field model name =
     let
         state = Dict.get name model.fieldStates |> Maybe.withDefault Hidden
         contents = Form.getFieldAsString name model.form
-        infoPre = Dict.get name fieldInfo |> fromJust
+        ({editInfo} as infoPre) = OD.get name fieldInfo |> fromJust
         info = if name == "lemma"
-               then { infoPre | widget = Just <| lemmaSelect model }
+               then { infoPre | editInfo = Maybe.map (\x -> (lemmaSelect model,
+                                                                 Tuple.second x))
+                                                     editInfo
+                    }
                else infoPre
-        editButton name = case info.widget of
+        editButton name = case info.editInfo of
                            Nothing -> span [] []
-                           Just _ -> button [ onClick <| Edit name , Attr.style Css.editButton ] [ text "✎" ]
-        deleteButton name = button [ onClick <| Delete name , Attr.style Css.editButton ] [ text "X" ]
+                           Just _ -> button [ onClick <| Edit name
+                                            , Attr.style Css.editButton
+                                            ]
+                                     [ text "✎" ]
+        deleteButton name = button [ onClick <| Delete name
+                                   , Attr.style Css.editButton ]
+                            [ text "X" ]
     in
         case state of
             Hidden -> div [] []
@@ -100,9 +146,13 @@ field model name =
                                [ div [ Attr.style Css.textFieldInner ]
                                  [ text <| capitalize name ]
                                , case editing of
-                                     True -> (info.widget |> Maybe.withDefault widgets.textbox) contents
+                                     True -> (info.editInfo |>
+                                                  Maybe.map Tuple.first |>
+                                                  Maybe.withDefault widgets.textbox)
+                                             contents
                                      False -> span [ Attr.style Css.textFieldEditContainer ]
-                                              [ info.formatter (contents.value |> Maybe.withDefault "")
+                                              [ info.formatter (contents.value |>
+                                                                    Maybe.withDefault "")
                                               , span [ Attr.style [("flex-grow", "2")]] []
                                               , editButton name
                                               , deleteButton name
@@ -113,19 +163,12 @@ formView : Model -> Html Msg
 formView ({lemmata, form, fieldStates} as model) =
     let
         f name = div [id ("formField-" ++ name)] [field model name]
+        fields = OD.keys fieldInfo |> List.map f
     in
 
         div [ id "metadataForm" ] <|
-            [ f "lemma"
-            , if (Form.getFieldAsString "lemma" form |> .value) /= Just "" -- TODO: smelly
-              then f "definition"
-              else div [] []
-            , f "old-tag"
-            , f "validation-error"
-            , f "case"
-            , f "gender"
-            , f "number"
-            ] ++
+            fields ++
+                -- TODO: disable save button if no changes from original
             if List.any ((==) (Visible True)) <| Dict.values fieldStates
             then [ div [ Attr.style Css.saveButtonContainer ]
                        [ button [ onClick Save ] [ text "Save" ] ] ]
@@ -134,7 +177,7 @@ formView ({lemmata, form, fieldStates} as model) =
 init : List Lemma -> Metadata -> Tree -> Model
 init lemmata metadata node =
     let
-        fieldNames = Dict.keys fieldInfo
+        fieldNames = OD.keys fieldInfo
     in
         { form = fieldNames |>
                  List.map (\name -> Dict.get (String.toUpper name) metadata |>
@@ -144,46 +187,13 @@ init lemmata metadata node =
         , fieldStates = fieldNames |>
                         List.map (\name ->
                                       let
-                                          predicate = Dict.get name fieldInfo |> fromJust |> .predicate
+                                          predicate = OD.get name fieldInfo |> fromJust |> .predicate
                                       in
                                           (name, if predicate node then Visible False else Hidden)) |>
                         Dict.fromList
         , lemmaSelectState = Select.newState "lemma"
         , lemmata = lemmata
         }
-
-type alias Updater = Maybe String -> Tree -> Return Msg.Msg Tree
-
-genericU : String -> Updater
-genericU key newVal sel =
-    sel |>
-    Lens.modify Tree.metadata (Dict.update (String.toUpper key) (always newVal)) |>
-    Return.singleton
-
-lemmaU : Updater
-lemmaU = genericU "LEMMA"
-
-caseU : Updater
-caseU = genericU "CASE"
-
-oldTagU : Updater
-oldTagU = genericU "OLD-TAG"
-
-definitionU : Updater
-definitionU newDef sel =
-    let
-        l = (.get Tree.metadata) sel |> Dict.get "LEMMA"
-        updateCmd def lemma = Net.post
-                              "/dictentry"
-                              (always <| Msg.Metadata <| SaveSuccess lemma)
-                              (D.succeed ())
-                              (E.object [ ("lemma", E.string lemma)
-                                        , ("definition", E.string def)
-                                        ])
-    in
-        Maybe.map2 updateCmd newDef l |>
-        Maybe.withDefault Cmd.none |>
-        Return.return sel
 
 performUpdate : Dict String String -> Maybe Model ->
                 String -> Updater ->
@@ -196,7 +206,7 @@ performUpdate formOut metadataForm field updater ret =
                 Maybe.map ((==) (Visible True)) |>
                 Maybe.withDefault False
         fieldValue = Dict.get field formOut
-        do = updater fieldValue
+        do = updater (String.toUpper field) fieldValue
     in
         if dirty
         then Return.andThen do ret
@@ -224,13 +234,10 @@ save metadata model =
                     -- it was a pain in the neck in other ways)
                     selectedNode = Tree.get selection root |> R.withDefault (Tree.l "foo" "bar")
                     doUpdate = performUpdate metadata model.metadataForm
+                    getUpdater (key, info) = info.editInfo |> Maybe.map Tuple.second |> Maybe.map (doUpdate key)
+                    updaters = OD.toList fieldInfo |> List.map getUpdater |> Maybe.Extra.values
                 in
-                    Return.singleton selectedNode |> -- TODO: automatically
-                                                     -- enumerate metadata fields
-                    doUpdate "lemma" lemmaU |>
-                    doUpdate "definition" definitionU |>
-                    doUpdate "old-tag" oldTagU |>
-                    doUpdate "case" caseU |>
+                    List.foldl (\x y -> x y) (Return.singleton selectedNode) updaters |>
                     Debug.log "after updates" |>
                     Return.map (\newLeaf -> Tree.set selection newLeaf root |>
                                         R.withDefault root) |>
@@ -282,7 +289,7 @@ update model msg =
                             selectedNode = Tree.get path root
                         in
                             selectedNode |>
-                            R.map (Lens.modify Tree.metadata (Dict.update fieldName (always Nothing))) |>
+                            R.map (Lens.modify Tree.metadata (Dict.update (String.toUpper fieldName) (always Nothing))) |>
                             R.andThen (\newLeaf -> Tree.set path newLeaf root) |>
                             R.map (\x -> .set Model.root x model) |>
                             R.handle model |>
