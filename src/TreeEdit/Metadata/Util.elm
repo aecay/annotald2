@@ -88,6 +88,7 @@ formatters =
 
         validationError str =
             String.split "\n" str |>
+            List.filter (\x -> x /= "") |>
             List.map (\x -> li [] [text x]) |>
             ul []
     in
