@@ -18,6 +18,9 @@ Python testing:
 https://hypothesis.readthedocs.io/en/latest/
 https://github.com/box/genty
 
+Python/browser interface:
+https://github.com/shivylp/visualpy
+https://github.com/ChrisKnott/Eel
 
 =====
 
