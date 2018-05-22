@@ -1,17 +1,15 @@
-FROM python:3.6
+FROM jfloff/alpine-python:3.6
 
-COPY /requirements.txt /python
-RUN pip install -r /python/requirements.txt
+COPY /deps/requirements.txt /annotald/
+RUN pip install -r /annotald/requirements.txt
 
-COPY /lovett/requirements.txt /python/lovett/requirements.txt
-RUN pip install -r /python/lovett/requirements.txt
+COPY /deps/lovett-requirements.txt /annotald/lovett-requirements.txt
+RUN pip install -r /annotald/lovett-requirements.txt
 
-COPY /lovett /python/lovett
-RUN pip install /python/lovett
+COPY /deps/lovett-*.tar.gz /annotald/
+RUN pip install /annotald/lovett-*.tar.gz
 
-COPY /main.py /python
-COPY /static /python/static
+COPY /deps/main.py /annotald/
+COPY /deps/static /annotald/static
 
-EXPOSE 8000
-
-ENTRYPOINT annotald
+WORKDIR /data
