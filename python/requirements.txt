@@ -1,7 +1,4 @@
 click
 aiohttp
-decorator
-pytest
-typeguard
 unidecode
 aiofiles
