@@ -7,6 +7,8 @@ import glob
 import importlib.util
 import json
 import os
+import signal
+import sys
 
 import click
 import aiofiles
@@ -60,12 +62,20 @@ async def as_text(request):
                               "deep": t.format(lovett.format.Deep),
                               "text": t.urtext})
 
+def do_global_exit():
+    os.kill(os.getpid(), signal.SIGTERM)
+
+def global_exit(request):
+    loop.call_later(0.01, do_global_exit)
+    return web.json_response({})
+
 # Handler object
 
 class Annotald:
     def __init__(self, psd_dir, config_file, dict_file=None, validator_file=None):
         self.psd_dir = psd_dir
         if dict_file is not None:
+            # TODO: what if the file is empty, not valid JSON, ...??
             with open(dict_file, "r") as fin:
                 self.dict = json.load(fin)
         else:
@@ -75,8 +85,8 @@ class Annotald:
         self.validator_file = validator_file
 
     def files(self, request):
-        return web.Response(text=json.dumps(list(map(lambda x: os.path.relpath(x, self.psd_dir),
-                                                     glob.glob(os.path.join(self.psd_dir, "*.psd"))))))
+        return web.json_response(list(map(lambda x: os.path.relpath(x, self.psd_dir),
+                                          glob.glob(os.path.join(self.psd_dir, "*.psd")))))
 
     async def config(self, request):
         async with aiofiles.open(self.config_file) as fin:
@@ -136,7 +146,8 @@ class Annotald:
 @click.option("--config-file", "-c",    type=click.Path(file_okay=True,  dir_okay=False))
 @click.option("--dict-file", "-d",      type=click.Path(file_okay=True,  dir_okay=False), default=None)
 @click.option("--validator-file", "-v", type=click.Path(file_okay=True,  dir_okay=False), default=None)
-def main(**kwargs):
+@click.option("--docker", is_flag=True)
+def main(docker, **kwargs):
     annotald = Annotald(**kwargs)
     app = web.Application(client_max_size=1024 * 1024 * 1024)
     app.router.add_routes([web.get("/", root),
@@ -148,13 +159,33 @@ def main(**kwargs):
                            web.get("/dictentry", annotald.get_dict_entry),
                            web.post("/dictentry", annotald.set_dict_entry),
                            web.post("/as_text", as_text),
-                           web.post("/validate", annotald.validate)])
+                           web.post("/validate", annotald.validate),
+                           web.post("/exit", global_exit)])
 
+    opts = {}
+    if not docker:
+        opts['follow_symlinks'] = True
     app.router.add_static("/static",
                           os.path.join(os.path.dirname(__file__), "static"),
-                          follow_symlinks=True, append_version=True)
+                          append_version=True, **opts)
 
-    web.run_app(app, host="localhost", port=8000)
+    print("""
+********************************************************************************
+**                         ANNOTALD IS NOW RUNNING                            **
+**                                                                            **
+**         In order to use it, open a CHROME browser tab and navigate         **
+**                to the address <http://localhost:8000>.                     **
+********************************************************************************
+""")
+
+    sys.stdout.flush()
+
+    if docker:
+        host = "0.0.0.0"
+    else:
+        host = "localhost"
+
+    web.run_app(app, host=host, port=8000, print=None)
 
 if __name__ == "__main__":
     main()
