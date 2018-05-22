@@ -3,14 +3,16 @@ module TreeEdit.Utils exposing ( fromJust
                                , insert
                                , insertMany
                                , sort2
-                               , cmds
-                               , cmd
+                               , cmds -- TODO: remove
+                               , cmd -- TODO: remove
+                               , message
                                )
 
 import Debug
 import List
 
 import Cmd.Extra
+import Return exposing (ReturnF)
 
 -- Zero-based indexing, returns items [i,j)
 splice : Int -> Int -> List a -> (List a, List a, List a)
@@ -43,3 +45,6 @@ cmds msgs = List.map Cmd.Extra.perform msgs |> Cmd.batch
 
 cmd : a -> Cmd a
 cmd = Cmd.Extra.perform
+
+message : a -> ReturnF a model
+message m = Return.command (Cmd.Extra.perform m)

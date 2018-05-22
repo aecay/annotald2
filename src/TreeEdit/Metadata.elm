@@ -1,6 +1,5 @@
 module TreeEdit.Metadata exposing (view, update)
 
-import Cmd.Extra
 import Dict exposing (Dict)
 import Html as Html exposing (div, text, button, Html, span, ul, li)
 import Html.Attributes as Attr exposing (id)
@@ -36,7 +35,7 @@ import TreeEdit.Selection as Selection
 import TreeEdit.Result as R
 import TreeEdit.View.Theme exposing (theme)
 import TreeEdit.Msg as Msg
-import TreeEdit.Utils exposing (fromJust)
+import TreeEdit.Utils exposing (fromJust, message)
 
 type alias Updater = String -> Maybe String -> Tree -> Return Msg.Msg Tree
 
@@ -301,7 +300,7 @@ update model msg =
                             R.andThen (\newLeaf -> Tree.set path newLeaf root) |>
                             R.map (\x -> .set Model.root x model) |>
                             R.handle model |>
-                            Return.command (Cmd.Extra.perform (Msg.Metadata NewSelection))
+                            message (Msg.Metadata NewSelection)
                     Nothing -> Return.singleton model
         Save ->
             let
@@ -309,11 +308,11 @@ update model msg =
             in
                 case model.metadataForm |> Maybe.andThen (.form >> Form.getOutput) |> Debug.log "out" of
                     Just metadata -> save metadata model |>
-                                     Return.command (Cmd.map Msg.Metadata <| Cmd.Extra.perform NewSelection) |>
+                                     message (Msg.Metadata NewSelection) |>
                                      Return.command (TreeEdit.Ports.editing False)
                     Nothing -> Return.singleton model
         Cancel -> Return.singleton model |>
-                  Return.command (Cmd.map Msg.Metadata <| Cmd.Extra.perform NewSelection) |>
+                  message (Msg.Metadata NewSelection) |>
                   Return.command (TreeEdit.Ports.editing False)
                   -- TODO: why doesn't it work?
                   -- (Cmd.batch [TreeEdit.Ports.editing False, Cmd.Extra.perform <| Msg.Metadata NewSelection])
