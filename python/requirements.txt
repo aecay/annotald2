@@ -4,3 +4,4 @@ decorator
 pytest
 typeguard
 unidecode
+aiofiles
