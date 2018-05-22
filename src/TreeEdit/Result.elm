@@ -21,16 +21,16 @@ module TreeEdit.Result exposing ( fail
                                 , ifThen
                              )
 
+import Cmd.Extra exposing (perform) -- TODO: ideally we would not import this here
 import Maybe.Extra
 import Monocle.Lens exposing (Lens)
 -- import Monocle.Optional exposing (Optional)
 import Return
 import Toolkit.Helpers exposing (uncurry3)
 
-import TreeEdit.Msg exposing (Msg)
+import TreeEdit.Msg exposing (Msg(Dirty))
 import TreeEdit.Model as Model
 import TreeEdit.Model.Type exposing (Model)
-import TreeEdit.Ports exposing (dirty)
 
 type alias Message = String
 
@@ -173,7 +173,7 @@ handle model result =
                               , undo = oldRoot :: model.undo
                               , redo = []
                               }
-                (Cmd.batch <| (dirty True) :: cmds)
+                (Cmd.batch <| perform (Dirty True) :: cmds)
         Result msgs cmds Nothing ->
             -- TODO: cmds should always be empty in this case...update: not
             -- true for undo/redo

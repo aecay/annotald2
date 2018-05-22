@@ -28,4 +28,5 @@ type alias Model = { selected: Selection.Selection
                    , dialog : Maybe Dialog
                    , undo : List Tree
                    , redo: List Tree
+                   , dirty : Bool
                    }

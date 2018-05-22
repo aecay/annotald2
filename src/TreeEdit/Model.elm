@@ -34,6 +34,7 @@ init filename = { webdata = NotAsked
                 , dialog = Nothing
                 , undo = []
                 , redo = []
+                , dirty = False
                 }
 
 contextMenu : Lens Model ContextMenuTypes.Model

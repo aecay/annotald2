@@ -36,6 +36,7 @@ view filename =
         [ box "Annotald 2"
               [ text ("Editing " ++ filename)
               , button "Save" Msg.Save
+              , button "Exit" Msg.Exit
               -- Undo, redo, exit
               ]
         , box "Tools"

@@ -3,18 +3,16 @@ module TreeEdit.Save exposing (perform, success, failure)
 import Json.Decode as D
 import Json.Encode as E
 
-import Cmd.Extra as CX
 import RemoteData exposing (RemoteData(Success))
 import RemoteData.Http
-import Return exposing (Return)
+import Return exposing (Return, singleton, command)
 
 import TreeEdit.Dialog exposing (Dialog(Processing))
 import TreeEdit.Model as Model exposing (Model)
-import TreeEdit.Msg exposing (Msg(SaveFailure, SaveSuccess, LogMessage))
-import TreeEdit.Ports exposing (dirty)
+import TreeEdit.Msg exposing (Msg(SaveFailure, SaveSuccess, LogMessage, Dirty))
 import TreeEdit.Tree as Tree
 import TreeEdit.Tree.Encode exposing (encodeTrees)
-import TreeEdit.Utils as Utils
+import TreeEdit.Utils as Utils exposing (message, fromJust)
 
 perform : Model -> Return Msg Model
 perform model =
@@ -31,15 +29,16 @@ perform model =
                 handle
                 (D.succeed ())
                 (E.object [ ("filename", E.string model.fileName)
-                          , ("trees", encodeTrees <| Utils.fromJust <| .getOption Tree.children root)
+                          , ("trees", encodeTrees <| fromJust <| .getOption Tree.children root)
                           ])
 
 success : Model -> Return Msg Model
 success model =
-    Return.return { model | dialog = Nothing } <| Cmd.batch [ (CX.perform <| LogMessage "Save success")
-                                                            , dirty False
-                                                            ]
+    singleton { model | dialog = Nothing } |>
+    message (LogMessage "Save success") |>
+    message (Dirty False)
 
 failure : Model -> String -> Return Msg Model
 failure model reason =
-    Return.return { model | dialog = Nothing } (CX.perform <| LogMessage <| "Save failure: " ++ reason)
+    Return.singleton { model | dialog = Nothing } |>
+    message (LogMessage <| "Save failure: " ++ reason)

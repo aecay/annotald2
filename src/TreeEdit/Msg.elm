@@ -33,4 +33,6 @@ type Msg = ToggleSelect Path |
     -- FixValidatorDone (WebData ()) |
     Ignore |
     Undo |
-    Redo
+    Redo |
+    Dirty Bool |
+    Exit

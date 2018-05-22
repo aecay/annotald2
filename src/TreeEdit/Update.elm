@@ -17,6 +17,8 @@ import ThirdParty.WindowEvents exposing (onWindow)
 
 -- Project libraries
 
+import Route
+
 import TreeEdit.Action as Action
 import TreeEdit.Bindings exposing (bindings)
 import TreeEdit.ContextMenu as ContextMenu
@@ -132,6 +134,10 @@ update msg model =
             ValidateDone webdata -> Validate.done model webdata
             Undo -> Undo.undo model
             Redo -> Undo.redo model
+            Dirty isDirty -> Return.return { model | dirty = isDirty } <| Ports.dirty isDirty
+            Exit -> if model.dirty
+                    then singleton { model | lastMessage = "Cannot exit with unsaved changes" }
+                    else Return.return model <| Route.goTo Route.ListFiles
             Ignore -> Return.singleton model
 
 subscriptions : Model -> Sub Msg
