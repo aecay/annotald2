@@ -88,6 +88,13 @@ number     = FieldInfo (\x -> isNominal x || isVerb x) formatters.value      Not
 origTag    : FieldInfo
 origTag    = FieldInfo Tree.isTerminal                 formatters.value      <| Just (widgets.textbox, fnUpdater String.toUpper)
 
+mood : FieldInfo
+mood =
+    let
+        moods = ["ind", "konj"]
+    in
+        FieldInfo isVerb formatters.value <| Just (widgets.options moods, genericUpdater)
+
 case_ : FieldInfo
 case_ =
     let
@@ -104,6 +111,7 @@ fieldInfo = OD.fromList
             , ("case", case_)
             , ("gender", gender)
             , ("number", number)
+            , ("mood", mood)
             , ("validation-error", FieldInfo (hasMetadata "VALIDATION-ERROR") formatters.validationError Nothing)
             ]
 
