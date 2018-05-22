@@ -30,6 +30,7 @@ view dialog =
         view = case dialog of
                    Copy response -> div [] [ copyField response.penn "copyButton" "Copy"
                                            , copyField response.deep "copyDeepButton" "Copy deep format"
+                                           , copyField response.text "copyTextButton" "Copy text"
                                            ]
                    Processing txt -> div [ style [ ("text-align", "center")
                                                  , ("margin-top", "16px")

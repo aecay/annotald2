@@ -22,7 +22,7 @@ copy model =
         tree = Selection.withOne selected extract <| R.fail "foo"
         treeVal = R.map encodeTree tree
         requestData = R.map (\x -> E.object [("tree", x)]) treeVal
-        decoder = D.map2 Response (D.field "penn" D.string) (D.field "deep" D.string)
+        decoder = D.map3 Response (D.field "penn" D.string) (D.field "deep" D.string) (D.field "text" D.string)
         action = R.map (Http.post "/as_text" Copy decoder) requestData
     in
         R.succeed model |> R.andDo (always action)
