@@ -16,6 +16,7 @@ module TreeEdit.Tree exposing (l, t, trace, either,
                               , makeTrace
                               , updateChildren
                               , children
+                              , children2
                               , constants
                               , map
                               , metadata
@@ -27,6 +28,8 @@ import List
 import List.Extra exposing (getAt, removeAt)
 import Dict
 import Maybe
+
+import Maybe.Extra
 import Monocle.Optional as Optional exposing (Optional)
 import Monocle.Common exposing ((=>), maybe)
 import Monocle.Lens as Lens exposing (Lens)
@@ -45,7 +48,7 @@ type alias Result a = R.Result a
 -- Functions we expose for testing only
 internals :
     { allLast : Path -> PathFragment -> Tree -> Bool
-    , extractAt : Path -> Tree -> Result ( Tree, Tree )
+    , extractAt : Path -> Tree -> Maybe ( Tree, Tree )
     , isLastAt : Tree -> Path -> Bool
     }
 internals = { allLast = allLast
@@ -121,6 +124,21 @@ children =
     in
         Optional getChildren setChildren
 
+children2 : Lens Tree (List Tree) -- TODO: should move to this one, remove
+                                  -- children
+children2 =
+    let
+        get t =
+            case t.contents of
+                Nonterminal c _ -> c
+                _ -> []
+        set c t =
+            case t.contents of
+                Nonterminal _ index -> { t | contents = Nonterminal c index }
+                _ -> t
+    in
+        Lens get set
+
 fold : (Tree -> a -> a) -> a -> Tree -> a
 fold fn init tree =
     let
@@ -145,45 +163,37 @@ map fn tree =
             Just ch -> children.set (List.map (\x -> map fn x) ch) newTree
 
 
-get : Path -> Tree -> Result Tree
+get : Path -> Tree -> Maybe Tree
 get path tree = case path of
-                    Path.RootPath -> succeed tree
+                    Path.RootPath -> Just tree
                     Path.Path foot _ ->
                         get (Path.parent path) tree |>
-                        R.andThen (R.lift "no children" children.getOption) |>
-                        R.andThen (R.lift "chld not found" (getAt foot))
+                        Maybe.andThen children.getOption |>
+                        Maybe.andThen (getAt foot)
 
-set : Path -> Tree -> Tree -> Result Tree
+set : Path -> Tree -> Tree -> Maybe Tree
 set path newChild tree = case path of
-                             Path.RootPath -> succeed newChild
+                             Path.RootPath -> Just newChild
                              Path.Path foot _ ->
                                  let
                                      parentPath = Path.parent path
                                  in
                                      get parentPath tree |>
-                                     R.andThen (setChild foot newChild) |>
-                                     R.andThen (\x -> set parentPath x tree)
+                                     Maybe.andThen (setChild foot newChild) |>
+                                     Maybe.andThen (\x -> set parentPath x tree)
 
-do : Path.Path -> (Tree -> Tree) -> Tree -> Result Tree
+do : Path.Path -> (Tree -> Tree) -> Tree -> Maybe Tree
 do path f tree =
     let
         orig = get path tree
     in
-        orig |> R.map f |> R.andThen (\x -> set path x tree)
+        orig |> Maybe.map f |> Maybe.andThen (\x -> set path x tree)
 
--- TODO: rewrite with children lens
-setChild : Int -> Tree -> Tree -> Result Tree
+setChild : Int -> Tree -> Tree -> Maybe Tree
 setChild i new parent =
-    case parent.contents of
-        Nonterminal children index ->
-            if List.length children > i
-            then R.succeed <| (\x -> { parent | contents = x }) <|
-                flip Nonterminal index <|
-                List.take i children ++
-                [new] ++
-                List.drop (i + 1) children
-            else R.fail "setChild"
-        _ -> R.fail "setChild"
+    children.getOption parent |>
+    Maybe.map (List.Extra.setAt i new) |>
+    Maybe.map (flip children.set parent)
 
 -- TODO: rewrite with children lens.  It it even needed?
 updateChildren : (List Tree -> List Tree) -> Tree -> Tree
@@ -192,10 +202,10 @@ updateChildren f t =
         Nonterminal children index -> { t | contents = Nonterminal (f children) index }
         _ -> t -- TODO: fail somehow?
 
-extractAt : Path -> Tree -> Result (Tree, Tree)
+extractAt : Path -> Tree -> Maybe (Tree, Tree)
 extractAt path tree =
     case path of
-        RootPath -> R.fail "extractAt"
+        RootPath -> Nothing
         otherwise ->
             let
                 parent = Path.parent path
@@ -203,12 +213,12 @@ extractAt path tree =
                 child = get path tree
                 newparent = do parent (updateChildren (removeAt idx)) tree
             in
-                R.map (,) child |> R.andMap newparent
+                Maybe.map (,) child |> Maybe.Extra.andMap newparent
 
-insertAt : Path -> Tree -> Tree -> Result Tree
+insertAt : Path -> Tree -> Tree -> Maybe Tree
 insertAt path newChild = insertManyAt path [newChild]
 
-insertManyAt : Path -> List Tree -> Tree -> Result Tree
+insertManyAt : Path -> List Tree -> Tree -> Maybe Tree
 insertManyAt path newChildren =
     let
         parent = Path.parent path
@@ -216,6 +226,7 @@ insertManyAt path newChildren =
     in
         do parent (updateChildren (Utils.insertMany idx newChildren))
 
+-- TODO: the appropriate type here is Optional
 index : Lens Tree (Maybe Index.Index)
 index =
     let
@@ -273,10 +284,10 @@ allFirst path frag tree =
 isLastAt : Tree -> Path -> Bool
 isLastAt tree path =
     get (Path.parent path) tree |>
-    R.andThen (R.lift "no children" children.getOption) |>
-    R.map List.length |>
-    R.map ((==) (Path.foot path + 1)) |>
-    R.withDefault False
+    Maybe.andThen children.getOption |>
+    Maybe.map List.length |>
+    Maybe.map ((==) (Path.foot path + 1)) |>
+    Maybe.withDefault False
 
 allLast : Path -> PathFragment -> Tree -> Bool
 allLast path frag tree =
@@ -303,11 +314,11 @@ moveTo from to tree =
                               allLast (Path.childPath sFrom common) tailFrom tree) of
                         (True, False) ->
                             -- Leftward
-                            performMove from (Path.childPath sFrom common) tree
+                            R.liftVal "moveTo lift" <| performMove from (Path.childPath sFrom common) tree
                         (False, True) ->
-                            performMove from (Path.childPath (sFrom + 1) common) tree
-                        (False, False) -> R.fail "can't move from the middle" |> Debug.log "res"
-                        otherwise -> R.fail "should never happen" |> Debug.log "res"
+                            R.liftVal "moveTo lift" <| performMove from (Path.childPath (sFrom + 1) common) tree
+                        (False, False) -> R.fail "can't move from the middle"
+                        otherwise -> R.fail "should never happen"
                 (Just sFrom, Just sTo) ->
                     case sFrom - sTo of
                         -1 ->
@@ -321,7 +332,7 @@ moveTo from to tree =
                                                        False -> Path.join common fragTo
                                         adjPath = adjPath1 |> Path.childPath 0
                                     in
-                                        performMove from adjPath tree
+                                        R.liftVal "moveTo 2" <| performMove from adjPath tree
                                 otherwise -> R.fail "can't move to/from the middle"
                         1 ->
                             -- Leftward
@@ -330,26 +341,22 @@ moveTo from to tree =
                                 (True, True) ->
                                     let
                                         nKids = get to tree |>
-                                                R.andThen (.getOption children >>
-                                                               R.liftVal "something weird happened moving") |>
-                                                R.map List.length
+                                                Maybe.andThen (.getOption children) |>
+                                                Maybe.map List.length |>
+                                                R.liftVal "nKids"
                                         adjPath1 = Path.join common fragTo
                                         adjPath = nKids |> R.map (\x -> Path.childPath x adjPath1)
                                     in
-                                        adjPath |> R.andThen (\x -> performMove from x tree)
+                                        adjPath |> R.andThen (\x -> R.liftVal "moveTo 3" <| performMove from x tree)
                                 otherwise -> R.fail "can't move to/from the middle"
 
                         otherwise -> R.fail "can't move from non-adjacent siblings"
 
-performMove : Path -> Path -> Tree -> Result (Tree, Path)
+performMove : Path -> Path -> Tree -> Maybe (Tree, Path)
 performMove from to tree =
-    let
-        _ = Debug.log "from pm" from
-        _ = Debug.log "to pm" to
-    in
-        extractAt from tree |>
-        R.andThen (uncurry (insertAt to)) |>
-        R.map (\x -> (x, to))
+    extractAt from tree |>
+    Maybe.andThen (uncurry (insertAt to)) |>
+    Maybe.map (\x -> (x, to))
 
 -- Other
 

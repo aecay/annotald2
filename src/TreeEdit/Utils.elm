@@ -6,6 +6,7 @@ module TreeEdit.Utils exposing ( fromJust
                                , cmds -- TODO: remove
                                , cmd -- TODO: remove
                                , message
+                               , maybeAndThen2
                                )
 
 import Debug
@@ -48,3 +49,9 @@ cmd = Cmd.Extra.perform
 
 message : a -> ReturnF a model
 message m = Return.command (Cmd.Extra.perform m)
+
+maybeAndThen2 : (a -> b -> Maybe c) -> Maybe a -> Maybe b -> Maybe c
+maybeAndThen2 fn a b =
+    case (a, b) of
+        (Just ja, Just jb) -> fn ja jb
+        _ -> Nothing

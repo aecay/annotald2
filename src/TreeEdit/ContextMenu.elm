@@ -105,7 +105,7 @@ update msg model =
                                                  -- function
         SetLabel path newLabel ->
             modify Model.root
-                (Tree.do path (\x -> {x | label = newLabel }))
+                (Tree.do path (\x -> {x | label = newLabel }) >> R.liftVal "contextMenu update")
                 model |>
             R.handle model
         ToggleExtension path ext -> Action.toggleDashTag ext path model |> R.handle model |> Return.map hide

@@ -19,10 +19,10 @@ copy model =
     let
         selected = model |> .get Model.selected
         extract sel = T.get sel <| .get Model.root model
-        tree = Selection.withOne selected extract <| R.fail "foo"
-        treeVal = R.map encodeTree tree
-        requestData = R.map (\x -> E.object [("tree", x)]) treeVal
+        tree = Selection.withOne selected extract Nothing
+        treeVal = Maybe.map encodeTree tree
+        requestData = Maybe.map (\x -> E.object [("tree", x)]) treeVal
         decoder = D.map3 Response (D.field "penn" D.string) (D.field "deep" D.string) (D.field "text" D.string)
-        action = R.map (Http.post "/as_text" Copy decoder) requestData
+        action = Maybe.map (Http.post "/as_text" Copy decoder) requestData
     in
-        R.succeed model |> R.andDo (always action)
+        R.succeed model |> R.andDo (always (R.liftVal "copy" action))
