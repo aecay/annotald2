@@ -26,11 +26,11 @@ import TreeEdit.ContextMenu.Type exposing (..)
 import TreeEdit.ContextMenu.Css as CMCss
 
 show : Position -> Path -> ModelType.Model -> ModelType.Model
-show position path =
-    .set Model.contextMenu { position = position, target = Just path }
+show position path m =
+    { m | contextMenu = Just { position = position, target = path } }
 
 hide : ModelType.Model -> ModelType.Model
-hide = .set Model.contextMenu emptyModel
+hide m = { m | contextMenu = Nothing }
 
 entry : List (H.Attribute Msg) -> String -> Html Msg
 entry attrs s = H.div ([ Attr.style CMCss.entry, Attr.class "contextMenuEntry" ] ++ attrs) [ H.a [] [ H.text s ] ]
@@ -115,6 +115,6 @@ update msg model =
 
 subscriptions : ModelType.Model -> Sub Msg
 subscriptions m =
-    case .target (.get Model.contextMenu m) of
+    case m.contextMenu of
         Nothing -> Sub.batch []
         Just _ -> Mouse.clicks (\_ -> Hide)

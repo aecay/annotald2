@@ -15,7 +15,6 @@ import TreeEdit.Config as Config
 import TreeEdit.Metadata.Type exposing (Lemma)
 import TreeEdit.Tree.Type exposing (Tree)
 import TreeEdit.Selection as Selection
-import TreeEdit.ContextMenuTypes as ContextMenuTypes
 import TreeEdit.View.LabelEdit.Type exposing (LabelForm)
 
 import TreeEdit.Model.Type
@@ -26,7 +25,7 @@ init : String -> Model
 init filename = { webdata = NotAsked
                 , selected = Selection.empty
                 , lastMessage = "Init"
-                , contextMenu = ContextMenuTypes.emptyModel
+                , contextMenu = Nothing
                 , fileName = filename
                 , metadataForm = Nothing
                 , labelForm = Nothing

@@ -15,7 +15,7 @@ import TreeEdit.View.LabelEdit.Type exposing (LabelForm)
 
 type alias Model = { selected: Selection.Selection
                    , lastMessage: String
-                   , contextMenu: ContextMenuTypes.Model
+                   , contextMenu: Maybe ContextMenuType.Model
                    , fileName : String
                    , metadataForm : Maybe Metadata.Model
                    , webdata : WebData { root : Tree

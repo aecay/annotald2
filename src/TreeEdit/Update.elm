@@ -150,6 +150,6 @@ subscriptions m =
                         then KeyMsg
                         else LabelKey
         keySub = onWindow "keyup" (D.map keySubMsg decodeKeyboardEvent)
-        clickSub = if m.contextMenu.target == Nothing then Sub.none else (Mouse.clicks (\_ -> CancelContext))
+        clickSub = if m.contextMenu == Nothing then Sub.none else (Mouse.clicks (\_ -> CancelContext))
     in
         Sub.batch [keySub, clickSub]
