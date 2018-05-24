@@ -42,6 +42,7 @@ view model =
                                , Attr.style [ ("text-decoration", "underline")
                                             , ("cursor", "pointer")
                                             ]
+                               , Attr.title ("Open " ++ fname)
                                ]
                              [ H.text "open" ]
                          ]
