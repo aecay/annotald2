@@ -4,7 +4,7 @@ import Html exposing (Html)
 import RemoteData exposing (WebData)
 
 import TreeEdit.Config exposing (Config)
-import TreeEdit.ContextMenuTypes as ContextMenuTypes
+import TreeEdit.ContextMenu.Type as ContextMenuType
 import TreeEdit.Dialog exposing (Dialog)
 import TreeEdit.Metadata.Type as Metadata
 import TreeEdit.Selection as Selection

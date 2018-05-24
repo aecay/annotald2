@@ -25,7 +25,7 @@ import TreeEdit.ContextMenu as ContextMenu
 import TreeEdit.Dialog as Dialog
 import TreeEdit.Metadata as Metadata
 import TreeEdit.Metadata.Type as MetadataType
-import TreeEdit.Model as Model exposing (root, selected, contextMenu)
+import TreeEdit.Model as Model exposing (root, selected)
 import TreeEdit.Model.Type exposing (Model)
 import TreeEdit.Msg as Msg exposing (Msg(..))
 import TreeEdit.Path as Path

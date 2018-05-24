@@ -22,7 +22,7 @@ import TreeEdit.Model as Model
 import TreeEdit.Model.Type as ModelType
 import TreeEdit.Result as R exposing (modify)
 
-import TreeEdit.ContextMenuTypes exposing (..)
+import TreeEdit.ContextMenu.Type exposing (..)
 import TreeEdit.ContextMenu.Css as CMCss
 
 show : Position -> Path -> ModelType.Model -> ModelType.Model

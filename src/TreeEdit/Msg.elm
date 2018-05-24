@@ -6,16 +6,16 @@ import RemoteData exposing (WebData)
 import TreeEdit.Config exposing (Config)
 import TreeEdit.Clipboard.Type as Clipboard
 import TreeEdit.Path exposing (Path)
-import TreeEdit.ContextMenuTypes as ContextMenuTypes
+import TreeEdit.ContextMenu.Type as ContextMenuType
 import TreeEdit.Tree.Type exposing (Tree)
 import TreeEdit.Metadata.Type as Metadata
 import TreeEdit.View.LabelEdit.Type as Label
 
 type Msg = ToggleSelect Path |
     KeyMsg KeyboardEvent |
-    RightClick Path ContextMenuTypes.Position |
+    RightClick Path ContextMenuType.Position |
     RightClickRoot |
-    Context ContextMenuTypes.Msg |
+    Context ContextMenuType.Msg |
     LoadedData (WebData (List Tree, Config, List Metadata.Lemma)) |
     Save |
     SaveSuccess |

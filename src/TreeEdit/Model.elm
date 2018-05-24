@@ -1,7 +1,6 @@
 module TreeEdit.Model exposing ( init
                                , root
                                , config
-                               , contextMenu
                                , selected
                                , labelForm
                                , lemmata
@@ -36,9 +35,6 @@ init filename = { webdata = NotAsked
                 , redo = []
                 , dirty = False
                 }
-
-contextMenu : Lens Model ContextMenuTypes.Model
-contextMenu = Lens .contextMenu (\c m -> { m | contextMenu = c })
 
 root : Lens Model Tree
 root =
