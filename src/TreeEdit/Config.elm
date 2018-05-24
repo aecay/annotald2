@@ -42,10 +42,12 @@ insertable = D.map2 Insertable
 type alias Config = { ipLabels : List String
                     , dashTags : List String
                     , insertables : List Insertable
+                    , labelGroups : List (List String)
                     }
 
 decode : D.Decoder Config
-decode = D.map3 Config
+decode = D.map4 Config
          (D.field "ipLabels" (D.list D.string))
          (D.field "dashTags" (D.list D.string))
          (D.field "insertables" (D.list insertable))
+         (D.field "labelGroups" (D.list <| D.list <| D.string))
