@@ -25,8 +25,7 @@ perform model =
             decodeTrees <|
             E.object [ ("trees",
                             .get Model.root model |>
-                            .getOption Tree.children |>
-                            Utils.fromJust |>
+                            .get Tree.children |>
                             encodeTrees
                        )
                      ]

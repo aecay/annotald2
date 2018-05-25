@@ -29,7 +29,7 @@ perform model =
                 handle
                 (D.succeed ())
                 (E.object [ ("filename", E.string model.fileName)
-                          , ("trees", encodeTrees <| fromJust <| .getOption Tree.children root)
+                          , ("trees", encodeTrees <| .get Tree.children root)
                           ])
 
 success : Model -> Return Msg Model

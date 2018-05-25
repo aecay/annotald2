@@ -16,7 +16,6 @@ module TreeEdit.Tree exposing (l, t, trace, either,
                               , makeTrace
                               , updateChildren
                               , children
-                              , children2
                               , constants
                               , map
                               , metadata
@@ -110,23 +109,8 @@ either nt t tree =
         Nonterminal _ _ -> nt tree
         _ -> t tree
 
-children : Optional Tree (List Tree) -- TODO: lens, children of terminal is []
+children : Lens Tree (List Tree)
 children =
-    let
-        getChildren t =
-            case t.contents of
-                Nonterminal c _ -> Just c
-                _ -> Nothing
-        setChildren newChildren tree =
-            case tree.contents of
-                Nonterminal _ index -> { tree | contents = Nonterminal newChildren index }
-                _ -> tree
-    in
-        Optional getChildren setChildren
-
-children2 : Lens Tree (List Tree) -- TODO: should move to this one, remove
-                                  -- children
-children2 =
     let
         get t =
             case t.contents of
@@ -142,11 +126,11 @@ children2 =
 fold : (Tree -> a -> a) -> a -> Tree -> a
 fold fn init tree =
     let
-        c = children.getOption tree
+        c = children.get tree
     in
         case c of
-            Nothing -> fn tree init
-            Just ch ->
+            [] -> fn tree init
+            ch ->
                 let
                     v = fn tree init
                 in
@@ -156,11 +140,11 @@ map : (Tree -> Tree) -> Tree -> Tree
 map fn tree =
     let
         newTree = fn tree
-        c = children.getOption newTree
+        c = children.get newTree
     in
         case c of
-            Nothing -> newTree
-            Just ch -> children.set (List.map (\x -> map fn x) ch) newTree
+            [] -> newTree
+            ch -> children.set (List.map (\x -> map fn x) ch) newTree
 
 
 get : Path -> Tree -> Maybe Tree
@@ -168,7 +152,7 @@ get path tree = case path of
                     Path.RootPath -> Just tree
                     Path.Path foot _ ->
                         get (Path.parent path) tree |>
-                        Maybe.andThen children.getOption |>
+                        Maybe.map children.get |>
                         Maybe.andThen (getAt foot)
 
 set : Path -> Tree -> Tree -> Maybe Tree
@@ -179,7 +163,7 @@ set path newChild tree = case path of
                                      parentPath = Path.parent path
                                  in
                                      get parentPath tree |>
-                                     Maybe.andThen (setChild foot newChild) |>
+                                     Maybe.map (setChild foot newChild) |>
                                      Maybe.andThen (\x -> set parentPath x tree)
 
 do : Path.Path -> (Tree -> Tree) -> Tree -> Maybe Tree
@@ -189,11 +173,9 @@ do path f tree =
     in
         orig |> Maybe.map f |> Maybe.andThen (\x -> set path x tree)
 
-setChild : Int -> Tree -> Tree -> Maybe Tree
-setChild i new parent =
-    children.getOption parent |>
-    Maybe.map (List.Extra.setAt i new) |>
-    Maybe.map (flip children.set parent)
+setChild : Int -> Tree -> Tree -> Tree
+setChild i new =
+    Lens.modify children (List.Extra.setAt i new)
 
 -- TODO: rewrite with children lens.  It it even needed?
 updateChildren : (List Tree -> List Tree) -> Tree -> Tree
@@ -284,7 +266,7 @@ allFirst path frag tree =
 isLastAt : Tree -> Path -> Bool
 isLastAt tree path =
     get (Path.parent path) tree |>
-    Maybe.andThen children.getOption |>
+    Maybe.map children.get |>
     Maybe.map List.length |>
     Maybe.map ((==) (Path.foot path + 1)) |>
     Maybe.withDefault False
@@ -341,7 +323,7 @@ moveTo from to tree =
                                 (True, True) ->
                                     let
                                         nKids = get to tree |>
-                                                Maybe.andThen (.getOption children) |>
+                                                Maybe.map children.get |>
                                                 Maybe.map List.length |>
                                                 R.liftVal "nKids"
                                         adjPath1 = Path.join common fragTo

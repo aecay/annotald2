@@ -296,14 +296,14 @@ deleteNode model =
                 case node of
                     Nothing -> R.fail "deleteNode"
                     Just n ->
-                        case .get Tree.children2 n of
+                        case .get Tree.children n of
                             [] ->
                                 let
                                     isEmpty = Tree.isEmpty n
                                     hasSiblings = path |>
                                                   Path.parent |>
                                                   flip Tree.get root |>
-                                                  Maybe.map (.get Tree.children2) |>
+                                                  Maybe.map (.get Tree.children) |>
                                                   Maybe.map (\x -> List.length x >= 1) |>
                                                   Maybe.withDefault False
                                 in

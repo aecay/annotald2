@@ -28,7 +28,6 @@ import TreeEdit.View.Css as Css
 import TreeEdit.View.LabelEdit as LabelEdit
 import TreeEdit.View.LabelEdit.Type exposing (LabelForm)
 
-import TreeEdit.Utils as Utils exposing (fromJust)
 import TreeEdit.View.Utils exposing (onClick, blockAll, decodeMouse)
 
 import TreeEdit.ContextMenu as ContextMenu
@@ -93,7 +92,7 @@ viewTree info selfPath tree =
         isSelected = List.member selfPath info.selected
         viewT d = snode info selfPath d [wnode d]
         viewNt d =
-            (.getOption Tree.children) tree |> Utils.fromJust |>
+            (.get Tree.children) tree |>
             List.indexedMap (\i c -> viewTree info (Path.childPath i selfPath) c) |>
             snode info selfPath d
     in
@@ -128,10 +127,7 @@ viewRoot model root vrt =
         labelForm = model.labelForm
     in
         root |>
-        -- Possibly can make this a Lens, if the children of a terminal are
-        -- defined as []
-        (.getOption Tree.children) |>
-        Utils.fromJust |>
+        (.get Tree.children) |>
         List.indexedMap (\i c ->
                              let
                                  data = if List.member (Path.singleton i) selectedRoots
