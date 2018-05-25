@@ -36,12 +36,12 @@ nominalTagInitials = Set.fromList [ 'N', 'D' ]
 hasInitial : Set Char -> Tree -> Bool
 hasInitial set t =
     let
-        labelInitial = .label t |> String.uncons |> Maybe.map Tuple.first |> Maybe.withDefault 'x'
+        labelInitial = .get Tree.label t |> String.uncons |> Maybe.map Tuple.first |> Maybe.withDefault 'x'
     in
         Set.member labelInitial set
 
 hasLabel : String -> Tree -> Bool
-hasLabel l t = t.label == l
+hasLabel l t = .get Tree.label t == l
 
 isNominal : Tree -> Bool
 isNominal = eitherP (hasInitial nominalTagInitials) (hasLabel "PPER")
@@ -50,7 +50,7 @@ isVerb : Tree -> Bool
 isVerb = hasInitial <| Set.singleton 'V'
 
 isPreposition : Tree -> Bool
-isPreposition t = t.label == "APPR"
+isPreposition = hasLabel "APPR"
 
 eitherP : (a -> Bool) -> (a -> Bool) -> a -> Bool
 eitherP x y t = (x t) || (y t)

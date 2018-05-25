@@ -3,36 +3,37 @@ module TreeEdit.Config exposing (Config, decode)
 import Dict
 import Json.Decode as D
 
-import TreeEdit.Tree.Type exposing (Tree, Node(..), ECType(..))
+import TreeEdit.Tree.Type exposing (Tree, private)
 
 type alias Insertable = { before : Bool
                         , node : Tree
                         }
 
-node : D.Decoder Node
-node = D.map2 (,) (D.field "type" D.string) (D.field "text" D.string) |>
-       D.andThen (\(typ, text) ->
-                 case typ of
-                     "terminal" -> D.succeed <| Terminal text Nothing
-                     "comment" -> D.succeed <| Comment text
-                     "empty-category" ->
-                         let
-                             ectype = case text of
-                                          "pro" -> D.succeed Pro
-                                          "con" -> D.succeed Con
-                                          "zero" -> D.succeed Zero
-                                          "exp" -> D.succeed Exp
-                                          _ -> D.fail <| "Unknown ec type" ++ text
-                         in
-                             ectype |> D.map (\x -> EmptyCat x Nothing)
-                     _ -> D.fail <| "Unknown node type " ++ typ
-                 )
-
 tree : D.Decoder Tree
-tree = D.map3 Tree
-       node
-       (D.field "label" D.string)
-       (D.succeed Dict.empty)
+tree = D.map3 (,,) (D.field "type" D.string) (D.field "text" D.string) (D.field "label" D.string) |>
+       D.andThen (\(typ, text, label) ->
+                  let
+                      info = { label = label
+                             , metadata = Dict.empty
+                             , index = Nothing
+                             }
+                  in
+                      case typ of
+                          "terminal" -> D.succeed <| private.ordinary text info
+                          "comment" -> D.succeed <| private.comment text
+                          "empty-category" ->
+                              let
+                                  ectype = case text of
+                                               "pro" ->  D.succeed private.pro
+                                               "con" ->  D.succeed private.con
+                                               "zero" -> D.succeed private.zero
+                                               "exp" ->  D.succeed private.exp
+                                               _ -> D.fail <| "Unknown ec type" ++ text
+                              in
+                                  ectype |> D.map (flip private.emptycat info)
+                          _ -> D.fail <| "Unknown node type " ++ typ
+                 ) |>
+       D.map private.terminalouter
 
 insertable : D.Decoder Insertable
 insertable = D.map2 Insertable

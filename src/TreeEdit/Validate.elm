@@ -11,7 +11,7 @@ import TreeEdit.Metadata.Type as MetadataType
 import TreeEdit.Model as Model exposing (Model)
 import TreeEdit.Msg as Msg exposing (Msg)
 import TreeEdit.Tree as Tree
-import TreeEdit.Tree.Type exposing (Tree)
+import TreeEdit.Tree.Type as TreeType exposing (Tree)
 import TreeEdit.Tree.Decode exposing (decodeTrees)
 import TreeEdit.Tree.Encode exposing (encodeTrees)
 import TreeEdit.Utils as Utils
@@ -37,7 +37,7 @@ done model webdata =
     in
         case webdata of
             Success trees -> Return.return
-                             (.set Model.root (Tree.t "wtf" trees) newModel)
+                             (.set Model.root (.t TreeType.private "wtf" trees) newModel)
                              <| Utils.cmds [ Msg.Metadata MetadataType.NewSelection
                                            , Msg.LogMessage "Validate success"
                                            ]

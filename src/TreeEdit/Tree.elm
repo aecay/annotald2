@@ -1,31 +1,31 @@
-module TreeEdit.Tree exposing (l, t, trace, either,
-                                   -- TODO: exporting all this internal stuff is not
-                                   -- the best...
-                                   get, set,
-                                   highestIndex
+module TreeEdit.Tree exposing ( get
+                              , set
+                              , highestIndex
                               --, sameRoot
                               , moveTo
                               , internals
                               , insertAt
                               , insertManyAt
                               , do
-                              , isTerminal
-                              , isEmpty
                               , extractAt
-                              , index
                               , makeTrace
                               , updateChildren
-                              , children
-                              , constants
                               , map
-                              , metadata
                               , illegalLabelChar
+                              , index
+                              , metadata
+                              , children
+                              , either
+                              , label
+                              , info
+                              , hasTerminalLabel
+                              , isEmpty
+                              , isTerminal
                               )
 
 import Char
 import List
 import List.Extra exposing (getAt, removeAt)
-import Dict
 import Maybe
 
 import Maybe.Extra
@@ -35,7 +35,7 @@ import Monocle.Lens as Lens exposing (Lens)
 
 import TreeEdit.Tree.Type as Type exposing (..)
 
-import TreeEdit.Utils as Utils
+import TreeEdit.Utils as Utils exposing (o)
 
 import TreeEdit.Index as Index
 import TreeEdit.Path as Path exposing (Path(..), PathFragment)
@@ -55,73 +55,57 @@ internals = { allLast = allLast
             , extractAt = extractAt
             }
 
--- Convenience functions for generating trees for testing TODO: export as internals
-l : String -> String -> Tree
-l label text = { label = label
-               , contents = Terminal text Nothing
-               , metadata = Dict.empty
-               }
+-- Reexports
 
-trace : String -> Int -> Tree
-trace label index = { label = label
-                    , contents = Trace Wh index
-                    , metadata = Dict.empty
-                    }
-constants :
-    { comment : Tree
-    , con : Tree
-    , czero : Tree
-    , pro : Tree
-    , vb : Tree
-    }
-constants =
-    { pro = { label = "NP-SBJ"
-            , contents = EmptyCat Pro Nothing
-            , metadata = Dict.empty
-            }
-    , con = { label = "NP-SBJ"
-            , contents = EmptyCat Con Nothing
-            , metadata = Dict.empty
-            }
-    , czero = { label = "C"
-              , contents = EmptyCat Zero Nothing
-              , metadata = Dict.empty
-              }
-    , comment = { label = "CODE"
-                , contents = Comment "XXX"
-                , metadata = Dict.empty
-                }
-    , vb = { label = "VB"
-           , contents = EmptyCat Star Nothing
-           , metadata = Dict.empty
-           }
-    }
-
-t : String -> List Tree -> Tree
-t label children = { label = label
-                   , contents = Nonterminal children Nothing
-                   , metadata = Dict.empty
-                   }
-
-either : (Tree -> a) -> (Tree -> a) -> Tree -> a
-either nt t tree =
-    case tree.contents of
-        Nonterminal _ _ -> nt tree
-        _ -> t tree
+index : Lens Tree (Maybe Index.Index)
+index = Type.index
 
 children : Lens Tree (List Tree)
-children =
+children = Type.children
+
+metadata : Lens Tree Metadata
+metadata = Type.metadata
+
+label : Lens Tree Label
+label = Type.label
+
+info : Lens Tree TreeInfo
+info = Type.info
+
+either : (Terminal -> a) -> (TreeInfo -> List Tree -> a) -> Tree -> a
+either = .either Type.private
+
+hasTerminalLabel : Tree -> Bool
+hasTerminalLabel tree =
     let
-        get t =
-            case t.contents of
-                Nonterminal c _ -> c
-                _ -> []
-        set c t =
-            case t.contents of
-                Nonterminal _ index -> { t | contents = Nonterminal c index }
-                _ -> t
+        nt _ _ = False
+        t terminal =
+            case terminal of
+                Ordinary _ _ -> True
+                Trace _ _ -> False
+                Comment _ -> False
+                EmptyCat Pro _ -> False
+                EmptyCat Con _ -> False
+                EmptyCat Exp _ -> False
+                EmptyCat Star _ -> True
+                EmptyCat Zero _ -> True
     in
-        Lens get set
+        either t nt tree
+
+isTerminal : Tree -> Bool
+isTerminal = either (always True) (\_ _ -> False)
+
+isEmpty : Tree -> Bool
+isEmpty =
+    let
+        t terminal =
+            case terminal of
+                Ordinary _ _ -> False
+                Trace _ _ -> True
+                Comment _ -> True
+                EmptyCat _ _ -> True
+    in
+        either t (\_ _ -> False)
 
 fold : (Tree -> a -> a) -> a -> Tree -> a
 fold fn init tree =
@@ -177,12 +161,9 @@ setChild : Int -> Tree -> Tree -> Tree
 setChild i new =
     Lens.modify children (List.Extra.setAt i new)
 
--- TODO: rewrite with children lens.  It it even needed?
 updateChildren : (List Tree -> List Tree) -> Tree -> Tree
-updateChildren f t =
-    case t.contents of
-        Nonterminal children index -> { t | contents = Nonterminal (f children) index }
-        _ -> t -- TODO: fail somehow?
+updateChildren f =
+    Lens.modify children f
 
 extractAt : Path -> Tree -> Maybe (Tree, Tree)
 extractAt path tree =
@@ -208,48 +189,13 @@ insertManyAt path newChildren =
     in
         do parent (updateChildren (Utils.insertMany idx newChildren))
 
--- TODO: the appropriate type here is Optional
-index : Lens Tree (Maybe Index.Index)
-index =
-    let
-        get t = case t.contents of
-                    Terminal _ idx -> idx
-                    Nonterminal _ idx -> idx
-                    Trace _ idx -> Just <| Index.normal idx
-                    Comment _ -> Nothing
-                    EmptyCat _ idx -> idx
-        set idx t = case t.contents of
-                        Terminal s _ -> { t | contents = Terminal s idx }
-                        Nonterminal c _ -> { t | contents = Nonterminal c idx }
-                        Trace typ _ ->
-                            let
-                                i = Maybe.map (.get Index.number) idx
-                            in
-                                case i of
-                                    Just n -> { t | contents = Trace typ n }
-                                    Nothing -> Debug.log "Tried to unset index of trace" t
-                        EmptyCat typ _ -> { t | contents = EmptyCat typ idx }
-                        Comment _ -> Debug.log "Tried to manipulate index of comment" t
-    in
-        Lens get set
-
 highestIndex : Tree -> Int
 highestIndex t =
     let
-        lens = (Optional.fromLens index) => maybe => (Optional.fromLens Index.number) |> .getOption
+        lens = (o index) => maybe => (Optional.fromLens Index.number) |> .getOption
         f d i = Maybe.withDefault 0 (lens d) |> max i
     in
         fold f 0 t
-
--- Metadata
-
-metadata : Lens Tree Metadata
-metadata =
-    let
-        get = .metadata
-        set m t = { t | metadata = m }
-    in
-        Lens get set
 
 -- Movement
 
@@ -342,38 +288,22 @@ performMove from to tree =
 
 -- Other
 
-isTerminal : Tree -> Bool
-isTerminal t = case t.contents of
-                   Nonterminal _ _ -> False
-                   _ -> True
-
-isEmpty : Tree -> Bool
-isEmpty t = case t.contents of
-                Terminal _ _ -> False
-                Trace _ _ -> True
-                Comment _ -> True
-                EmptyCat _ _ -> True
-                Nonterminal _ _ -> False
-
 hasDashTag : String -> Label -> Bool
 hasDashTag tag label =
     List.member tag <| String.split "-" label
 
-makeTrace : Tree -> Index.Index -> Tree
+makeTrace : Tree -> Int -> Tree
 makeTrace x i =
     let
-        label = x.label
+        lbl = (.get label) x
         (newLabel, traceType) =
-            if String.startsWith "W" label
-            then (String.dropLeft 1 label, Wh)
-            else if hasDashTag "CL" label
-            then (label, Clitic) -- TODO: drop the CL dashtag
-            else (label, Extraposition)
+            if String.startsWith "W" lbl
+            then (String.dropLeft 1 lbl, private.wh)
+            else if hasDashTag "CL" lbl
+            then (lbl, private.clitic) -- TODO: drop the CL dashtag
+            else (lbl, private.extraposition)
     in
-        { contents = Trace traceType i.number
-        , label = newLabel
-        , metadata = Dict.empty
-        }
+        private.makeTrace traceType newLabel i
 
 legalLabelChar : Char -> Bool
 legalLabelChar c =

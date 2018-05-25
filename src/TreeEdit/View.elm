@@ -17,7 +17,7 @@ import TreeEdit.Config exposing (Config)
 import TreeEdit.Dialog as Dialog
 import TreeEdit.Model.Type exposing (Model)
 import TreeEdit.Tree as Tree
-import TreeEdit.Tree.Type exposing (Tree)
+import TreeEdit.Tree.Type exposing (Tree, TreeInfo)
 import TreeEdit.Tree.View exposing (labelString, terminalString)
 import TreeEdit.Path as Path exposing (Path)
 import TreeEdit.Selection as Selection exposing (Selection)
@@ -48,8 +48,9 @@ snodeClass selected ip  =
 labelHtml : Tree -> Html Msg
 labelHtml tree =
     let
-        hasCorrection = tree.metadata |> Dict.get "OLD-TAG" |> isJust
-        hasError = tree.metadata |> Dict.get "VALIDATION-ERROR" |> isJust
+        metadata = .get Tree.metadata tree
+        hasCorrection = metadata |> Dict.get "OLD-TAG" |> isJust
+        hasError = metadata |> Dict.get "VALIDATION-ERROR" |> isJust
         label = labelString tree
     in
         span [] <| [text label] ++
@@ -68,7 +69,7 @@ snode info self tree children =
         selected = List.member self info.selected
         rightClick = Ev.onWithOptions "contextmenu" blockAll <|
                      Json.map (\x -> RightClick self x) decodeMouse
-        isIP_ = isIP info.config tree.label
+        isIP_ = isIP info.config <| .get Tree.label tree
         label = case (selected, info.labelForm) of
                     (True, Just form) -> Html.map Msg.Label <| LabelEdit.view form
                     _ -> labelHtml tree
@@ -90,13 +91,12 @@ viewTree : ViewInfo -> Path -> Tree -> Html Msg
 viewTree info selfPath tree =
     let
         isSelected = List.member selfPath info.selected
-        viewT d = snode info selfPath d [wnode d]
-        viewNt d =
-            (.get Tree.children) tree |>
-            List.indexedMap (\i c -> viewTree info (Path.childPath i selfPath) c) |>
-            snode info selfPath d
+        childHtml = Tree.either
+                    (\_ -> [wnode tree])
+                    (\_ children -> List.indexedMap (\i c -> viewTree info (Path.childPath i selfPath) c) children)
+                    tree
     in
-        Tree.either viewNt viewT tree
+        snode info selfPath tree childHtml
 
 viewRootTree : Config -> Maybe (List Path, Maybe LabelForm) -> Int -> Tree -> Html Msg
 viewRootTree config dataPack selfIndex tree =

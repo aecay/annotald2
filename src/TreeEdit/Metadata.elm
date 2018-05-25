@@ -250,7 +250,7 @@ save metadata model =
                     -- 2. Use a better type for paths (e.g. zippers) that
                     -- guarantees their validity (but we tried this before and
                     -- it was a pain in the neck in other ways)
-                    selectedNode = Tree.get selection root |> Maybe.withDefault (Tree.l "foo" "bar")
+                    selectedNode = Tree.get selection root |> fromJust
                     doUpdate = performUpdate metadata model.metadataForm
                     getUpdater (key, info) = info.editInfo |> Maybe.map Tuple.second |> Maybe.map (doUpdate key)
                     updaters = OD.toList fieldInfo |> List.map getUpdater |> Maybe.Extra.values
@@ -335,7 +335,7 @@ update model msg =
                 case Selection.getOne model.selected of
                     Just p ->
                         let
-                            node = Tree.get p root |> Maybe.withDefault (Tree.l "foo" "bar")
+                            node = Tree.get p root |> fromJust
                             metadata = (.get Tree.metadata) node
                         in
                             case Tree.isTerminal node of

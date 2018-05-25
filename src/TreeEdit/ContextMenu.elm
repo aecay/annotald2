@@ -13,7 +13,7 @@ import Return exposing (Return)
 
 import TreeEdit.Config exposing (Config)
 import TreeEdit.Path as Path exposing (Path)
-import TreeEdit.Tree as Tree exposing (constants)
+import TreeEdit.Tree as Tree
 import TreeEdit.Tree.Type exposing (Tree)
 import TreeEdit.Tree.View exposing (toPenn)
 import TreeEdit.Action as Action
@@ -101,7 +101,7 @@ view parent =
         Just model ->
             let
                 viewPartial = view1
-                label = .get Model.root parent |> Tree.get model.target |> Maybe.map (.label) |> fromJust
+                label = .get Model.root parent |> Tree.get model.target |> Maybe.map (.get Tree.label) |> fromJust
             in
                 view1 (Model.config parent) model label
 
@@ -118,7 +118,7 @@ update msg model =
                                                  -- function
         SetLabel path newLabel ->
             modify Model.root
-                (Tree.do path (\x -> {x | label = newLabel }) >> R.liftVal "contextMenu update")
+                (Tree.do path (.set Tree.label newLabel) >> R.liftVal "contextMenu update")
                 model |>
             R.handle model |>
             Return.map hide

@@ -7,12 +7,15 @@ module TreeEdit.Utils exposing ( fromJust
                                , cmd -- TODO: remove
                                , message
                                , maybeAndThen2
+                               , o
                                )
 
 import Debug
 import List
 
 import Cmd.Extra
+import Monocle.Lens exposing (Lens)
+import Monocle.Optional as Optional exposing (Optional)
 import Return exposing (ReturnF)
 
 -- Zero-based indexing, returns items [i,j)
@@ -55,3 +58,6 @@ maybeAndThen2 fn a b =
     case (a, b) of
         (Just ja, Just jb) -> fn ja jb
         _ -> Nothing
+
+o : Lens a b -> Optional a b
+o = Optional.fromLens

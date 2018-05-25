@@ -26,6 +26,7 @@ import Maybe exposing (withDefault)
 import Dict exposing (Dict)
 import TreeEdit.Result as R exposing (Result(..))
 import Task
+import Monocle.Lens as Lens
 import Monocle.Optional as Optional exposing (fromLens)
 import Monocle.Common exposing ((=>), maybe)
 
@@ -36,9 +37,9 @@ import List.Extra exposing (zip)
 -- Annotald packages
 
 import TreeEdit.Tree as Tree
-import TreeEdit.Tree.Type exposing (Tree)
+import TreeEdit.Tree.Type as TreeType exposing (Tree)
 import TreeEdit.Path as Path exposing (Path)
-import TreeEdit.Utils as Utils exposing (maybeAndThen2)
+import TreeEdit.Utils as Utils exposing (maybeAndThen2, o)
 import TreeEdit.Model as Model
 import TreeEdit.Model.Type exposing (Model)
 import TreeEdit.Msg exposing (Msg(Undo, Redo))
@@ -46,7 +47,6 @@ import TreeEdit.Selection as Selection
 import TreeEdit.Index as Index exposing (normal, Variety(..))
 import TreeEdit.View.LabelEdit as LabelEdit
 import TreeEdit.Msg as Msg
-import TreeEdit.Tree.Utils exposing (hasTerminalLabel)
 
 type alias Result = R.Result Model
 
@@ -79,7 +79,7 @@ changeLabel labels model =
         case selected of
             Just sel ->
                 if Tree.get sel (.get Model.root model)
-                    |> Maybe.map (Tree.either (always False) hasTerminalLabel)
+                    |> Maybe.map Tree.hasTerminalLabel
                     |> Maybe.withDefault True
                 then R.succeed model
                 else
@@ -94,7 +94,7 @@ changeLabel labels model =
                                 change : String -> String
                                 change s = Dict.get s repls |> withDefault head
                                 update : Tree -> Tree
-                                update z = (\d -> { d | label = change d.label }) z
+                                update = Lens.modify Tree.label change
                             in
                                 doAt sel update model
             Nothing -> R.succeed model
@@ -167,14 +167,14 @@ setIndexAt path index =
 
 setIndexVarietyAt : Path -> Index.Variety -> Action
 setIndexVarietyAt path newVariety =
-    doAt path (((fromLens Tree.index) => maybe => (fromLens Index.variety) |> .set) newVariety)
+    doAt path (((o Tree.index) => maybe => (o Index.variety) |> .set) newVariety)
 
 isGapAt : Path -> Model -> Bool
 isGapAt path model =
     .get Model.root model |>
     Tree.get path |>
     Maybe.andThen (.getOption <|
-                       (fromLens Tree.index) => maybe => (fromLens Index.variety)) |>
+                       (o Tree.index) => maybe => (o Index.variety)) |>
     Maybe.withDefault Index.Normal |>
     (==) Index.Gap
 
@@ -184,7 +184,7 @@ removeIndexAt path =
 
 incrementIndicesBy : Int -> Path -> Tree -> Tree
 incrementIndicesBy inc path tree =
-    Optional.modify ((fromLens Tree.index) => maybe => (fromLens Index.number)) ((+) inc) |>
+    Optional.modify ((o Tree.index) => maybe => (o Index.number)) ((+) inc) |>
     Tree.map |>
     (\x -> Tree.do path x tree) |>
     Maybe.withDefault tree
@@ -220,13 +220,13 @@ createParent2 label one two model =
         if parent1 /= parent2
         then R.fail "parents are different for createParent2"
         else doAt parent1 (Tree.updateChildren (\c -> let (x, y, z) = Utils.splice foot1 (foot2+1) c
-                                                      in x ++ [Tree.t label y] ++ z))
+                                                      in x ++ [.t TreeType.private label y] ++ z))
             model |> R.map ((.set Model.selected) (Selection.one <| Path.childPath foot1 parent1))
 
 createParent : String -> Model -> Result
 createParent label model =
     let
-        one path = doAt path (\x -> Tree.t label [x])
+        one path = doAt path (\x -> .t TreeType.private label [x])
     in
         model |> Selection.perform model.selected R.succeed one (createParent2 label)
 
@@ -248,7 +248,10 @@ doMovement model dest src =
         -- TODO: can get the trace from the passed in node, no need to
         -- separately pass the index
         trace : R.Result Tree
-        trace = m |> R.map (.get Model.root) |> R.andThen (Tree.get src >> R.liftVal "doMovement") |> R.map (flip Tree.makeTrace <| Index.normal ind)
+        trace = m |>
+                R.map (.get Model.root) |>
+                R.andThen (Tree.get src >> R.liftVal "doMovement") |>
+                R.map (flip Tree.makeTrace ind)
         sameRoot = Path.root src == Path.root dest
     in
         if sameRoot
@@ -334,7 +337,7 @@ editLabel model =
         root : Maybe Tree
         root = model |> .get Model.root |> Just
         label : R.Result String
-        label = maybeAndThen2 Tree.get selected root |> Maybe.map .label |> R.liftVal "editLabel"
+        label = maybeAndThen2 Tree.get selected root |> Maybe.map (.get Tree.label) |> R.liftVal "editLabel"
         initForm = R.map LabelEdit.init label
     in
         R.map (\l -> { model | labelForm = Just <| LabelEdit.init l}) label |>
@@ -346,7 +349,7 @@ finishLabelEdit model =
         selected = model |> .get Model.selected |> Selection.first |> R.liftVal "nothing selected"
         root = model |> .get Model.root
         newLabel = model.labelForm |> R.liftVal "not editing" |> R.andThen LabelEdit.finish
-        changeLabel = newLabel |> R.map (\label -> (\tree -> { tree | label = label }))
+        changeLabel = newLabel |> R.map (.set Tree.label)
     in
         R.andThen3 doAt selected changeLabel (R.succeed model) |>
         R.map (\m -> { m | labelForm = Nothing })
@@ -355,9 +358,9 @@ toggleDashTag : String -> Path -> Model -> Result
 toggleDashTag tag path model =
     let
         tree = model |> .get Model.root |> Tree.get path
-        labels = tree |> Maybe.map (.label >> String.split "-")
+        labels = tree |> Maybe.map (.get Tree.label >> String.split "-")
         contains = labels |> Maybe.map (List.any ((==) tag))
-        setLabel l t = { t | label = l }
+        setLabel = .set Tree.label
         valuePre =
             case contains of
                 Just True -> (labels |> Maybe.map (List.filter ((/=) tag) >> String.join "-"))

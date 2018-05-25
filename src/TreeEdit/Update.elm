@@ -33,7 +33,7 @@ import TreeEdit.Ports as Ports
 import TreeEdit.Result as R
 import TreeEdit.Save as Save
 import TreeEdit.Selection as Selection
-import TreeEdit.Tree as Tree exposing (children)
+import TreeEdit.Tree.Type as TreeType
 import TreeEdit.Undo as Undo
 import TreeEdit.Validate as Validate
 import TreeEdit.View as View
@@ -103,7 +103,7 @@ update msg model =
                 ContextMenu.update contextMsg model
             LoadedData (Success (trees, config, lemmata)) ->
                 Return.return { model |
-                                    webdata = Success { root = Tree.t "wtf" trees
+                                    webdata = Success { root = .t TreeType.private "wtf" trees
                                                       , config = config
                                                       , viewFn = View.viewRootTree config
                                                       , lemmata = lemmata

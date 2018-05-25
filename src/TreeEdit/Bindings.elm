@@ -6,7 +6,7 @@ import Keyboard
 
 import TreeEdit.Action as Action
 import TreeEdit.Clipboard as Clipboard
-import TreeEdit.Tree exposing (constants)
+import TreeEdit.Tree.Type exposing (constants)
 
 bindings : Dict (Int, Keyboard.KeyCode) Action.Action
 bindings = Dict.fromList <|

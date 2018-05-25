@@ -3,7 +3,8 @@ module TreeEdit.Tree.Encode exposing (encodeTrees, encodeTree)
 import Dict
 import Json.Encode as E exposing (Value)
 
-import TreeEdit.Tree.Type exposing (Tree, TraceType(..), Node(..))
+import TreeEdit.Tree as Tree
+import TreeEdit.Tree.Type exposing (Tree, TraceType(..), Terminal(..))
 import TreeEdit.Tree.View exposing (terminalString)
 import TreeEdit.Index as Index exposing (Index)
 
@@ -26,32 +27,31 @@ indexToJson idx =  case idx of
 encodeTree : Tree -> Value
 encodeTree tree =
     let
-        metadata idx = E.object <| List.map (\(k, v) -> (k, E.string v)) <| (Dict.toList tree.metadata) ++ (indexToJson idx)
-    in
-        case tree.contents of
-            Nonterminal children idx ->
-                let
-                    kids = []
-                in
-                    E.object <| [ ("label", E.string tree.label)
-                                , ("children", E.list <| List.map encodeTree children)
-                                , ("metadata", metadata idx)
-                                ]
-            Terminal text index -> E.object <| [ ("label", tree.label |> E.string)
-                                               , ("text", text |> E.string)
-                                               , ("metadata", metadata index)
-                                               ]
-            Comment string -> E.object [ ("label", "CODE" |> E.string)
-                                       , ("text", string |> E.string)
+        metadata info = E.object <| List.map (\(k, v) -> (k, E.string v)) <|
+                        (Dict.toList info.metadata) ++ (indexToJson info.index)
+        nt info children = E.object <| [ ("label", E.string info.label)
+                                       , ("children", E.list <| List.map encodeTree children)
+                                       , ("metadata", metadata info)
                                        ]
-            EmptyCat _ index -> E.object <| [ ("label", tree.label |> E.string)
-                                            , ("text", terminalString tree |> E.string)
-                                            , ("metadata", metadata index)
-                                            ]
-            Trace traceType index -> E.object <| [ ("label", tree.label |> E.string)
-                                                 , ("text", E.string <| case traceType of
-                                                                            Wh -> "*T*"
-                                                                            Extraposition -> "*ICH*"
-                                                                            Clitic -> "*CL*")
-                                                 , ("metadata", metadata <| Just <| Index.normal index)
-                                                 ]
+        t terminal =
+            case terminal of
+                Ordinary text info -> E.object <| [ ("label", info.label |> E.string)
+                                                  , ("text", text |> E.string)
+                                                  , ("metadata", metadata info)
+                                                  ]
+                Comment string -> E.object [ ("label", "CODE" |> E.string)
+                                           , ("text", string |> E.string)
+                                           ]
+                EmptyCat _ info -> E.object <| [ ("label", info.label |> E.string)
+                                               , ("text", terminalString tree |> E.string)
+                                               , ("metadata", metadata info)
+                                               ]
+                Trace traceType info -> E.object <| [ ("label", info.label |> E.string)
+                                                    , ("text", E.string <| case traceType of
+                                                                               Wh -> "*T*"
+                                                                               Extraposition -> "*ICH*"
+                                                                               Clitic -> "*CL*")
+                                                    , ("metadata", metadata (.get Tree.info tree))
+                                                    ]
+    in
+        Tree.either t nt tree
