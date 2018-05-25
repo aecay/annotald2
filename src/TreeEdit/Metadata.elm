@@ -80,10 +80,6 @@ lemma      = FieldInfo Tree.isTerminal                 formatters.value      <| 
                                                                                           genericUpdater)
 definition : FieldInfo
 definition = FieldInfo (hasMetadata "LEMMA")           formatters.definition <| Just (widgets.textbox, definitionUpdater)
-gender     : FieldInfo
-gender     = FieldInfo isNominal                       formatters.value      Nothing
-number     : FieldInfo
-number     = FieldInfo (\x -> isNominal x || isVerb x) formatters.value      Nothing
 origTag    : FieldInfo
 origTag    = FieldInfo Tree.isTerminal                 formatters.value      <| Just (widgets.textbox, fnUpdater String.toUpper)
 
@@ -101,6 +97,21 @@ case_ =
         pred = eitherP isNominal isPreposition
     in
         FieldInfo pred formatters.value <| Just (widgets.options caseOptions, genericUpdater)
+
+number : FieldInfo
+number =
+    let
+        numOptions = ["sg", "pl"]
+        pred = eitherP isNominal isVerb
+    in
+        FieldInfo pred formatters.value <| Just (widgets.options numOptions, genericUpdater)
+
+gender : FieldInfo
+gender =
+    let
+        genderOptions = ["masc", "fem", "neut"]
+    in
+        FieldInfo isNominal formatters.value <| Just (widgets.options genderOptions, genericUpdater)
 
 fieldInfo : OD.OrderedDict String FieldInfo
 fieldInfo = OD.fromList

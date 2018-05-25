@@ -40,8 +40,11 @@ hasInitial set t =
     in
         Set.member labelInitial set
 
+hasLabel : String -> Tree -> Bool
+hasLabel l t = t.label == l
+
 isNominal : Tree -> Bool
-isNominal = hasInitial nominalTagInitials
+isNominal = eitherP (hasInitial nominalTagInitials) (hasLabel "PPER")
 
 isVerb : Tree -> Bool
 isVerb = hasInitial <| Set.singleton 'V'
@@ -49,7 +52,7 @@ isVerb = hasInitial <| Set.singleton 'V'
 isPreposition : Tree -> Bool
 isPreposition t = t.label == "APPR"
 
-eitherP : (Tree -> Bool) -> (Tree -> Bool) -> Tree -> Bool
+eitherP : (a -> Bool) -> (a -> Bool) -> a -> Bool
 eitherP x y t = (x t) || (y t)
 
 hasMetadata : String -> Tree -> Bool
