@@ -219,8 +219,8 @@ createParent2 label one two model =
     in
         if parent1 /= parent2
         then R.fail "parents are different for createParent2"
-        else doAt parent1 (Tree.updateChildren (\c -> let (x, y, z) = Utils.splice foot1 (foot2+1) c
-                                                      in x ++ [.t TreeType.private label y] ++ z))
+        else doAt parent1 (Lens.modify Tree.children (\c -> let (x, y, z) = Utils.splice foot1 (foot2+1) c
+                                                            in x ++ [.t TreeType.private label y] ++ z))
             model |> R.map ((.set Model.selected) (Selection.one <| Path.childPath foot1 parent1))
 
 createParent : String -> Model -> Result
@@ -266,7 +266,7 @@ leafBeforeInner newLeaf path tree =
         foot = Path.foot path
         update c = List.take foot c ++ [newLeaf] ++ List.drop foot c
     in
-        Tree.do parent (Tree.updateChildren update) tree |>
+        Tree.do parent (Lens.modify Tree.children update) tree |>
         R.liftVal "leafBeforeInner"
 
 createLeaf : Tree -> Model -> Path -> Result

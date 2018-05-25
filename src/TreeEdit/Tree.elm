@@ -9,7 +9,6 @@ module TreeEdit.Tree exposing ( get
                               , do
                               , extractAt
                               , makeTrace
-                              , updateChildren
                               , map
                               , illegalLabelChar
                               , index
@@ -161,10 +160,6 @@ setChild : Int -> Tree -> Tree -> Tree
 setChild i new =
     Lens.modify children (List.Extra.setAt i new)
 
-updateChildren : (List Tree -> List Tree) -> Tree -> Tree
-updateChildren f =
-    Lens.modify children f
-
 extractAt : Path -> Tree -> Maybe (Tree, Tree)
 extractAt path tree =
     case path of
@@ -174,7 +169,7 @@ extractAt path tree =
                 parent = Path.parent path
                 idx = Path.foot path
                 child = get path tree
-                newparent = do parent (updateChildren (removeAt idx)) tree
+                newparent = do parent (Lens.modify children (removeAt idx)) tree
             in
                 Maybe.map (,) child |> Maybe.Extra.andMap newparent
 
@@ -187,7 +182,7 @@ insertManyAt path newChildren =
         parent = Path.parent path
         idx = Path.foot path
     in
-        do parent (updateChildren (Utils.insertMany idx newChildren))
+        do parent (Lens.modify children (Utils.insertMany idx newChildren))
 
 highestIndex : Tree -> Int
 highestIndex t =
