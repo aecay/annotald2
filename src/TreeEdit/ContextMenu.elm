@@ -9,6 +9,7 @@ import TreeEdit.View.Utils as ViewUtils exposing (onClick)
 import Html as H exposing (Html)
 import Html.Attributes as Attr
 import Mouse
+import Monocle.Lens as Lens
 import Return exposing (Return)
 
 import TreeEdit.Config exposing (Config)
@@ -101,7 +102,7 @@ view parent =
         Just model ->
             let
                 viewPartial = view1
-                label = .get Model.root parent |> Tree.get model.target |> Maybe.map (.get Tree.label) |> fromJust
+                label = .get Model.root parent |> Tree.get model.target |> .get Tree.label
             in
                 view1 (Model.config parent) model label
 
@@ -118,7 +119,7 @@ update msg model =
                                                  -- function
         SetLabel path newLabel ->
             modify Model.root
-                (Tree.do path (.set Tree.label newLabel) >> R.liftVal "contextMenu update")
+                (Lens.modify (Tree.path path) (.set Tree.label newLabel) >> R.succeed)
                 model |>
             R.handle model |>
             Return.map hide

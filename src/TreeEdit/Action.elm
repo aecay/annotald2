@@ -23,9 +23,11 @@ module TreeEdit.Action exposing ( clearSelection
 
 import Dom
 import Maybe exposing (withDefault)
+import Maybe.Extra
 import Dict exposing (Dict)
 import TreeEdit.Result as R exposing (Result(..))
 import Task
+import Monocle.Common exposing ((<|>))
 import Monocle.Lens as Lens
 import Monocle.Optional as Optional exposing (fromLens)
 import Monocle.Common exposing ((=>), maybe)
@@ -66,7 +68,7 @@ doOneSelected f model =
 
 doAt : Path -> (Tree -> Tree) -> Model -> Result
 doAt path f model =
-    R.modify Model.root (Tree.do path f >> R.liftVal "doAt") model
+    R.modify Model.root (Lens.modify (Tree.path path) f >> R.succeed) model
 
 clearSelection : Action
 clearSelection m = R.succeed { m | selected = Selection.empty }
@@ -79,8 +81,7 @@ changeLabel labels model =
         case selected of
             Just sel ->
                 if Tree.get sel (.get Model.root model)
-                    |> Maybe.map Tree.hasTerminalLabel
-                    |> Maybe.withDefault True
+                    |> Tree.hasTerminalLabel
                 then R.succeed model
                 else
                     case labels of
@@ -118,13 +119,12 @@ coIndex2 model path1 path2  =
                 root = (.get Model.root model)
                 tree1 = Tree.get path1 root
                 tree2 = Tree.get path2 root
-                index1 = tree1 |> Maybe.andThen (.get Tree.index)
-                index2 = tree2 |> Maybe.andThen (.get Tree.index)
+                index1 = tree1 |> .get Tree.index
+                index2 = tree2 |> .get Tree.index
                 ind = Tree.get (Path.root path1) root |>
-                      Maybe.map Tree.highestIndex |> -- TODO: I think this
-                                                     -- logic is duplicated
-                                                     -- elsewhere in this file
-                      Maybe.withDefault 0 |>
+                      Tree.highestIndex |> -- TODO: I think this
+                                           -- logic is duplicated
+                                           -- elsewhere in this file
                       (+) 1
                 helper : Maybe Index.Index -> Maybe Index.Index -> Result
                 helper i1 i2 =
@@ -173,8 +173,7 @@ isGapAt : Path -> Model -> Bool
 isGapAt path model =
     .get Model.root model |>
     Tree.get path |>
-    Maybe.andThen (.getOption <|
-                       (o Tree.index) => maybe => (o Index.variety)) |>
+    (.getOption <| (o Tree.index) => maybe => (o Index.variety)) |>
     Maybe.withDefault Index.Normal |>
     (==) Index.Gap
 
@@ -186,8 +185,7 @@ incrementIndicesBy : Int -> Path -> Tree -> Tree
 incrementIndicesBy inc path tree =
     Optional.modify ((o Tree.index) => maybe => (o Index.number)) ((+) inc) |>
     Tree.map |>
-    (\x -> Tree.do path x tree) |>
-    Maybe.withDefault tree
+    (\x -> Lens.modify (Tree.path path) x tree)
 
 doMove : Path -> Path -> Model -> Result
 doMove src dest model =
@@ -199,8 +197,7 @@ doMove src dest model =
                   else
                       let
                           inc = (Tree.get destRoot (.get Model.root model)) |>
-                                Maybe.map Tree.highestIndex |>
-                                Maybe.withDefault 0
+                                Tree.highestIndex
                       in
                           incrementIndicesBy inc srcRoot (.get Model.root model)
         res = Tree.moveTo src dest newRoot
@@ -236,12 +233,11 @@ doMovement model dest src =
         root = (.get Model.root) model
         indDef = root |>
                  Tree.get (Path.root src) |>
-                 Maybe.map Tree.highestIndex |>
-                 Maybe.withDefault 0 |>
+                 Tree.highestIndex |>
                  (+) 1
         ind = root |>
               Tree.get src |>
-              Maybe.andThen (.get Tree.index) |>
+              .get Tree.index |>
               Maybe.map (.get Index.number) |>
               Maybe.withDefault indDef
         m = doAt src (.set Tree.index <| Just <| Index.normal ind) model
@@ -250,7 +246,7 @@ doMovement model dest src =
         trace : R.Result Tree
         trace = m |>
                 R.map (.get Model.root) |>
-                R.andThen (Tree.get src >> R.liftVal "doMovement") |>
+                R.andThen (Tree.get src >> R.succeed) |>
                 R.map (flip Tree.makeTrace ind)
         sameRoot = Path.root src == Path.root dest
     in
@@ -266,8 +262,8 @@ leafBeforeInner newLeaf path tree =
         foot = Path.foot path
         update c = List.take foot c ++ [newLeaf] ++ List.drop foot c
     in
-        Tree.do parent (Lens.modify Tree.children update) tree |>
-        R.liftVal "leafBeforeInner"
+        Lens.modify ((Tree.path parent) <|> Tree.children) update tree |>
+        R.succeed
 
 createLeaf : Tree -> Model -> Path -> Result
 createLeaf leaf m path = R.modify Model.root (leafBeforeInner leaf path) m
@@ -294,35 +290,31 @@ deleteNode model =
         delete : Path -> R.Result Tree
         delete path =
             let
-                node = Tree.get path root
+                n = Tree.get path root
             in
-                case node of
-                    Nothing -> R.fail "deleteNode"
-                    Just n ->
-                        case .get Tree.children n of
-                            [] ->
-                                let
-                                    isEmpty = Tree.isEmpty n
-                                    hasSiblings = path |>
-                                                  Path.parent |>
-                                                  flip Tree.get root |>
-                                                  Maybe.map (.get Tree.children) |>
-                                                  Maybe.map (\x -> List.length x >= 1) |>
-                                                  Maybe.withDefault False
-                                in
-                                    case (isEmpty, hasSiblings) of
-                                        (False, _) -> R.fail "Cannot delete a non-empty terminal"
-                                        (True, False) -> R.fail "Cannot delete an only child"
-                                        (True, True) -> Tree.extractAt path (.get Model.root model) |>
-                                                        Maybe.map Tuple.second |>
-                                                        R.liftVal "deleteTerminal"
+                case .get Tree.children n of
+                    [] ->
+                        let
+                            isEmpty = Tree.isEmpty n
+                            hasSiblings = path |>
+                                          Path.parent |>
+                                          flip Tree.get root |>
+                                          .get Tree.children |>
+                                          (\x -> List.length x >= 1)
+                        in
+                            case (isEmpty, hasSiblings) of
+                                (False, _) -> R.fail "Cannot delete a non-empty terminal"
+                                (True, False) -> R.fail "Cannot delete an only child"
+                                (True, True) -> Tree.extractAt path (.get Model.root model) |>
+                                                Tuple.second |>
+                                                R.succeed
 
-                            children ->
-                                let
-                                    newRoot = Tree.extractAt path root |> Maybe.map Tuple.second
-                                in
-                                    Maybe.andThen (Tree.insertManyAt path children) newRoot |>
-                                    R.liftVal "deleteNonTerminal"
+                    children ->
+                        let
+                            newRoot = Tree.extractAt path root |> Tuple.second
+                        in
+                            Tree.insertManyAt path children newRoot |>
+                            R.succeed
     in
         R.succeed model |>
         Selection.withOne model.selected (delete >> R.map (flip (.set Model.root) model)) |>
@@ -337,7 +329,7 @@ editLabel model =
         root : Maybe Tree
         root = model |> .get Model.root |> Just
         label : R.Result String
-        label = maybeAndThen2 Tree.get selected root |> Maybe.map (.get Tree.label) |> R.liftVal "editLabel"
+        label = Maybe.map Tree.get selected |> Maybe.Extra.andMap root |> Maybe.map (.get Tree.label) |> R.liftVal "editLabel"
         initForm = R.map LabelEdit.init label
     in
         R.map (\l -> { model | labelForm = Just <| LabelEdit.init l}) label |>
@@ -358,17 +350,16 @@ toggleDashTag : String -> Path -> Model -> Result
 toggleDashTag tag path model =
     let
         tree = model |> .get Model.root |> Tree.get path
-        labels = tree |> Maybe.map (.get Tree.label >> String.split "-")
-        contains = labels |> Maybe.map (List.any ((==) tag))
+        labels = tree |> .get Tree.label |> String.split "-"
+        contains = labels |> List.any ((==) tag)
         setLabel = .set Tree.label
         valuePre =
             case contains of
-                Just True -> (labels |> Maybe.map (List.filter ((/=) tag) >> String.join "-"))
-                Just False -> (labels |> Maybe.map ((\x -> x ++ [tag]) >> String.join "-"))
-                Nothing -> Nothing
+                True -> labels |> List.filter ((/=) tag) |> String.join "-"
+                False -> labels |> (\x -> x ++ [tag]) |> String.join "-"
     in
         valuePre |>
-        R.liftVal "toggleDashTag" |>
+        R.succeed |>
         R.andThen (\x -> doAt path (setLabel x) model)
 
 undo : Model -> Result

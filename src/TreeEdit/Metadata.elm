@@ -250,15 +250,14 @@ save metadata model =
                     -- 2. Use a better type for paths (e.g. zippers) that
                     -- guarantees their validity (but we tried this before and
                     -- it was a pain in the neck in other ways)
-                    selectedNode = Tree.get selection root |> fromJust
+                    selectedNode = Tree.get selection root
                     doUpdate = performUpdate metadata model.metadataForm
                     getUpdater (key, info) = info.editInfo |> Maybe.map Tuple.second |> Maybe.map (doUpdate key)
                     updaters = OD.toList fieldInfo |> List.map getUpdater |> Maybe.Extra.values
                 in
                     List.foldl (\x y -> x y) (Return.singleton selectedNode) updaters |>
                     Debug.log "after updates" |>
-                    Return.map (\newLeaf -> Tree.set selection newLeaf root |>
-                                        Maybe.withDefault root) |>
+                    Return.map (\newLeaf -> Tree.set selection newLeaf root) |>
                     Return.map (\x -> .set Model.root x model)
             _ -> Return.singleton model
 
@@ -307,10 +306,10 @@ update model msg =
                             selectedNode = Tree.get path root
                         in
                             selectedNode |>
-                            Maybe.map (Lens.modify Tree.metadata (Dict.update (String.toUpper fieldName) (always Nothing))) |>
-                            Maybe.andThen (\newLeaf -> Tree.set path newLeaf root) |>
-                            Maybe.map (\x -> .set Model.root x model) |>
-                            R.liftVal "metadata delete" |>
+                            Lens.modify Tree.metadata (Dict.update (String.toUpper fieldName) (always Nothing)) |>
+                            (\newLeaf -> Tree.set path newLeaf root) |>
+                            (\x -> .set Model.root x model) |>
+                            R.succeed |>
                             R.handle model |>
                             message (Msg.Metadata NewSelection)
                     Nothing -> Return.singleton model
@@ -335,7 +334,7 @@ update model msg =
                 case Selection.getOne model.selected of
                     Just p ->
                         let
-                            node = Tree.get p root |> fromJust
+                            node = Tree.get p root
                             metadata = (.get Tree.metadata) node
                         in
                             case Tree.isTerminal node of

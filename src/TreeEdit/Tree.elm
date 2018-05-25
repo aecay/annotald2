@@ -1,12 +1,9 @@
 module TreeEdit.Tree exposing ( get
                               , set
-                              , highestIndex
-                              --, sameRoot
+                              , highestIndex -- Action.elm: coIndex2, doMove, doMovement
                               , moveTo
                               , internals
-                              , insertAt
-                              , insertManyAt
-                              , do
+                              , insertManyAt -- Action.elm: deleteNode
                               , extractAt
                               , makeTrace
                               , map
@@ -20,6 +17,7 @@ module TreeEdit.Tree exposing ( get
                               , hasTerminalLabel
                               , isEmpty
                               , isTerminal
+                              , path
                               )
 
 import Char
@@ -27,14 +25,13 @@ import List
 import List.Extra exposing (getAt, removeAt)
 import Maybe
 
-import Maybe.Extra
 import Monocle.Optional as Optional exposing (Optional)
-import Monocle.Common exposing ((=>), maybe)
+import Monocle.Common exposing ((=>), maybe, (<|>))
 import Monocle.Lens as Lens exposing (Lens)
 
 import TreeEdit.Tree.Type as Type exposing (..)
 
-import TreeEdit.Utils as Utils exposing (o)
+import TreeEdit.Utils as Utils exposing (o, fromJust)
 
 import TreeEdit.Index as Index
 import TreeEdit.Path as Path exposing (Path(..), PathFragment)
@@ -46,7 +43,7 @@ type alias Result a = R.Result a
 -- Functions we expose for testing only
 internals :
     { allLast : Path -> PathFragment -> Tree -> Bool
-    , extractAt : Path -> Tree -> Maybe ( Tree, Tree )
+    , extractAt : Path -> Tree -> ( Tree, Tree )
     , isLastAt : Tree -> Path -> Bool
     }
 internals = { allLast = allLast
@@ -130,59 +127,53 @@ map fn tree =
             ch -> children.set (List.map (\x -> map fn x) ch) newTree
 
 
-get : Path -> Tree -> Maybe Tree
+get : Path -> Tree -> Tree
 get path tree = case path of
-                    Path.RootPath -> Just tree
+                    Path.RootPath -> tree
                     Path.Path foot _ ->
                         get (Path.parent path) tree |>
-                        Maybe.map children.get |>
-                        Maybe.andThen (getAt foot)
+                        children.get |>
+                        getAt foot |>
+                        fromJust
 
-set : Path -> Tree -> Tree -> Maybe Tree
+set : Path -> Tree -> Tree -> Tree
 set path newChild tree = case path of
-                             Path.RootPath -> Just newChild
+                             Path.RootPath -> newChild
                              Path.Path foot _ ->
                                  let
                                      parentPath = Path.parent path
                                  in
                                      get parentPath tree |>
-                                     Maybe.map (setChild foot newChild) |>
-                                     Maybe.andThen (\x -> set parentPath x tree)
+                                     setChild foot newChild |>
+                                     (\x -> set parentPath x tree)
 
-do : Path.Path -> (Tree -> Tree) -> Tree -> Maybe Tree
-do path f tree =
-    let
-        orig = get path tree
-    in
-        orig |> Maybe.map f |> Maybe.andThen (\x -> set path x tree)
+path : Path -> Lens Tree Tree
+path p = Lens (get p) (set p)
 
 setChild : Int -> Tree -> Tree -> Tree
 setChild i new =
     Lens.modify children (List.Extra.setAt i new)
 
-extractAt : Path -> Tree -> Maybe (Tree, Tree)
-extractAt path tree =
-    case path of
-        RootPath -> Nothing
-        otherwise ->
-            let
-                parent = Path.parent path
-                idx = Path.foot path
-                child = get path tree
-                newparent = do parent (Lens.modify children (removeAt idx)) tree
-            in
-                Maybe.map (,) child |> Maybe.Extra.andMap newparent
+extractAt : Path -> Tree -> (Tree, Tree)
+extractAt path_ tree =
+    let
+        parent = Path.parent path_
+        idx = Path.foot path_
+        child = get path_ tree
+        newparent = Lens.modify ((path parent) <|> children) (removeAt idx) tree
+    in
+        (child, newparent)
 
-insertAt : Path -> Tree -> Tree -> Maybe Tree
+insertAt : Path -> Tree -> Tree -> Tree
 insertAt path newChild = insertManyAt path [newChild]
 
-insertManyAt : Path -> List Tree -> Tree -> Maybe Tree
-insertManyAt path newChildren =
+insertManyAt : Path -> List Tree -> Tree -> Tree
+insertManyAt path_ newChildren =
     let
-        parent = Path.parent path
-        idx = Path.foot path
+        parent = Path.parent path_
+        idx = Path.foot path_
     in
-        do parent (Lens.modify children (Utils.insertMany idx newChildren))
+        Lens.modify ((path parent) <|> children) (Utils.insertMany idx newChildren)
 
 highestIndex : Tree -> Int
 highestIndex t =
@@ -207,10 +198,9 @@ allFirst path frag tree =
 isLastAt : Tree -> Path -> Bool
 isLastAt tree path =
     get (Path.parent path) tree |>
-    Maybe.map children.get |>
-    Maybe.map List.length |>
-    Maybe.map ((==) (Path.foot path + 1)) |>
-    Maybe.withDefault False
+    children.get |>
+    List.length |>
+    ((==) (Path.foot path + 1))
 
 allLast : Path -> PathFragment -> Tree -> Bool
 allLast path frag tree =
@@ -237,9 +227,9 @@ moveTo from to tree =
                               allLast (Path.childPath sFrom common) tailFrom tree) of
                         (True, False) ->
                             -- Leftward
-                            R.liftVal "moveTo lift" <| performMove from (Path.childPath sFrom common) tree
+                            R.succeed <| performMove from (Path.childPath sFrom common) tree
                         (False, True) ->
-                            R.liftVal "moveTo lift" <| performMove from (Path.childPath (sFrom + 1) common) tree
+                            R.succeed <| performMove from (Path.childPath (sFrom + 1) common) tree
                         (False, False) -> R.fail "can't move from the middle"
                         otherwise -> R.fail "should never happen"
                 (Just sFrom, Just sTo) ->
@@ -255,7 +245,7 @@ moveTo from to tree =
                                                        False -> Path.join common fragTo
                                         adjPath = adjPath1 |> Path.childPath 0
                                     in
-                                        R.liftVal "moveTo 2" <| performMove from adjPath tree
+                                        R.succeed <| performMove from adjPath tree
                                 otherwise -> R.fail "can't move to/from the middle"
                         1 ->
                             -- Leftward
@@ -264,22 +254,22 @@ moveTo from to tree =
                                 (True, True) ->
                                     let
                                         nKids = get to tree |>
-                                                Maybe.map children.get |>
-                                                Maybe.map List.length |>
-                                                R.liftVal "nKids"
+                                                children.get |>
+                                                List.length |>
+                                                R.succeed
                                         adjPath1 = Path.join common fragTo
                                         adjPath = nKids |> R.map (\x -> Path.childPath x adjPath1)
                                     in
-                                        adjPath |> R.andThen (\x -> R.liftVal "moveTo 3" <| performMove from x tree)
+                                        adjPath |> R.andThen (\x -> R.succeed <| performMove from x tree)
                                 otherwise -> R.fail "can't move to/from the middle"
 
                         otherwise -> R.fail "can't move from non-adjacent siblings"
 
-performMove : Path -> Path -> Tree -> Maybe (Tree, Path)
+performMove : Path -> Path -> Tree -> (Tree, Path)
 performMove from to tree =
     extractAt from tree |>
-    Maybe.andThen (uncurry (insertAt to)) |>
-    Maybe.map (\x -> (x, to))
+    uncurry (insertAt to) |>
+    (\x -> (x, to))
 
 -- Other
 
