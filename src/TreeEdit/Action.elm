@@ -56,19 +56,10 @@ type alias Result = R.Result Model
 
 type alias Action = Model -> Result
 
--- TODO: remove
-doOneSelected : (Tree -> Tree) -> Model -> Result
-doOneSelected f model =
-    let
-        path = model.selected |>
-               (R.lift "no single selection" Selection.first)
-    in
-        path |>
-        R.andThen (\x -> doAt x f model)
-
 doAt : Path -> (Tree -> Tree) -> Model -> Result
 doAt path f model =
-    R.modify Model.root (Lens.modify (Tree.path path) f >> R.succeed) model
+    Lens.modify (Model.root <|> (Tree.path path)) f model |>
+    R.succeed
 
 clearSelection : Action
 clearSelection m = R.succeed { m | selected = Selection.empty }
@@ -103,11 +94,11 @@ changeLabel labels model =
 coIndex : Model -> Result
 coIndex model =
     Selection.perform model.selected
-        (R.succeed model)
-        (coIndex1 model)
+        (R.fail "nothing selected")
+        (coIndex1 model >> R.succeed)
         (coIndex2 model)
 
-coIndex1: Model -> Path -> Result
+coIndex1: Model -> Path -> Model
 coIndex1 = flip removeIndexAt
 
 coIndex2 : Model -> Path -> Path -> Result
@@ -128,6 +119,7 @@ coIndex2 model path1 path2  =
                       (+) 1
                 helper : Maybe Index.Index -> Maybe Index.Index -> Result
                 helper i1 i2 =
+                    R.succeed <|
                     case (i1, i2) of
                         -- One of the nodes has an index, the other does not: set
                         -- the index of the unindexed node to match
@@ -140,46 +132,50 @@ coIndex2 model path1 path2  =
                                 -- Normal coindexing -> gap
                                 (Index.Normal, Index.Normal) ->
                                     setIndexVarietyAt path2 Index.Gap model |>
-                                    R.andThen (\x -> if isGapAt path2 x
-                                                     then R.succeed x
-                                                     else setIndexVarietyAt path1 Index.Gap model)
+                                    (\x -> if isGapAt path2 x
+                                           then x
+                                           else setIndexVarietyAt path1 Index.Gap model)
                                 -- Gap -> backwards gap
                                 (Index.Normal, Index.Gap) ->
                                     setIndexVarietyAt path1 Index.Gap model |>
-                                    R.andThen (setIndexVarietyAt path2 Index.Normal)
+                                    setIndexVarietyAt path2 Index.Normal
                                 -- Backwards gap -> remove indexes
                                 (Index.Gap, Index.Normal) ->
                                     removeIndexAt path1 model |>
-                                    R.andThen (removeIndexAt path2)
+                                    removeIndexAt path2
                                 -- Something weird -> remove indexes (TODO: is
                                 -- this right?)
                                 otherwise -> removeIndexAt path1 model |>
-                                             R.andThen (removeIndexAt path2)
+                                             removeIndexAt path2
                         -- Neither node has an index -> coindex them
                         (Nothing, Nothing) -> setIndexAt path1 ind model |>
-                                              R.andThen (setIndexAt path2 ind)
+                                              setIndexAt path2 ind
             in
                 helper index1 index2
 
-setIndexAt: Path -> Int -> Action
+setIndexAt: Path -> Int -> Model -> Model
 setIndexAt path index =
-    doAt path (.set Tree.index <| Just <| Index.normal index)
+    .set (Model.root <|> (Tree.path path) <|> Tree.index) (Just <| Index.normal index)
 
-setIndexVarietyAt : Path -> Index.Variety -> Action
+setIndexVarietyAt : Path -> Index.Variety -> Model -> Model
 setIndexVarietyAt path newVariety =
-    doAt path (((o Tree.index) => maybe => (o Index.variety) |> .set) newVariety)
+    let
+        lens = (o (Model.root <|> (Tree.path path) <|> Tree.index)) => maybe => (o Index.variety)
+    in
+        .set lens newVariety
 
 isGapAt : Path -> Model -> Bool
 isGapAt path model =
-    .get Model.root model |>
-    Tree.get path |>
-    (.getOption <| (o Tree.index) => maybe => (o Index.variety)) |>
-    Maybe.withDefault Index.Normal |>
-    (==) Index.Gap
+    let
+        lens = (o <| Model.root <|> (Tree.path path) <|> Tree.index) => maybe => (o Index.variety)
+    in
+        .getOption lens model |>
+        Maybe.withDefault Index.Normal |>
+        (==) Index.Gap
 
-removeIndexAt : Path -> Action
+removeIndexAt : Path -> Model -> Model
 removeIndexAt path =
-    doAt path (.set Tree.index Nothing)
+    .set (Model.root <|> (Tree.path path) <|> Tree.index) Nothing
 
 incrementIndicesBy : Int -> Path -> Tree -> Tree
 incrementIndicesBy inc path tree =
@@ -207,8 +203,8 @@ doMove src dest model =
         R.modify Model.root (always newRoot1) model |>
         R.andThen (R.modify Model.selected (always <| R.map Selection.one newSel))
 
-createParent2 : String -> Path -> Path -> Model -> Result
-createParent2 label one two model =
+createParent2 : String -> Model -> Path -> Path -> Result
+createParent2 label model one two =
     let
         parent1 = Path.parent one
         parent2 = Path.parent two
@@ -223,9 +219,10 @@ createParent2 label one two model =
 createParent : String -> Model -> Result
 createParent label model =
     let
-        one path = doAt path (\x -> .t TreeType.private label [x])
+        one : Path -> Result
+        one path = doAt path (\x -> .t TreeType.private label [x]) model
     in
-        model |> Selection.perform model.selected R.succeed one (createParent2 label)
+        Selection.perform model.selected (R.fail "nothing selected") one (createParent2 label model)
 
 doMovement : Model -> Path -> Path -> Result
 doMovement model dest src =
@@ -263,7 +260,7 @@ leafBeforeInner newLeaf path tree =
         update c = List.take foot c ++ [newLeaf] ++ List.drop foot c
     in
         Lens.modify ((Tree.path parent) <|> Tree.children) update tree |>
-        R.succeed
+        R.succeed -- TODO: bogus succeed
 
 createLeaf : Tree -> Model -> Path -> Result
 createLeaf leaf m path = R.modify Model.root (leafBeforeInner leaf path) m
