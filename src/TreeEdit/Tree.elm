@@ -4,7 +4,7 @@ module TreeEdit.Tree exposing ( get
                               , moveTo
                               , internals
                               , insertManyAt -- Action.elm: deleteNode
-                              , extractAt
+                              , deleteAt
                               , makeTrace
                               , map
                               , illegalLabelChar
@@ -43,12 +43,12 @@ type alias Result a = R.Result a
 -- Functions we expose for testing only
 internals :
     { allLast : Path -> PathFragment -> Tree -> Bool
-    , extractAt : Path -> Tree -> ( Tree, Tree )
+    , deleteAt : Path -> Tree -> Tree
     , isLastAt : Tree -> Path -> Bool
     }
 internals = { allLast = allLast
             , isLastAt = isLastAt
-            , extractAt = extractAt
+            , deleteAt = deleteAt
             }
 
 -- Reexports
@@ -154,15 +154,13 @@ setChild : Int -> Tree -> Tree -> Tree
 setChild i new =
     Lens.modify children (List.Extra.setAt i new)
 
-extractAt : Path -> Tree -> (Tree, Tree)
-extractAt path_ tree =
+deleteAt : Path -> Tree -> Tree
+deleteAt path_ tree =
     let
         parent = Path.parent path_
         idx = Path.foot path_
-        child = get path_ tree
-        newparent = Lens.modify ((path parent) <|> children) (removeAt idx) tree
     in
-        (child, newparent)
+        Lens.modify ((path parent) <|> children) (removeAt idx) tree
 
 insertAt : Path -> Tree -> Tree -> Tree
 insertAt path newChild = insertManyAt path [newChild]
@@ -227,9 +225,15 @@ moveTo from to tree =
                               allLast (Path.childPath sFrom common) tailFrom tree) of
                         (True, False) ->
                             -- Leftward
-                            R.succeed <| performMove from (Path.childPath sFrom common) tree
+                            let
+                                toPath = Path.childPath sFrom common
+                            in
+                                R.succeed <| (performMove from toPath tree, toPath)
                         (False, True) ->
-                            R.succeed <| performMove from (Path.childPath (sFrom + 1) common) tree
+                            let
+                                toPath = Path.childPath (sFrom + 1) common
+                            in
+                                R.succeed <| (performMove from toPath tree, toPath)
                         (False, False) -> R.fail "can't move from the middle"
                         otherwise -> R.fail "should never happen"
                 (Just sFrom, Just sTo) ->
@@ -245,7 +249,7 @@ moveTo from to tree =
                                                        False -> Path.join common fragTo
                                         adjPath = adjPath1 |> Path.childPath 0
                                     in
-                                        R.succeed <| performMove from adjPath tree
+                                        R.succeed <| (performMove from adjPath tree, adjPath)
                                 otherwise -> R.fail "can't move to/from the middle"
                         1 ->
                             -- Leftward
@@ -255,21 +259,22 @@ moveTo from to tree =
                                     let
                                         nKids = get to tree |>
                                                 children.get |>
-                                                List.length |>
-                                                R.succeed
+                                                List.length
                                         adjPath1 = Path.join common fragTo
-                                        adjPath = nKids |> R.map (\x -> Path.childPath x adjPath1)
+                                        adjPath = Path.childPath nKids adjPath1
                                     in
-                                        adjPath |> R.andThen (\x -> R.succeed <| performMove from x tree)
+                                        R.succeed <| (performMove from adjPath tree, adjPath)
                                 otherwise -> R.fail "can't move to/from the middle"
 
                         otherwise -> R.fail "can't move from non-adjacent siblings"
 
-performMove : Path -> Path -> Tree -> (Tree, Path)
+performMove : Path -> Path -> Tree -> Tree
 performMove from to tree =
-    extractAt from tree |>
-    uncurry (insertAt to) |>
-    (\x -> (x, to))
+    let
+        moved = get from tree
+    in
+        deleteAt from tree |>
+        insertAt to moved
 
 -- Other
 

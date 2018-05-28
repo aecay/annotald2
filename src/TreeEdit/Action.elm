@@ -302,16 +302,12 @@ deleteNode model =
                             case (isEmpty, hasSiblings) of
                                 (False, _) -> R.fail "Cannot delete a non-empty terminal"
                                 (True, False) -> R.fail "Cannot delete an only child"
-                                (True, True) -> Tree.extractAt path (.get Model.root model) |>
-                                                Tuple.second |>
-                                                R.succeed
+                                (True, True) -> R.succeed <| Tree.deleteAt path (.get Model.root model)
 
                     children ->
-                        let
-                            newRoot = Tree.extractAt path root |> Tuple.second
-                        in
-                            Tree.insertManyAt path children newRoot |>
-                            R.succeed
+                        Tree.deleteAt path root |>
+                        Tree.insertManyAt path children |>
+                        R.succeed
     in
         R.succeed model |>
         Selection.withOne model.selected (delete >> R.map (flip (.set Model.root) model)) |>
