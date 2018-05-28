@@ -20,9 +20,10 @@ module TreeEdit.Tree exposing ( get
                               , path
                               )
 
+import Array exposing (Array)
 import Char
 import List
-import List.Extra exposing (getAt, removeAt)
+import Array.Extra exposing (removeAt)
 import Maybe
 
 import Monocle.Optional as Optional exposing (Optional)
@@ -45,10 +46,12 @@ internals :
     { allLast : Path -> PathFragment -> Tree -> Bool
     , extractAt : Path -> Tree -> ( Tree, Tree )
     , isLastAt : Tree -> Path -> Bool
+    , insertAt : Path -> Tree -> Tree -> Tree
     }
 internals = { allLast = allLast
             , isLastAt = isLastAt
             , extractAt = extractAt
+            , insertAt = insertAt
             }
 
 -- Reexports
@@ -56,7 +59,7 @@ internals = { allLast = allLast
 index : Lens Tree (Maybe Index.Index)
 index = Type.index
 
-children : Lens Tree (List Tree)
+children : Lens Tree (Array Tree)
 children = Type.children
 
 metadata : Lens Tree Metadata
@@ -68,7 +71,7 @@ label = Type.label
 info : Lens Tree TreeInfo
 info = Type.info
 
-either : (Terminal -> a) -> (TreeInfo -> List Tree -> a) -> Tree -> a
+either : (Terminal -> a) -> (TreeInfo -> Array Tree -> a) -> Tree -> a
 either = .either Type.private
 
 hasTerminalLabel : Tree -> Bool
@@ -107,14 +110,9 @@ fold : (Tree -> a -> a) -> a -> Tree -> a
 fold fn init tree =
     let
         c = children.get tree
+        v = fn tree init
     in
-        case c of
-            [] -> fn tree init
-            ch ->
-                let
-                    v = fn tree init
-                in
-                    List.foldl (flip (fold fn)) v ch
+        Array.foldl (flip (fold fn)) v c
 
 map : (Tree -> Tree) -> Tree -> Tree
 map fn tree =
@@ -122,9 +120,9 @@ map fn tree =
         newTree = fn tree
         c = children.get newTree
     in
-        case c of
-            [] -> newTree
-            ch -> children.set (List.map (\x -> map fn x) ch) newTree
+        case Array.length c of
+            0 -> newTree
+            _ -> children.set (Array.map (\x -> map fn x) c) newTree
 
 
 get : Path -> Tree -> Tree
@@ -133,7 +131,7 @@ get path tree = case path of
                     Path.Path foot _ ->
                         get (Path.parent path) tree |>
                         children.get |>
-                        getAt foot |>
+                        Array.get foot |>
                         fromJust
 
 set : Path -> Tree -> Tree -> Tree
@@ -152,7 +150,7 @@ path p = Lens (get p) (set p)
 
 setChild : Int -> Tree -> Tree -> Tree
 setChild i new =
-    Lens.modify children (List.Extra.setAt i new)
+    Lens.modify children (Array.set i new)
 
 extractAt : Path -> Tree -> (Tree, Tree)
 extractAt path_ tree =
@@ -165,9 +163,9 @@ extractAt path_ tree =
         (child, newparent)
 
 insertAt : Path -> Tree -> Tree -> Tree
-insertAt path newChild = insertManyAt path [newChild]
+insertAt path newChild = insertManyAt path <| Array.repeat 1 newChild
 
-insertManyAt : Path -> List Tree -> Tree -> Tree
+insertManyAt : Path -> Array Tree -> Tree -> Tree
 insertManyAt path_ newChildren =
     let
         parent = Path.parent path_
@@ -199,7 +197,7 @@ isLastAt : Tree -> Path -> Bool
 isLastAt tree path =
     get (Path.parent path) tree |>
     children.get |>
-    List.length |>
+    Array.length |>
     ((==) (Path.foot path + 1))
 
 allLast : Path -> PathFragment -> Tree -> Bool
@@ -215,9 +213,7 @@ moveTo from to tree =
     then R.fail "Can't move only child"
     else
         let
-            _ = Debug.log "from" from
-            _ = Debug.log "to" to
-            { common, sibFrom, sibTo, tailFrom, tailTo, fragFrom, fragTo } = Path.splitCommon from to |> Debug.log "components"
+            { common, sibFrom, sibTo, tailFrom, tailTo, fragFrom, fragTo } = Path.splitCommon from to
         in
             case (sibFrom, sibTo) of
                 (Nothing, _) -> R.fail "Can't move to own child"
@@ -255,7 +251,7 @@ moveTo from to tree =
                                     let
                                         nKids = get to tree |>
                                                 children.get |>
-                                                List.length |>
+                                                Array.length |>
                                                 R.succeed
                                         adjPath1 = Path.join common fragTo
                                         adjPath = nKids |> R.map (\x -> Path.childPath x adjPath1)

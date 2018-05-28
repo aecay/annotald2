@@ -2,6 +2,7 @@ module TreeEdit.View exposing ( view
                               , viewRootTree -- For memoization hack
                               )
 
+import Array
 import Dict
 import Guards exposing (..)
 import Html exposing (..)
@@ -93,7 +94,8 @@ viewTree info selfPath tree =
         isSelected = List.member selfPath info.selected
         childHtml = Tree.either
                     (\_ -> [wnode tree])
-                    (\_ children -> List.indexedMap (\i c -> viewTree info (Path.childPath i selfPath) c) children)
+                    (\_ children -> Array.indexedMap (\i c -> viewTree info (Path.childPath i selfPath) c) children |>
+                         Array.toList)
                     tree
     in
         snode info selfPath tree childHtml
@@ -128,13 +130,14 @@ viewRoot model root vrt =
     in
         root |>
         (.get Tree.children) |>
-        List.indexedMap (\i c ->
-                             let
-                                 data = if List.member (Path.singleton i) selectedRoots
-                                        then Just (selectedTrees, labelForm)
-                                        else Nothing
-                             in
-                                 lazy3 vrt data i c)
+        Array.indexedMap (\i c ->
+                              let
+                                  data = if List.member (Path.singleton i) selectedRoots
+                                         then Just (selectedTrees, labelForm)
+                                         else Nothing
+                              in
+                                  lazy3 vrt data i c) |>
+        Array.toList
 
 wrapSn0 : List (Html Msg) -> Html Msg
 wrapSn0 nodes =

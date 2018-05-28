@@ -1,5 +1,6 @@
 module TreeEdit.Msg exposing (Msg(..))
 
+import Array exposing (Array)
 import Keyboard.Event exposing (KeyboardEvent)
 import RemoteData exposing (WebData)
 
@@ -16,7 +17,7 @@ type Msg = ToggleSelect Path |
     RightClick Path ContextMenuType.Position |
     RightClickRoot |
     Context ContextMenuType.Msg |
-    LoadedData (WebData (List Tree, Config, List Metadata.Lemma)) |
+    LoadedData (WebData (Array Tree, Config, List Metadata.Lemma)) |
     Save |
     SaveSuccess |
     SaveFailure String |
@@ -28,7 +29,7 @@ type Msg = ToggleSelect Path |
     Copy (WebData Clipboard.Response) |
     DismissDialog |
     Validate |
-    ValidateDone (WebData (List Tree)) |
+    ValidateDone (WebData (Array Tree)) |
     -- FixValidator |
     -- FixValidatorDone (WebData ()) |
     Ignore |
