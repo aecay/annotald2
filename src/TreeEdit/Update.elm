@@ -103,7 +103,7 @@ update msg model =
                 ContextMenu.update contextMsg model
             LoadedData (Success (trees, config, lemmata)) ->
                 Return.return { model |
-                                    webdata = Success { root = .t TreeType.private "wtf" trees
+                                    webdata = Success { root = .ta TreeType.private "wtf" trees
                                                       , config = config
                                                       , viewFn = View.viewRootTree config
                                                       , lemmata = lemmata

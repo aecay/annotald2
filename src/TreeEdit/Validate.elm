@@ -1,5 +1,6 @@
 module TreeEdit.Validate exposing (perform, done)
 
+import Array.Hamt as Array exposing (Array)
 import Json.Encode as E
 
 import RemoteData exposing (RemoteData(..), WebData)
@@ -30,14 +31,14 @@ perform model =
                        )
                      ]
 
-done : Model -> WebData (List Tree) -> Return Msg Model
+done : Model -> WebData (Array Tree) -> Return Msg Model
 done model webdata =
     let
         newModel = { model | dialog = Nothing }
     in
         case webdata of
             Success trees -> Return.return
-                             (.set Model.root (.t TreeType.private "wtf" trees) newModel)
+                             (.set Model.root (.ta TreeType.private "wtf" trees) newModel)
                              <| Utils.cmds [ Msg.Metadata MetadataType.NewSelection
                                            , Msg.LogMessage "Validate success"
                                            ]

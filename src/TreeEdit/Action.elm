@@ -21,6 +21,7 @@ module TreeEdit.Action exposing ( clearSelection
 
 -- Standard library
 
+import Array.Hamt as Array exposing (Array)
 import Dom
 import Maybe exposing (withDefault)
 import Maybe.Extra
@@ -212,15 +213,21 @@ createParent2 label model one two =
     in
         if parent1 /= parent2
         then R.fail "parents are different for createParent2"
-        else doAt parent1 (Lens.modify Tree.children (\c -> let (x, y, z) = Utils.splice foot1 (foot2+1) c
-                                                            in x ++ [.t TreeType.private label y] ++ z))
+        else doAt parent1 (Lens.modify Tree.children (\c ->
+                                                          let
+                                                              (x, y, z) = Utils.splice foot1 (foot2+1) c
+                                                            in
+                                                                Array.append x <|
+                                                                Array.append (Array.repeat 1
+                                                                                  (.ta TreeType.private label y))
+                                                                z))
             model |> R.map ((.set Model.selected) (Selection.one <| Path.childPath foot1 parent1))
 
 createParent : String -> Model -> Result
 createParent label model =
     let
         one : Path -> Result
-        one path = doAt path (\x -> .t TreeType.private label [x]) model
+        one path = doAt path (\x -> .ta TreeType.private label <| Array.repeat 1 x) model
     in
         Selection.perform model.selected (R.fail "nothing selected") one (createParent2 label model)
 
@@ -257,7 +264,7 @@ leafBeforeInner newLeaf path tree =
     let
         parent = Path.parent path
         foot = Path.foot path
-        update c = List.take foot c ++ [newLeaf] ++ List.drop foot c
+        update c = Utils.insert foot newLeaf c
     in
         Lens.modify ((Tree.path parent) <|> Tree.children) update tree |>
         R.succeed -- TODO: bogus succeed
@@ -288,23 +295,24 @@ deleteNode model =
         delete path =
             let
                 n = Tree.get path root
+                children = .get Tree.children n
             in
-                case .get Tree.children n of
-                    [] ->
+                case children |> Array.length of
+                    0 ->
                         let
                             isEmpty = Tree.isEmpty n
                             hasSiblings = path |>
                                           Path.parent |>
                                           flip Tree.get root |>
                                           .get Tree.children |>
-                                          (\x -> List.length x >= 1)
+                                          (\x -> Array.length x >= 1)
                         in
                             case (isEmpty, hasSiblings) of
                                 (False, _) -> R.fail "Cannot delete a non-empty terminal"
                                 (True, False) -> R.fail "Cannot delete an only child"
                                 (True, True) -> R.succeed <| Tree.deleteAt path (.get Model.root model)
 
-                    children ->
+                    _ ->
                         Tree.deleteAt path root |>
                         Tree.insertManyAt path children |>
                         R.succeed
