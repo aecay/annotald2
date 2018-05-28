@@ -3,17 +3,15 @@ module TestPath exposing (..)
 import Test exposing (..)
 import Expect
 
+import TreeEdit.Path exposing (..)
+
+p = internals.fromList
+l = internals.toList
+
 suite : Test
-suite = skip <| test "nothing yet" <| \() -> Expect.true "foo" True
---describe "Path"
-        -- [ describe "removeCommon" <|
-        --       [ skip "works in a basic case" <|
-        --             \() -> Expect.equal ([1,2], [3,4], [5,6]) <| removeCommon [1,2,3,4] [1,2,5,6]
-        --       , skip "works with left arg empty" <|
-        --           \() -> Expect.equal ([], [], [1,2]) <| removeCommon [] [1,2]
-        --       , skip "works with right arg empty" <|
-        --           \() -> Expect.equal ([], [1,2], []) <| removeCommon [1,2] []
-        --       , skip "works when no common part" <|
-        --           \() -> Expect.equal ([], [1,2], [3,4]) <| removeCommon [1,2] [3,4]
-        --       ]
-        -- ]
+suite = describe "Path" <|
+        [ describe "childPath" <|
+              [ test "works in a basic case" <|
+                    \() -> Expect.equal (p [1, 2, 0]) <| childPath 1 <| p [2, 0]
+              ]
+        ]

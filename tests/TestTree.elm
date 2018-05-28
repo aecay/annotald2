@@ -18,7 +18,7 @@ t = .t TreeType.private
 
 l s = .l TreeType.private s ""
 
-{ allLast, isLastAt, extractAt, insertAt } = T.internals
+{ allLast, isLastAt, deleteAt, insertAt } = T.internals
 
 err : R.Result a -> Expectation
 err x = case x of
@@ -148,38 +148,6 @@ suite = describe "Tree"
                            , l "barked"
                            ]
             ]
-        -- , describe "canMove" <|
-        --     [ test "works in a basic case" <|
-        --           \() -> Expect.equal True <| canMove (p [2, 0]) (p [0, 1]) <|
-        --                  t "x"
-        --                      [ t "y"
-        --                            [ l "a"
-        --                            , l "b"
-        --                            , l "c"
-        --                            ]
-        --                      , t "z"
-        --                          [ l "1"
-        --                          , l "2"
-        --                          , l "3"
-        --                          ]
-        --                      ]
-        --     , test "from the test program" <|
-        --         \() -> Expect.equal True <| canMove (p [1]) (p [2, 0]) <|
-        --                t "IP-MAT"
-        --                    [ t "NP-SBJ"
-        --                          [ l "the"
-        --                          , l "dog" ]
-        --                    , l "barked"
-        --                    ]
-        --     , test "from the test program 2" <|
-        --         \() -> Expect.equal True <| canMove (p [1, 0]) (p [1]) <|
-        --                t "IP-MAT"
-        --                    [ t "NP-SBJ"
-        --                          [ l "the"
-        --                          , l "dog" ]
-        --                    , l "barked"
-        --                    ]
-        --     ]
         , describe "moveTo" <|
             [ test "works in a basic case" <|
             \() -> ok (t "x"
@@ -193,8 +161,8 @@ suite = describe "Tree"
                            , l "2"
                            , l "3"
                            ]
-                       ]) <| R.map Tuple.first <|
-                   T.moveTo (p [2, 0]) (p [0, 1]) <|
+                       ], p [0,1]) <|
+                   T.moveTo (p [2, 0]) (p [1]) <|
                        t "x"
                        [ t "y"
                          [ l "a"
@@ -230,7 +198,7 @@ suite = describe "Tree"
                                  , l "barked"
                                  ]
                            ]) <| R.map Tuple.first <|
-                       T.moveTo (p [1]) (p [2, 0]) <|
+                       T.moveTo (p [1]) (p [0]) <|
                            t "IP-MAT"
                                [ t "NP-SBJ"
                                      [ l "the"
@@ -250,49 +218,45 @@ suite = describe "Tree"
                                    ]
                                ]
             ]
-            , describe "extractAt" <|
+            , describe "deleteAt" <|
                 [ test "basic case" <|
-                \() -> Expect.equal (l "barked",
-                                         t "IP-MAT"
+                \() -> Expect.equal (t "IP-MAT"
                                          [ t "NP-SBJ"
                                                [ l "the"
                                                , l "dog"
                                                ]
                                          ]
                                     ) <|
-                             extractAt (p [1]) (t "IP-MAT"
+                             deleteAt (p [1]) (t "IP-MAT"
                                                 [ t "NP-SBJ"
                                                       [ l "the"
                                                       , l "dog" ]
                                                 , l "barked"
                                                 ])
                 , test "at 0" <|
-                    \() -> Expect.equal (l "zero",
-                                        t "foo" [ l "one"
-                                                , l "two"
-                                                ]) <|
-                           extractAt (p [0]) <| t "foo" [ l "zero"
-                                                        , l "one"
-                                                        , l "two"
-                                                        ]
+                    \() -> Expect.equal (t "foo" [ l "one"
+                                                 , l "two"
+                                                 ]) <|
+                           deleteAt (p [0]) <| t "foo" [ l "zero"
+                                                       , l "one"
+                                                       , l "two"
+                                                       ]
                 , test "at end" <|
-                    \() -> Expect.equal (l "two",
-                                             t "foo" [ l "zero"
+                    \() -> Expect.equal (t "foo" [ l "zero"
                                                      , l "one"
                                                      ]) <|
-                           extractAt (p [2]) <| t "foo" [ l "zero"
+                           deleteAt (p [2]) <| t "foo" [ l "zero"
                                                         , l "one"
                                                         , l "two"
                                                         ]
                 , test "nested at 0" <|
-                    \() -> Expect.equal (l "zero",
-                                             t "bar" [ l "a"
-                                                     , t "foo" [ l "one"
-                                                               , l "two"
-                                                               ]
-                                                     , l "b"
-                                                     ]) <|
-                           extractAt (p [0, 1]) <| t "bar" [ l "a"
+                    \() -> Expect.equal (t "bar" [ l "a"
+                                                 , t "foo" [ l "one"
+                                                           , l "two"
+                                                           ]
+                                                 , l "b"
+                                                 ]) <|
+                           deleteAt (p [0, 1]) <| t "bar" [ l "a"
                                                         , t "foo" [ l "zero"
                                                                   , l "one"
                                                                   , l "two"
@@ -300,31 +264,30 @@ suite = describe "Tree"
                                                         , l "b"
                                                         ]
                 , test "nested at end" <|
-                    \() -> Expect.equal (l "two",
-                                             t "bar" [ l "a"
-                                                     , t "foo" [ l "zero"
-                                                               , l "one"
-                                                               ]
-                                                     , l "b"
-                                                     ]) <|
-                           extractAt (p [2, 1]) <| t "bar" [ l "a"
-                                                           , t "foo" [ l "zero"
-                                                                     , l "one"
-                                                                     , l "two"
-                                                                     ]
-                                                           , l "b"
+                    \() -> Expect.equal (t "bar" [ l "a"
+                                                 , t "foo" [ l "zero"
+                                                           , l "one"
                                                            ]
+                                                 , l "b"
+                                                 ]) <|
+                           deleteAt (p [2, 1]) <| t "bar" [ l "a"
+                                                          , t "foo" [ l "zero"
+                                                                    , l "one"
+                                                                    , l "two"
+                                                                    ]
+                                                          , l "b"
+                                                          ]
                 ]
                 , describe "insertAt" <|
                 [ test "at 0" <|
-                \() -> Expect.equal (t "foo" [ l "zero"
-                                             , l "one"
-                                             , l "two"
-                                             ])  <|
-                           insertAt (p [0]) (l "zero") <|
-                               t "foo" [ l "one"
-                                       , l "two"
-                                       ]
+                  \() -> Expect.equal (t "foo" [ l "zero"
+                                               , l "one"
+                                               , l "two"
+                                               ])  <|
+                      insertAt (p [0]) (l "zero") <|
+                      t "foo" [ l "one"
+                              , l "two"
+                              ]
                 , test "at end" <|
                     \() -> Expect.equal (t "foo" [ l "zero"
                                                  , l "one"
@@ -364,18 +327,5 @@ suite = describe "Tree"
                                                  ]
                                        , l "b"
                                        ]
-        ]
-        -- , describe "fixPathForMovt" <|
-        --     [ test "basic case" <|
-        --           \() -> Expect.equal (p [1, 0, 0]) <| fixPathForMovt (p [0,0]) (p [1, 1, 0])
-        --     ]
-        -- , describe "destPath"
-        --     [ test "moving to parent" <|
-        --           \() -> Expect.equal (Ok (p [1])) <|
-        --           T.destPath (p [0, 1]) TreeEdit.Path.RootPath <|
-        --           t "WTF" [ t "foo" [l "bar", l "baz"]
-        --                   , t "foo2" [l "bar2", l "baz2"]
-        --                   ]
-
-        --     ]
+                ]
         ]
