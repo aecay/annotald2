@@ -27,10 +27,21 @@ type Path = Path Int (List Int) | RootPath
 
 type PathFragment = PF (List Int)
 
-internals : { fromList : List Int -> Path, pf : List Int -> PathFragment }
-internals = { fromList = fromList
-            , pf = PF
+internals : { fromList : List Int -> Path
+            , pf : List Int -> PathFragment
+            , toList : Path -> List Int
             }
+internals =
+    let
+        toList p =
+            case p of
+                RootPath -> []
+                Path x y -> x :: y
+    in
+        { fromList = fromList
+        , pf = PF
+        , toList = toList
+        }
 
 childPath : Int -> Path -> Path
 childPath idx path =
