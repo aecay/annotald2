@@ -45,10 +45,12 @@ internals :
     { allLast : Path -> PathFragment -> Tree -> Bool
     , deleteAt : Path -> Tree -> Tree
     , isLastAt : Tree -> Path -> Bool
+    , insertAt : Path -> Tree -> Tree -> Tree
     }
 internals = { allLast = allLast
             , isLastAt = isLastAt
             , deleteAt = deleteAt
+            , insertAt = insertAt
             }
 
 -- Reexports
