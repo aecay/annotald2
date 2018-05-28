@@ -1,21 +1,44 @@
 module TestTree exposing (..)
 
 import Test exposing (..)
-import Expect
+import Expect exposing (Expectation)
 
 import Json.Decode as D
+import Tuple
 
+import TreeEdit.Result as R
 import TreeEdit.Tree as T
+import TreeEdit.Tree.Type as TreeType
 import TreeEdit.Path
 
 p = .fromList TreeEdit.Path.internals
 pf = .pf TreeEdit.Path.internals
 
-t = T.t
+t = .t TreeType.private
 
-l s = T.l s ""
+l s = .l TreeType.private s ""
 
-{ allLast, canMove, isLastAt, extractAt, fixPathForMovt } = T.internals
+{ allLast, isLastAt, extractAt, insertAt } = T.internals
+
+err : R.Result a -> Expectation
+err x = case x of
+            R.Result _ _ Nothing -> Expect.pass
+            _ -> Expect.fail "expected an error result"
+
+ok : a -> R.Result a -> Expectation
+ok val res =
+    let
+        (R.Result msgs _ wrapped) = Debug.log "ok: " res
+    in
+        case wrapped of
+            Nothing -> Expect.fail <| "Expected a passing result, but failed with messages " ++ toString msgs
+            Just v -> Expect.equal v val
+
+-- equalTree : Tree -> Tree -> Expectation
+-- equalTree a b =
+--     Expect.all [ Expect.equal (.get T.info a) (.get T.info b)
+--                ,
+--                ]
 
 suite : Test
 suite = describe "Tree"
@@ -125,67 +148,67 @@ suite = describe "Tree"
                            , l "barked"
                            ]
             ]
-        , describe "canMove" <|
-            [ test "works in a basic case" <|
-                  \() -> Expect.equal True <| canMove (p [2, 0]) (p [0, 1]) <|
-                         t "x"
-                             [ t "y"
-                                   [ l "a"
-                                   , l "b"
-                                   , l "c"
-                                   ]
-                             , t "z"
-                                 [ l "1"
-                                 , l "2"
-                                 , l "3"
-                                 ]
-                             ]
-            , test "from the test program" <|
-                \() -> Expect.equal True <| canMove (p [1]) (p [2, 0]) <|
-                       t "IP-MAT"
-                           [ t "NP-SBJ"
-                                 [ l "the"
-                                 , l "dog" ]
-                           , l "barked"
-                           ]
-            , test "from the test program 2" <|
-                \() -> Expect.equal True <| canMove (p [1, 0]) (p [1]) <|
-                       t "IP-MAT"
-                           [ t "NP-SBJ"
-                                 [ l "the"
-                                 , l "dog" ]
-                           , l "barked"
-                           ]
-            ]
+        -- , describe "canMove" <|
+        --     [ test "works in a basic case" <|
+        --           \() -> Expect.equal True <| canMove (p [2, 0]) (p [0, 1]) <|
+        --                  t "x"
+        --                      [ t "y"
+        --                            [ l "a"
+        --                            , l "b"
+        --                            , l "c"
+        --                            ]
+        --                      , t "z"
+        --                          [ l "1"
+        --                          , l "2"
+        --                          , l "3"
+        --                          ]
+        --                      ]
+        --     , test "from the test program" <|
+        --         \() -> Expect.equal True <| canMove (p [1]) (p [2, 0]) <|
+        --                t "IP-MAT"
+        --                    [ t "NP-SBJ"
+        --                          [ l "the"
+        --                          , l "dog" ]
+        --                    , l "barked"
+        --                    ]
+        --     , test "from the test program 2" <|
+        --         \() -> Expect.equal True <| canMove (p [1, 0]) (p [1]) <|
+        --                t "IP-MAT"
+        --                    [ t "NP-SBJ"
+        --                          [ l "the"
+        --                          , l "dog" ]
+        --                    , l "barked"
+        --                    ]
+        --     ]
         , describe "moveTo" <|
             [ test "works in a basic case" <|
-                  \() -> Expect.equal (Ok (t "x"
-                                                [ t "y"
-                                                      [ l "a"
-                                                      , l "b"
-                                                      ]
-                                                , t "z"
-                                                    [ l "c"
-                                                    , l "1"
-                                                    , l "2"
-                                                    , l "3"
-                                                    ]
-                                                ])) <|
+            \() -> ok (t "x"
+                       [ t "y"
+                             [ l "a"
+                             , l "b"
+                             ]
+                       , t "z"
+                           [ l "c"
+                           , l "1"
+                           , l "2"
+                           , l "3"
+                           ]
+                       ]) <| R.map Tuple.first <|
                    T.moveTo (p [2, 0]) (p [0, 1]) <|
-                      t "x"
-                          [ t "y"
-                                [ l "a"
-                                , l "b"
-                                , l "c"
-                                ]
-                          , t "z"
-                              [ l "1"
-                              , l "2"
-                              , l "3"
-                              ]
-                          ]
+                       t "x"
+                       [ t "y"
+                         [ l "a"
+                         , l "b"
+                         , l "c"
+                         ]
+                       , t "z"
+                           [ l "1"
+                           , l "2"
+                           , l "3"
+                           ]
+                       ]
             , test "refuses illegal movement" <|
-                \() -> Expect.err <|
+                \() -> err <|
                        T.moveTo (p [1, 0]) (p [0, 1]) <|
                            t "x"
                                [ t "y"
@@ -200,13 +223,13 @@ suite = describe "Tree"
                                    ]
                           ]
             , test "from the test program" <|
-                \() -> Expect.equal (Ok <| t "IP-MAT"
-                                         [ t "NP-SBJ"
-                                               [ l "the"
-                                               , l "dog"
-                                               , l "barked"
-                                               ]
-                                         ]) <|
+                \() -> ok (t "IP-MAT"
+                           [ t "NP-SBJ"
+                                 [ l "the"
+                                 , l "dog"
+                                 , l "barked"
+                                 ]
+                           ]) <| R.map Tuple.first <|
                        T.moveTo (p [1]) (p [2, 0]) <|
                            t "IP-MAT"
                                [ t "NP-SBJ"
@@ -215,7 +238,7 @@ suite = describe "Tree"
                                , l "barked"
                                ]
             , test "disallows moving only child" <|
-                \() -> Expect.err <|
+                \() -> err <|
                        T.moveTo (p [0, 1]) (p [3, 0]) <|
                            t "IP"
                                [ t "NP"
@@ -228,33 +251,131 @@ suite = describe "Tree"
                                ]
             ]
             , describe "extractAt" <|
-                [ test "baisc case" <|
-                      \() -> Expect.equal (Ok (l "barked",
-                                                 t "IP-MAT"
-                                                     [ t "NP-SBJ"
-                                                       [ l "the"
-                                                       , l "dog"
-                                                       ]
-                                                     ]
-                                                )) <|
+                [ test "basic case" <|
+                \() -> Expect.equal (l "barked",
+                                         t "IP-MAT"
+                                         [ t "NP-SBJ"
+                                               [ l "the"
+                                               , l "dog"
+                                               ]
+                                         ]
+                                    ) <|
                              extractAt (p [1]) (t "IP-MAT"
                                                 [ t "NP-SBJ"
                                                       [ l "the"
                                                       , l "dog" ]
                                                 , l "barked"
                                                 ])
+                , test "at 0" <|
+                    \() -> Expect.equal (l "zero",
+                                        t "foo" [ l "one"
+                                                , l "two"
+                                                ]) <|
+                           extractAt (p [0]) <| t "foo" [ l "zero"
+                                                        , l "one"
+                                                        , l "two"
+                                                        ]
+                , test "at end" <|
+                    \() -> Expect.equal (l "two",
+                                             t "foo" [ l "zero"
+                                                     , l "one"
+                                                     ]) <|
+                           extractAt (p [2]) <| t "foo" [ l "zero"
+                                                        , l "one"
+                                                        , l "two"
+                                                        ]
+                , test "nested at 0" <|
+                    \() -> Expect.equal (l "zero",
+                                             t "bar" [ l "a"
+                                                     , t "foo" [ l "one"
+                                                               , l "two"
+                                                               ]
+                                                     , l "b"
+                                                     ]) <|
+                           extractAt (p [0, 1]) <| t "bar" [ l "a"
+                                                        , t "foo" [ l "zero"
+                                                                  , l "one"
+                                                                  , l "two"
+                                                                  ]
+                                                        , l "b"
+                                                        ]
+                , test "nested at end" <|
+                    \() -> Expect.equal (l "two",
+                                             t "bar" [ l "a"
+                                                     , t "foo" [ l "zero"
+                                                               , l "one"
+                                                               ]
+                                                     , l "b"
+                                                     ]) <|
+                           extractAt (p [2, 1]) <| t "bar" [ l "a"
+                                                           , t "foo" [ l "zero"
+                                                                     , l "one"
+                                                                     , l "two"
+                                                                     ]
+                                                           , l "b"
+                                                           ]
                 ]
-        , describe "fixPathForMovt" <|
-            [ test "basic case" <|
-                  \() -> Expect.equal (p [1, 0, 0]) <| fixPathForMovt (p [0,0]) (p [1, 1, 0])
-            ]
-        , describe "destPath"
-            [ test "moving to parent" <|
-                  \() -> Expect.equal (Ok (p [1])) <|
-                  T.destPath (p [0, 1]) TreeEdit.Path.RootPath <|
-                  t "WTF" [ t "foo" [l "bar", l "baz"]
-                          , t "foo2" [l "bar2", l "baz2"]
-                          ]
+                , describe "insertAt" <|
+                [ test "at 0" <|
+                \() -> Expect.equal (t "foo" [ l "zero"
+                                             , l "one"
+                                             , l "two"
+                                             ])  <|
+                           insertAt (p [0]) (l "zero") <|
+                               t "foo" [ l "one"
+                                       , l "two"
+                                       ]
+                , test "at end" <|
+                    \() -> Expect.equal (t "foo" [ l "zero"
+                                                 , l "one"
+                                                 , l "two"
+                                                 ]) <|
+                           insertAt (p [2]) (l "two") <|
+                               t "foo" [ l "zero"
+                                       , l "one"
+                                       ]
+                , test "nested at 0" <|
+                    \() -> Expect.equal (t "bar" [ l "a"
+                                                 , t "foo" [ l "zero"
+                                                           , l "one"
+                                                           , l "two"
+                                                           ]
+                                                 , l "b"
+                                                 ]) <|
+                           insertAt (p [0, 1]) (l "zero") <|
+                               t "bar" [ l "a"
+                                       , t "foo" [ l "one"
+                                                 , l "two"
+                                                 ]
+                                       , l "b"
+                                       ]
+                , test "nested at end" <|
+                    \() -> Expect.equal (t "bar" [ l "a"
+                                                 , t "foo" [ l "zero"
+                                                           , l "one"
+                                                           , l "two"
+                                                           ]
+                                                 , l "b"
+                                                 ]) <|
+                           insertAt (p [2, 1]) (l "two") <|
+                               t "bar" [ l "a"
+                                       , t "foo" [ l "zero"
+                                                 , l "one"
+                                                 ]
+                                       , l "b"
+                                       ]
+        ]
+        -- , describe "fixPathForMovt" <|
+        --     [ test "basic case" <|
+        --           \() -> Expect.equal (p [1, 0, 0]) <| fixPathForMovt (p [0,0]) (p [1, 1, 0])
+        --     ]
+        -- , describe "destPath"
+        --     [ test "moving to parent" <|
+        --           \() -> Expect.equal (Ok (p [1])) <|
+        --           T.destPath (p [0, 1]) TreeEdit.Path.RootPath <|
+        --           t "WTF" [ t "foo" [l "bar", l "baz"]
+        --                   , t "foo2" [l "bar2", l "baz2"]
+        --                   ]
 
-            ]
+        --     ]
         ]
