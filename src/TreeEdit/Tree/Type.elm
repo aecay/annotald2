@@ -14,7 +14,6 @@ module TreeEdit.Tree.Type exposing ( TraceType(..)
                                    , constants
                                    )
 
-import Array exposing (Array)
 import Dict exposing (Dict)
 
 import Monocle.Lens as Lens exposing (Lens)
@@ -39,7 +38,7 @@ type alias MaybeIndex = Info { index : Maybe Index.Index }
 type alias NoIndex = Info {}
 
 type Tree = TerminalOuter Terminal |
-    Nonterminal (Array Tree) MaybeIndex
+    Nonterminal (List Tree) MaybeIndex
 
 type alias Label = String
 
@@ -77,8 +76,7 @@ constants =
 
 private =
     let
-        t label children = Nonterminal (Array.fromList children) <|
-                           { label = label, metadata = Dict.empty, index = Nothing }
+        t label children = Nonterminal children { label = label, metadata = Dict.empty, index = Nothing }
         l label text = TerminalOuter <| Ordinary text { label = label, metadata = Dict.empty, index = Nothing }
         trace typ label index = TerminalOuter <| Trace typ { label = label , index = index , metadata = Dict.empty}
     in
@@ -139,13 +137,13 @@ info =
     in
         Lens get set
 
-children : Lens Tree (Array Tree)
+children : Lens Tree (List Tree)
 children =
     let
         get t =
             case t of
                 Nonterminal c _ -> c
-                _ -> Array.empty
+                _ -> []
         set c t =
             case t of
                 Nonterminal _ info -> Nonterminal c info
@@ -182,7 +180,7 @@ metadata =
     in
         Lens.compose info inner
 
-either : (Terminal -> a) -> (TreeInfo -> Array Tree -> a) -> Tree -> a
+either : (Terminal -> a) -> (TreeInfo -> List Tree -> a) -> Tree -> a
 either terminalF nonterminalF tree =
     case tree of
         TerminalOuter terminal -> terminalF terminal

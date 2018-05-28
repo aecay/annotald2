@@ -10,7 +10,6 @@ module TreeEdit.Utils exposing ( fromJust
                                , o
                                )
 
-import Array exposing (Array)
 import Debug
 import List
 
@@ -20,26 +19,22 @@ import Monocle.Optional as Optional exposing (Optional)
 import Return exposing (ReturnF)
 
 -- Zero-based indexing, returns items [i,j)
-splice : Int -> Int -> Array a -> (Array a, Array a, Array a)
-splice i j array =
+splice : Int -> Int -> List a -> (List a, List a, List a)
+splice i j list =
     let
-        pre = Array.slice 0 i array
-        span = Array.slice i j array
-        post = Array.slice j (Array.length array) array
+        pre = List.take i list
+        span = List.drop i list |> List.take (j - i)
+        post = List.drop j list
     in
         (pre, span, post)
 
-insert : Int -> a -> Array a -> Array a
-insert i x array =
-    insertMany i (Array.repeat 1 x) array
+insert : Int -> a -> List a -> List a
+insert i x list =
+    List.take i list ++ x :: List.drop i list
 
-insertMany : Int -> Array a -> Array a -> Array a
-insertMany i xs array =
-    let
-        start = Array.slice 0 i array
-        end = Array.slice i (Array.length array) array
-    in
-        Array.append start (Array.append xs end)
+insertMany : Int -> List a -> List a -> List a
+insertMany i xs list =
+    List.take i list ++ xs ++ List.drop i list
 
 fromJust : Maybe a -> a
 fromJust x = case x of

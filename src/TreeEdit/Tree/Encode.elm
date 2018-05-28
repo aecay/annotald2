@@ -1,6 +1,5 @@
 module TreeEdit.Tree.Encode exposing (encodeTrees, encodeTree)
 
-import Array exposing (Array)
 import Dict
 import Json.Encode as E exposing (Value)
 
@@ -9,11 +8,11 @@ import TreeEdit.Tree.Type exposing (Tree, TraceType(..), Terminal(..))
 import TreeEdit.Tree.View exposing (terminalString)
 import TreeEdit.Index as Index exposing (Index)
 
-array_ : (a -> Value) -> Array a -> Value
-array_ fn l = E.array <| Array.map fn l
+list_ : (a -> Value) -> List a -> Value
+list_ fn l = E.list <| List.map fn l
 
-encodeTrees : Array Tree -> Value
-encodeTrees trees = array_ encodeTree trees
+encodeTrees : List Tree -> Value
+encodeTrees trees = list_ encodeTree trees
 
 indexToJson : Maybe Index -> List (String, String)
 indexToJson idx =  case idx of
@@ -31,7 +30,7 @@ encodeTree tree =
         metadata info = E.object <| List.map (\(k, v) -> (k, E.string v)) <|
                         (Dict.toList info.metadata) ++ (indexToJson info.index)
         nt info children = E.object <| [ ("label", E.string info.label)
-                                       , ("children", E.array <| Array.map encodeTree children)
+                                       , ("children", E.list <| List.map encodeTree children)
                                        , ("metadata", metadata info)
                                        ]
         t terminal =

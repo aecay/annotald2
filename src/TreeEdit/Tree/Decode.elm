@@ -2,11 +2,9 @@ module TreeEdit.Tree.Decode exposing (decodeTrees, decodeTree)
 
 import TreeEdit.Tree.Type exposing (..)
 
-import Array exposing (Array)
-
 import TreeEdit.Index as Index
 
-import Json.Decode as D exposing (array, string, Decoder, dict, field, lazy, int)
+import Json.Decode as D exposing (list, string, Decoder, dict, field, lazy, int)
 import Dict exposing (Dict)
 
 decodeString : Decoder String
@@ -76,12 +74,12 @@ mungeLeaf (LeafDecoded label text metadata1) =
                     "*CL*" ->  private.trace private.clitic traceinfo
                     _ -> private.ordinary text info
 
-type NTDecoded = NTDecoded String (Array Tree) (Dict String String)
+type NTDecoded = NTDecoded String (List Tree) (Dict String String)
 
 decodeNonterminal : Decoder Tree
 decodeNonterminal = D.map3 NTDecoded
                     (field "label" string )
-                    (field "children" (array <| lazy <| \_ -> decodeTree))
+                    (field "children" (list <| lazy <| \_ -> decodeTree))
                     (field "metadata" (dict decodeString)) |>
                     D.map mungeNT
 
@@ -102,5 +100,5 @@ decodeTree =
             , decodeLeaf
             ]
 
-decodeTrees : Decoder (Array Tree)
-decodeTrees = (array decodeTree)
+decodeTrees : Decoder (List Tree)
+decodeTrees = (list decodeTree)

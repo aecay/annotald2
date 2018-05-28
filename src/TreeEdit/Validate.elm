@@ -1,6 +1,5 @@
 module TreeEdit.Validate exposing (perform, done)
 
-import Array exposing (Array)
 import Json.Encode as E
 
 import RemoteData exposing (RemoteData(..), WebData)
@@ -31,7 +30,7 @@ perform model =
                        )
                      ]
 
-done : Model -> WebData (Array Tree) -> Return Msg Model
+done : Model -> WebData (List Tree) -> Return Msg Model
 done model webdata =
     let
         newModel = { model | dialog = Nothing }
