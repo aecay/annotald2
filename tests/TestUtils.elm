@@ -3,16 +3,16 @@ module TestUtils exposing (..)
 import Test exposing (..)
 import Expect
 
-import Array exposing (Array)
+import Array.Hamt as Array exposing (Array)
 
 import TreeEdit.Utils exposing (..)
 
 type Foo = Foo (Array Int)
 
-coll : List a -> List a
-coll x = x
+coll : List a -> Array a
+coll = Array.fromList
 
-empty : List a
+empty : Array a
 empty = coll []
 
 suite : Test
