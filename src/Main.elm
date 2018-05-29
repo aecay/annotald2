@@ -6,11 +6,16 @@ import Html
 import Platform.Cmd as Cmd
 import Platform.Sub as Sub
 import Navigation exposing (Location)
-import Return
+
+import List.Extra
+import Return exposing (Return)
+import UuidStream exposing (UuidStream)
 
 import Route exposing (Route)
 import Page.TreeEdit as TreeEdit
 import Page.FileList as FileList
+
+import TreeEdit.Utils exposing (fromJust) -- FIXME: encapsulation violation
 
 type Page =
     FileList FileList.Model |
@@ -18,23 +23,35 @@ type Page =
 
 type Msg = TreeEditMsg TreeEdit.Msg |
     FileListMsg FileList.Msg |
-    LoadPage (Model, Cmd Msg)
+    LoadPage (Page, Cmd Msg)
 
-type alias Model = { page : Page }
+type alias Model = { page : Page
+                   , uuids : UuidStream String
+                   }
 
 route : Location -> Msg
 route l =
-    init l |> LoadPage
+    pageInit l |> LoadPage
 
-init : Location -> (Model, Cmd Msg)
-init location =
+pageInit : Location -> Return Msg Page
+pageInit location =
     case Maybe.withDefault (Route.ListFiles) (Route.fromLocation location) of
-        Route.Edit s -> TreeEdit.init s |>
-                        Return.mapBoth TreeEditMsg (\x -> { page = TreeEdit x})
-        Route.ListFiles -> FileList.init |>
-                           Return.mapBoth FileListMsg (\x -> { page = FileList x})
+        Route.Edit s -> TreeEdit.init s |> Return.mapBoth TreeEditMsg TreeEdit
+        Route.ListFiles -> FileList.init |> Return.mapBoth FileListMsg FileList
 
-update : Msg -> Model -> (Model, Cmd Msg)
+init : List Int -> Location -> Return Msg Model
+init randomness_ location =
+    let
+        randomness = List.Extra.uncons randomness_ |> fromJust
+        (page, cmd) = pageInit location
+    in
+        Return.return
+            { page = page
+            , uuids = uncurry UuidStream.uuidStringStream randomness
+            }
+            cmd
+
+update : Msg -> Model -> Return Msg Model
 update msg model =
     case (msg, model.page) of
         (TreeEditMsg submsg, TreeEdit submodel) ->
@@ -43,8 +60,8 @@ update msg model =
         (FileListMsg submsg, FileList submodel) ->
              FileList.update submsg submodel |>
              Return.mapBoth FileListMsg (\x -> { model | page = FileList x})
-        (LoadPage page, _) ->
-            page
+        (LoadPage (page, cmd), _) ->
+            Return.return { model | page = page } cmd
         (_, _) ->
             Return.singleton model
 
@@ -60,10 +77,10 @@ subscriptions model =
         FileList submodel -> FileList.subscriptions submodel |> Sub.map FileListMsg
         TreeEdit submodel -> TreeEdit.subscriptions submodel |> Sub.map TreeEditMsg
 
-main : Program Never Model Msg
+main : Program (List Int) Model Msg
 main =
-    Navigation.program route { init = init
-                             , update = update
-                             , view = view
-                             , subscriptions = subscriptions
-                             }
+    Navigation.programWithFlags route { init = init
+                                      , update = update
+                                      , view = view
+                                      , subscriptions = subscriptions
+                                      }
