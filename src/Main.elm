@@ -85,7 +85,7 @@ subscriptions model =
         FileList submodel -> FileList.subscriptions submodel |> Sub.map FileListMsg
         TreeEdit submodel -> TreeEdit.subscriptions submodel |> Sub.map TreeEditMsg
 
-main : Program (List Int) Model Msg
+main : Program Flags Model Msg
 main =
     Navigation.programWithFlags route { init = init
                                       , update = update
