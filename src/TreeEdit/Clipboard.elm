@@ -5,7 +5,7 @@ import Json.Encode as E
 
 import RemoteData.Http as Http
 
-import TreeEdit.Action exposing (Action)
+import TreeEdit.Action exposing (SimpleAction, Action, asAction)
 import TreeEdit.Clipboard.Type exposing (..)
 import TreeEdit.Model as Model
 import TreeEdit.Msg exposing (Msg(Copy))
@@ -15,7 +15,10 @@ import TreeEdit.Tree.Encode exposing (encodeTree)
 import TreeEdit.Selection as Selection
 
 copy : Action
-copy model =
+copy = asAction copy_
+
+copy_ : SimpleAction
+copy_ model =
     let
         selected = model |> .get Model.selected
         decoder = D.map3 Response (D.field "penn" D.string) (D.field "deep" D.string) (D.field "text" D.string)

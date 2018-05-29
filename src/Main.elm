@@ -55,8 +55,13 @@ update : Msg -> Model -> Return Msg Model
 update msg model =
     case (msg, model.page) of
         (TreeEditMsg submsg, TreeEdit submodel) ->
-            TreeEdit.update submsg submodel |>
-            Return.mapBoth TreeEditMsg (\x -> { model | page = TreeEdit x})
+            let
+                (return, uuids) = TreeEdit.update submsg submodel model.uuids
+            in
+                Return.mapBoth TreeEditMsg (\x -> { model | page = TreeEdit x
+                                                  , uuids = uuids
+                                                  })
+                    return
         (FileListMsg submsg, FileList submodel) ->
              FileList.update submsg submodel |>
              Return.mapBoth FileListMsg (\x -> { model | page = FileList x})

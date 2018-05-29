@@ -7,6 +7,7 @@ import Task
 import Return
 import RemoteData
 import RemoteData.Http exposing (getTask, url)
+import UuidStream exposing (UuidStream)
 
 import TreeEdit.Config as Config
 import TreeEdit.Msg as Msg
@@ -39,7 +40,8 @@ init filename =
 update
     : Msg.Msg
     -> TreeEdit.Model.Type.Model
-    -> Return.Return Msg.Msg TreeEdit.Model.Type.Model
+    -> UuidStream String
+    -> (Return.Return Msg.Msg TreeEdit.Model.Type.Model, UuidStream String)
 update = TreeEdit.Update.update
 
 subscriptions : TreeEdit.Model.Type.Model -> Sub Msg.Msg

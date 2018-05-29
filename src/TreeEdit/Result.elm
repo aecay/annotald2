@@ -24,7 +24,6 @@ module TreeEdit.Result exposing ( fail
 import Cmd.Extra exposing (perform) -- TODO: ideally we would not import this here
 import Maybe.Extra
 import Monocle.Lens exposing (Lens)
--- import Monocle.Optional exposing (Optional)
 import Return
 import Toolkit.Helpers exposing (uncurry3)
 

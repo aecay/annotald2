@@ -11,9 +11,10 @@ import Keyboard.Event exposing (KeyboardEvent, decodeKeyboardEvent)
 import Keyboard.Key as K
 import Monocle.Lens as Lens
 import RemoteData exposing (RemoteData(..))
-import Return exposing (Return, singleton)
+import Return exposing (Return)
 import Return.Optics exposing (refracto)
 import ThirdParty.WindowEvents exposing (onWindow)
+import UuidStream exposing (UuidStream)
 
 -- Project libraries
 
@@ -53,54 +54,57 @@ editingLabel model =
         Just _ -> True
         Nothing -> False
 
-update : Msg -> Model -> Return Msg Model
-update msg model =
+update : Msg -> Model -> UuidStream String -> (Return Msg Model, UuidStream String)
+update msg model uuids =
     let
         disableMouse = editingMetadata model || editingLabel model
+        uuidsUntouched r = (r, uuids)
+        singleton x = Return.singleton x |> uuidsUntouched
+        newSelection = Tuple.mapFirst (Return.andThen <| flip Metadata.update MetadataType.NewSelection)
     in
         case msg of
             ToggleSelect z -> -- TODO: probably want to name this
                               -- something like "click"
                 if disableMouse
-                then Return.singleton model
+                then singleton model
                 else
-                    Return.singleton
+                    singleton
                         ((ContextMenu.hide >> Lens.modify selected (Selection.updateWith z))
                              model) |>
-                    -- TODO: use return.optics here
-                    Return.andThen (\x -> Metadata.update x MetadataType.NewSelection)
+                    newSelection
             KeyMsg {shiftKey, keyCode} ->
                 let
                     key = Maybe.map (\x -> (if shiftKey then 1 else 0, x)) (K.code keyCode)
-                    binding = Maybe.andThen (flip Dict.get bindings) key |>
-                              R.liftVal "Key is not bound"
+                    binding = Maybe.andThen (flip Dict.get bindings) key
                 in
-                    R.andThen (\x -> x model) binding |>
-                    R.handle model |>
-                    Return.andThen (\x -> Metadata.update x MetadataType.NewSelection)
+                    Maybe.map (\x -> x uuids model) binding |>
+                    Maybe.withDefault (R.fail "key is not bound", uuids) |>
+                    Tuple.mapFirst (R.handle model) |>
+                    newSelection
             RightClick path position ->
                 if disableMouse
-                then Return.singleton model
+                then singleton model
                 else
                     (Selection.perform model.selected
-                         (Return.singleton <| ContextMenu.show position path model)
+                         (singleton <| ContextMenu.show position path model)
                          (\sel -> if path == sel
                                   then Return.singleton model |> -- Rightclick only selection -> show context menu
                                        Return.map (Lens.modify selected (Selection.updateWith sel)) |>
-                                       Return.map (ContextMenu.show position path)
-                                  else Action.doMove sel path model |> R.handle model)
-                         (\_ _ -> Return.singleton model)) -- TODO: support moving multiple nodes
+                                       Return.map (ContextMenu.show position path) |>
+                                       uuidsUntouched
+                                  else Action.doMove sel path uuids model |> Tuple.mapFirst (R.handle model))
+                         (\_ _ -> singleton model)) -- TODO: support moving multiple nodes
             RightClickRoot ->
                 if disableMouse
-                then Return.singleton model
+                then singleton model
                 else
                     (Selection.perform model.selected
-                         (Return.singleton model)
-                         (\sel -> Action.doMove sel Path.RootPath model |> R.handle model)
-                         (\_ _ -> Return.singleton model)) -- TODO: support moving multiple
-                                                                 -- nodes
+                         (singleton model)
+                         (\sel -> Action.doMove sel Path.RootPath uuids model |> Tuple.mapFirst (R.handle model))
+                         (\_ _ -> singleton model)) -- TODO: support moving multiple
+                                                                             -- nodes
             Context contextMsg ->
-                ContextMenu.update contextMsg model
+                ContextMenu.update contextMsg model |> uuidsUntouched
             LoadedData (Success (trees, config, lemmata)) ->
                 Return.return { model |
                                     webdata = Success { root = .ta TreeType.private "wtf" trees
@@ -109,36 +113,40 @@ update msg model =
                                                       , lemmata = lemmata
                                                       }
                               }
-                    (Ports.openFile model.fileName)
+                    (Ports.openFile model.fileName) |>
+                    uuidsUntouched
             LoadedData x ->
-                Debug.log ("fetch error: " ++ (toString x)) <| Return.singleton model
-            Save -> Save.perform model
-            SaveFailure reason -> Save.failure model reason
-            SaveSuccess -> Save.success model
-            LogMessage m -> Return.singleton { model | lastMessage = m }
-            CancelContext -> Return.singleton <| ContextMenu.hide model
+                Debug.log ("fetch error: " ++ (toString x)) <| singleton model
+            Save -> Save.perform model |> uuidsUntouched
+            SaveFailure reason -> Save.failure model reason |> uuidsUntouched
+            SaveSuccess -> Save.success model |> uuidsUntouched
+            LogMessage m -> singleton { model | lastMessage = m }
+            CancelContext -> singleton <| ContextMenu.hide model
             Metadata submsg ->
                 let
                     (newmodel, subcmd) = Metadata.update model submsg
                 in
-                    Return.return newmodel subcmd
-            Label submsg -> Return.singleton model |> refracto Model.labelForm Msg.Label (LabelEdit.update submsg)
+                    Return.return newmodel subcmd |> uuidsUntouched
+            Label submsg -> Return.singleton model |>
+                            refracto Model.labelForm Msg.Label (LabelEdit.update submsg) |>
+                            uuidsUntouched
             LabelKey {keyCode} -> case keyCode of
-                                      K.Enter -> R.handle model <| Action.finishLabelEdit model
-                                      K.Escape -> Return.singleton { model | labelForm = Nothing }
-                                      _ -> Return.singleton model
-            Copy (Success text) -> Return.singleton { model | dialog = Just <| Dialog.Copy text }
-            Copy _ -> Return.singleton model
-            DismissDialog -> Return.singleton { model | dialog = Nothing }
-            Validate -> Validate.perform model
-            ValidateDone webdata -> Validate.done model webdata
-            Undo -> Undo.undo model
-            Redo -> Undo.redo model
-            Dirty isDirty -> Return.return { model | dirty = isDirty } <| Ports.dirty isDirty
+                                      K.Enter -> uuidsUntouched <| R.handle model <| Action.finishLabelEdit model
+                                      K.Escape -> singleton { model | labelForm = Nothing }
+                                      _ -> singleton model
+            Copy (Success text) -> singleton { model | dialog = Just <| Dialog.Copy text }
+            Copy _ -> singleton model
+            DismissDialog -> singleton { model | dialog = Nothing }
+            Validate -> Validate.perform model |> uuidsUntouched
+            ValidateDone webdata -> Validate.done model webdata |> uuidsUntouched
+            Undo -> Undo.undo model |> uuidsUntouched
+            Redo -> Undo.redo model |> uuidsUntouched
+            Dirty isDirty -> Return.return { model | dirty = isDirty } (Ports.dirty isDirty) |>
+                             uuidsUntouched
             Exit -> if model.dirty
                     then singleton { model | lastMessage = "Cannot exit with unsaved changes" }
-                    else Return.return model <| Route.goTo Route.ListFiles
-            Ignore -> Return.singleton model
+                    else Return.return model (Route.goTo Route.ListFiles) |> uuidsUntouched
+            Ignore -> singleton model
 
 subscriptions : Model -> Sub Msg
 subscriptions m =

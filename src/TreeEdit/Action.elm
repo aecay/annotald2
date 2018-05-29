@@ -1,19 +1,12 @@
-module TreeEdit.Action exposing ( clearSelection
-                                , changeLabel
-                                , coIndex
-                                , Action
+module TreeEdit.Action exposing ( Action
+                                , SimpleAction
+                                , actions
+                                , asAction
                                 , doMove
-                                , createParent
-                                , deleteNode
-                                , leafBefore
                                 , leafBeforeInner -- For ContextMenu TODO:
                                                   -- consolidate with createLeaf
-                                , leafAfter
                                 , finishLabelEdit
-                                , editLabel
                                 , toggleDashTag
-                                , undo
-                                , redo
                         )
 
 -- This module contains the types and functions for creating *actions*, or
@@ -22,47 +15,92 @@ module TreeEdit.Action exposing ( clearSelection
 -- Standard library
 
 import Array.Hamt as Array exposing (Array)
+import Dict exposing (Dict)
 import Dom
 import Maybe exposing (withDefault)
-import Maybe.Extra
-import Dict exposing (Dict)
-import TreeEdit.Result as R exposing (Result(..))
 import Task
-import Monocle.Common exposing ((<|>))
-import Monocle.Lens as Lens
-import Monocle.Optional as Optional exposing (fromLens)
-import Monocle.Common exposing ((=>), maybe)
 
 -- Third party
 
 import List.Extra exposing (zip)
+import Maybe.Extra
+import Monocle.Common exposing ((<|>), (=>), maybe)
+import Monocle.Lens as Lens
+import Monocle.Optional as Optional exposing (fromLens)
+import UuidStream exposing (UuidStream)
 
 -- Annotald packages
 
-import TreeEdit.Tree as Tree
-import TreeEdit.Tree.Type as TreeType exposing (Tree)
-import TreeEdit.Path as Path exposing (Path)
-import TreeEdit.Utils as Utils exposing (maybeAndThen2, o)
+import TreeEdit.Index as Index exposing (normal, Variety(..))
 import TreeEdit.Model as Model
 import TreeEdit.Model.Type exposing (Model)
-import TreeEdit.Msg exposing (Msg(Undo, Redo))
-import TreeEdit.Selection as Selection
-import TreeEdit.Index as Index exposing (normal, Variety(..))
-import TreeEdit.View.LabelEdit as LabelEdit
 import TreeEdit.Msg as Msg
+import TreeEdit.Msg exposing (Msg(Undo, Redo))
+import TreeEdit.Path as Path exposing (Path)
+import TreeEdit.Result as R exposing (Result(..))
+import TreeEdit.Selection as Selection
+import TreeEdit.Tree as Tree
+import TreeEdit.Tree.Type as TreeType exposing (Tree)
+import TreeEdit.Utils as Utils exposing (maybeAndThen2, o)
+import TreeEdit.View.LabelEdit as LabelEdit
 
 type alias Result = R.Result Model
 
 -- The rest of the file
 
-type alias Action = Model -> Result
+type alias SimpleAction = Model -> Result
+type alias Action = UuidStream String -> Model -> (Result, UuidStream String)
+
+asAction : SimpleAction -> Action
+asAction f =
+    let
+        action uuids model = (f model, uuids)
+    in
+        action
+
+asActionWithArg : (a -> SimpleAction) -> a -> Action
+asActionWithArg f =
+    let
+        action arg uuids model = (f arg model, uuids)
+    in
+        action
+
+actions :
+    { changeLabel : List String -> Action
+    , clearSelection : Action
+    , coIndex : Action
+    , createParent : String -> Action
+    , deleteNode : Action
+    , editLabel : Action
+    , leafAfter : Tree -> Action
+    , leafBefore : Tree -> Action
+    , redo : Action
+    , undo : Action
+    }
+actions =
+    -- Simple actions
+    { clearSelection = asAction clearSelection
+    , coIndex = asAction coIndex
+    , editLabel = asAction editLabel
+    , undo = asAction undo
+    , redo = asAction redo
+    -- Simple actions that take an argument
+    -- , toggleDashTag = asActionwithArg toggleDashTag TODO: receives path as
+    -- argument, for a proper action it should get it from the model
+    , changeLabel = asActionWithArg changeLabel
+    , leafAfter = asActionWithArg leafAfter
+    , createParent = asActionWithArg createParent
+    , leafBefore = asActionWithArg leafBefore
+    -- Full actions
+    , deleteNode = deleteNode
+    }
 
 doAt : Path -> (Tree -> Tree) -> Model -> Result
 doAt path f model =
     Lens.modify (Model.root <|> (Tree.path path)) f model |>
     R.succeed
 
-clearSelection : Action
+clearSelection : SimpleAction
 clearSelection m = R.succeed { m | selected = Selection.empty }
 
 changeLabel : List String -> Model -> Result
@@ -184,25 +222,37 @@ incrementIndicesBy inc path tree =
     Tree.map |>
     (\x -> Lens.modify (Tree.path path) x tree)
 
-doMove : Path -> Path -> Model -> Result
-doMove src dest model =
+doMove : Path -> Path -> UuidStream String -> Model -> (Result, UuidStream String)
+doMove src dest uuids model =
     let
         srcRoot = Path.root src
         destRoot = Path.root dest
+        rootTree = .get Model.root model
+        (newId, newStream) = UuidStream.consume uuids
+        -- If we are moving withing the same root tree, then do nothing
+        -- special.  If we are moving a tree up to the root level, then give
+        -- it an ID.  If we are moving a tree from one root tree into another,
+        -- increment the indices in the moved tree so that there is no clash.
         newRoot = if srcRoot == destRoot
-                  then .get Model.root model
+                  then rootTree
                   else
-                      let
-                          inc = (Tree.get destRoot (.get Model.root model)) |>
-                                Tree.highestIndex
-                      in
-                          incrementIndicesBy inc srcRoot (.get Model.root model)
+                      if destRoot == Path.RootPath
+                      then Lens.modify ((Tree.path srcRoot) <|> Tree.metadata)
+                          (Dict.insert "ID" newId)
+                          rootTree
+                      else
+                          let
+                              inc = (Tree.get destRoot rootTree) |>
+                                    Tree.highestIndex
+                          in
+                              incrementIndicesBy inc srcRoot rootTree
         res = Tree.moveTo src dest newRoot
         newRoot1 = R.map Tuple.first res
         newSel = R.map Tuple.second res
     in
         R.modify Model.root (always newRoot1) model |>
-        R.andThen (R.modify Model.selected (always <| R.map Selection.one newSel))
+        R.andThen (R.modify Model.selected (always <| R.map Selection.one newSel)) |>
+        flip (,) newStream
 
 createParent2 : String -> Model -> Path -> Path -> Result
 createParent2 label model one two =
@@ -287,15 +337,18 @@ leafAfter newLeaf model =
         (\dest src -> doMovement model (Path.advance dest) src)
 
 
-deleteNode : Model -> Result
-deleteNode model =
+deleteNode : Action
+deleteNode uuids model =
     let
         root = .get Model.root model
         delete : Path -> R.Result Tree
         delete path =
             let
                 n = Tree.get path root
-                children = .get Tree.children n
+                children_ = .get Tree.children n
+                children = if Path.parent path == Path.RootPath
+                           then children_ -- TODO: add IDs to all the new children
+                           else children_
             in
                 case children |> Array.length of
                     0 ->
@@ -319,7 +372,8 @@ deleteNode model =
     in
         R.succeed model |>
         Selection.withOne model.selected (delete >> R.map (flip (.set Model.root) model)) |>
-        R.andThen clearSelection
+        R.andThen clearSelection |>
+        flip (,) uuids
 
 
 editLabel : Model -> Result
