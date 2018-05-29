@@ -237,7 +237,7 @@ doMove src dest uuids model =
                   then rootTree
                   else
                       if destRoot == Path.RootPath
-                      then Lens.modify ((Tree.path srcRoot) <|> Tree.metadata)
+                      then Lens.modify ((Tree.path src) <|> Tree.metadata)
                           (Dict.insert "ID" newId)
                           rootTree
                       else
