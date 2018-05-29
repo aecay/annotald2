@@ -3,6 +3,9 @@ module TreeEdit.Tree.View exposing ( labelString
                                    , toPenn
                                    )
 
+import Array.Hamt as Array
+import Dict
+
 import TreeEdit.Tree as Tree
 import TreeEdit.Tree.Type exposing (Tree, Terminal(..), TraceType(..), ECType(..))
 
@@ -61,7 +64,19 @@ toPenn = asLabeledBrax1 0
 asLabeledBrax1 : Int -> Tree -> String
 asLabeledBrax1 indent tree =
     let
-        nt _ _ = Debug.crash "not implemented yet"
+        nt info kids =
+            let
+                label = .label info
+                labelLength = String.length label
+                childString = Array.toList kids |>
+                              List.map (asLabeledBrax1 0) |>
+                              List.intersperse "\n" |>
+                              String.concat
+                childString_ = case Dict.get "ID" <| .metadata info of
+                                   Just id -> childString ++ "\n(ID " ++ id ++ ")"
+                                   Nothing -> childString
+            in
+                "(" ++ label ++ " " ++ childString_ ++ ")"
         t terminal =
             case terminal of
                 Comment s -> "(CODE " ++ s ++ ")" -- TODO: encode comment for cs format
