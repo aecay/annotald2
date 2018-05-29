@@ -15,7 +15,6 @@ p = .fromList TreeEdit.Path.internals
 pf = .pf TreeEdit.Path.internals
 
 t = .t TreeType.private
-
 l s = .l TreeType.private s ""
 
 { allLast, isLastAt, deleteAt, insertAt } = T.internals
@@ -28,7 +27,7 @@ err x = case x of
 ok : a -> R.Result a -> Expectation
 ok val res =
     let
-        (R.Result msgs _ wrapped) = Debug.log "ok: " res
+        (R.Result msgs _ wrapped) = res
     in
         case wrapped of
             Nothing -> Expect.fail <| "Expected a passing result, but failed with messages " ++ toString msgs
