@@ -29,6 +29,9 @@ type alias Model = { page : Page
                    , uuids : UuidStream String
                    }
 
+type alias Flags = { randomness : List Int
+                   }
+
 route : Location -> Msg
 route l =
     pageInit l |> LoadPage
@@ -39,15 +42,15 @@ pageInit location =
         Route.Edit s -> TreeEdit.init s |> Return.mapBoth TreeEditMsg TreeEdit
         Route.ListFiles -> FileList.init |> Return.mapBoth FileListMsg FileList
 
-init : List Int -> Location -> Return Msg Model
-init randomness_ location =
+init : Flags -> Location -> Return Msg Model
+init {randomness} location =
     let
-        randomness = List.Extra.uncons randomness_ |> fromJust
+        randomness_ = List.Extra.uncons randomness |> fromJust
         (page, cmd) = pageInit location
     in
         Return.return
             { page = page
-            , uuids = uncurry UuidStream.uuidStringStream randomness
+            , uuids = uncurry UuidStream.uuidStringStream randomness_
             }
             cmd
 
