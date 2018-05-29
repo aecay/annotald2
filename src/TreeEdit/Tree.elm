@@ -240,7 +240,8 @@ moveTo from to tree =
                                 (True, True) ->
                                     let
                                         adjPath1 = case Path.isFragEmpty tailFrom of
-                                                       True -> Path.join (Path.childPath sFrom common) tailTo |> Debug.log "adjusted"
+                                                       True -> Path.join (Path.childPath sFrom common) tailTo |>
+                                                               Debug.log "adjusted"
                                                        False -> Path.join common fragTo
                                         adjPath = adjPath1 |> Path.childPath 0
                                     in
