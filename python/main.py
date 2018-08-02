@@ -83,9 +83,16 @@ def global_exit(request):
 class Annotald:
     def __init__(self, psd_dir, config_file, dict_file=None, validator_file=None):
         self.psd_dir = psd_dir
+        self.dict_file = dict_file
         if dict_file is not None:
             # TODO: what if the file is empty, not valid JSON, ...??
             with open(dict_file, "r") as fin:
+                # TODO: watch for changes to the dict file and reload from
+                # disk if they occur
+                # https://github.com/rbarrois/aionotify
+                # https://github.com/biesnecker/hachiko
+                # https://github.com/samuelcolvin/watchgod
+                # https://pythonhosted.org/watchdog/quickstart.html
                 self.dict = json.load(fin)
         else:
             self.dict = {}
@@ -129,13 +136,17 @@ class Annotald:
         return web.json_response(self.dict.get(request.query["lemma"], ""))
 
     async def set_dict_entry(self, request):
-        data = await request.json()
-        lemma = data["lemma"]
-        definition = data["definition"]
-        self.dict[lemma] = definition
-        print("Saved definition of '%s' as '%s'" % (lemma, definition))
-        async with aiofiles.open(self.dict_file, "w") as fout:
-            await fout.write(json.dumps(self.dict, sort_keys=True, indent=4))
+        if self.dict_file is not None:
+            data = await request.json()
+            lemma = data["lemma"]
+            definition = data["definition"]
+            self.dict[lemma] = definition
+            print("Saved definition of '%s' as '%s'" % (lemma, definition))
+            async with aiofiles.open(self.dict_file, "w") as fout:
+                await fout.write(json.dumps(self.dict, sort_keys=True, indent=4))
+        else:
+            # TODO: error
+            pass
 
         return web.json_response({})
 
