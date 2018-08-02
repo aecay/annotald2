@@ -1,6 +1,7 @@
 module TreeEdit.Metadata.Util exposing ( isNominal
                                        , isVerb
                                        , isPreposition
+                                       , isAdjective
                                        , eitherP
                                        , capitalize
                                        , hasMetadata
@@ -51,6 +52,9 @@ isVerb = hasInitial <| Set.singleton 'V'
 
 isPreposition : Tree -> Bool
 isPreposition = hasLabel "APPR"
+
+isAdjective : Tree -> Bool
+isAdjective = hasInitial <| Set.fromList <| List.singleton 'A'
 
 eitherP : (a -> Bool) -> (a -> Bool) -> a -> Bool
 eitherP x y t = (x t) || (y t)

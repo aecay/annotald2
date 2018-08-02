@@ -94,7 +94,7 @@ case_ : FieldInfo
 case_ =
     let
         caseOptions = ["nom", "gen", "dat", "akk"]
-        pred = eitherP isNominal isPreposition
+        pred = eitherP isAdjective <| eitherP isNominal isPreposition
     in
         FieldInfo pred formatters.value <| Just (widgets.options caseOptions, genericUpdater)
 
