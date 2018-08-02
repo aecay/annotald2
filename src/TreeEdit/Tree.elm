@@ -40,6 +40,9 @@ import TreeEdit.Result as R exposing (succeed, fail)
 
 type alias Result a = R.Result a
 
+-- TODO: I think we get a crash if you select a node and then right click (as
+-- for movement) on a leaf node...test this case...
+
 -- Functions we expose for testing only
 internals :
     { allLast : Path -> PathFragment -> Tree -> Bool
