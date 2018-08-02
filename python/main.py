@@ -156,8 +156,9 @@ class Annotald:
 @click.option("--config-file", "-c",    type=click.Path(file_okay=True,  dir_okay=False))
 @click.option("--dict-file", "-d",      type=click.Path(file_okay=True,  dir_okay=False), default=None)
 @click.option("--validator-file", "-v", type=click.Path(file_okay=True,  dir_okay=False), default=None)
+@click.option("--port", "-p",           type=int, default=8000)
 @click.option("--docker", is_flag=True)
-def main(docker, **kwargs):
+def main(docker, port, **kwargs):
     annotald = Annotald(**kwargs)
     app = web.Application(client_max_size=1024 * 1024 * 1024)
     app.router.add_routes([web.get("/", root),
@@ -184,9 +185,9 @@ def main(docker, **kwargs):
 **                         ANNOTALD IS NOW RUNNING                            **
 **                                                                            **
 **         In order to use it, open a CHROME browser tab and navigate         **
-**                to the address <http://localhost:8000>.                     **
+**                to the address <http://localhost:%s>.                     **
 ********************************************************************************
-""")
+""" % port)
 
     sys.stdout.flush()
 
@@ -195,7 +196,7 @@ def main(docker, **kwargs):
     else:
         host = "localhost"
 
-    web.run_app(app, host=host, port=8000, print=None)
+    web.run_app(app, host=host, port=port, print=None)
 
 if __name__ == "__main__":
     main()
