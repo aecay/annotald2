@@ -21,7 +21,7 @@ bindings = Dict.fromList <|
            , ( (0, toCode 'S'), actions.changeLabel ["IP-SUB", "IP-MAT", "IP-IMP"])
            , ( (0, toCode 'D'), actions.deleteNode )
            , ( (0, toCode 'F'), actions.changeLabel ["PP", "ADVP", "ADVP-TMP", "ADVP-LOC", "ADVP-DIR"])
-           , ( (0, toCode 'G'), actions.changeLabel ["ADJP", "ADJP-SPR", "NP-MSR", "QP"])
+           , ( (0, toCode 'G'), actions.changeLabel ["ADJP-PRD", "ADJP-SPR", "ADJP-SMC"])
            , ( (0, toCode 'X'), actions.createParent "XP" )
            , ( (0, toCode 'C'), actions.coIndex )
            , ( (0, toCode 'V'), actions.changeLabel ["IP-INF", "RRC", "IP-PPL", "IP-SMC"])
