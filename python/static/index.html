@@ -54,9 +54,12 @@
           });
       });
 
-      window.addEventListener("beforeunload", function () {
+      function saveScroll () {
           localStorage["scroll-" + fileName] = window.pageYOffset;
-      });
+      }
+
+      window.addEventListener("beforeunload", saveScroll);
+      app.ports.saveScroll.subscribe(saveScroll);
 
       new Clipboard("#copyButton");
       new Clipboard("#copyDeepButton");

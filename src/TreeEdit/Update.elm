@@ -145,7 +145,9 @@ update msg model uuids =
                              uuidsUntouched
             Exit -> if model.dirty
                     then singleton { model | lastMessage = "Cannot exit with unsaved changes" }
-                    else Return.return model (Route.goTo Route.ListFiles) |> uuidsUntouched
+                    else Return.return model (Cmd.batch [ Route.goTo Route.ListFiles
+                                                        , Ports.saveScroll ()
+                                                        ]) |> uuidsUntouched
             Ignore -> singleton model
 
 subscriptions : Model -> Sub Msg
