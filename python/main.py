@@ -23,6 +23,7 @@ loop = asyncio.get_event_loop()
 
 # Helper functions
 
+
 def import_validate(path):
     if not os.path.exists(path):
         raise Exception("Could not find validator library")
@@ -34,8 +35,10 @@ def import_validate(path):
     spec.loader.exec_module(validate)
     return validate
 
+
 def long_running(*args):
     return loop.run_in_executor(executor, *args)
+
 
 def pre_save_handler(corpus):
     for tree in corpus:
@@ -48,7 +51,9 @@ def pre_save_handler(corpus):
             # TODO: won't be reflected in the Elm version -- reload trees after save?
             tree.metadata.id = lovett.util.fresh_id()
 
+
 # Global handlers
+
 
 def root(request):
     return web.HTTPMovedPermanently("/static/index.html")
@@ -62,14 +67,18 @@ async def as_text(request):
                               "deep": t.format(lovett.format.Deep),
                               "text": t.urtext})
 
+
 def do_global_exit():
     os.kill(os.getpid(), signal.SIGTERM)
+
 
 def global_exit(request):
     loop.call_later(0.01, do_global_exit)
     return web.json_response({})
 
+
 # Handler object
+
 
 class Annotald:
     def __init__(self, psd_dir, config_file, dict_file=None, validator_file=None):
@@ -105,7 +114,6 @@ class Annotald:
             corpus = lovett.corpus.from_file(t, Deep)
         return web.json_response(text=json.dumps(_Object.corpus(corpus)))
 
-
     async def save(self, request):
         data = await request.json()
         filename = data["filename"]
@@ -139,7 +147,9 @@ class Annotald:
         await long_running(validate.validate, c)
         return web.Response(text=json.dumps(_Object.corpus(c)))
 
+
 # Entry point
+
 
 @click.command()
 @click.argument("psd_dir",              type=click.Path(file_okay=False, dir_okay=True))
