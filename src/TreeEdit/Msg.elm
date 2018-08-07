@@ -36,4 +36,5 @@ type Msg = ToggleSelect Path |
     Undo |
     Redo |
     Dirty Bool |
+    Blur String |
     Exit

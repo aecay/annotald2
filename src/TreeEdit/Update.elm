@@ -2,8 +2,10 @@ module TreeEdit.Update exposing (update, subscriptions)
 
 -- Core libraries
 import Dict
+import Dom
 import Json.Decode as D
 import Mouse
+import Task
 
 -- Third party libraries
 
@@ -143,6 +145,7 @@ update msg model uuids =
             Redo -> Undo.redo model |> uuidsUntouched
             Dirty isDirty -> Return.return { model | dirty = isDirty } (Ports.dirty isDirty) |>
                              uuidsUntouched
+            Blur id -> Return.return model (Task.attempt (\_ -> Ignore) <| Dom.blur id) |> uuidsUntouched
             Exit -> if model.dirty
                     then singleton { model | lastMessage = "Cannot exit with unsaved changes" }
                     else Return.return model (Cmd.batch [ Route.goTo Route.ListFiles

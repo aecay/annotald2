@@ -28,7 +28,16 @@ box title contents =
         ]
 
 button : String -> Msg -> Html Msg
-button txt click = Html.button [ E.onClick click,  A.style [ ("width", "80%") ] ] [ text txt ]
+button txt click =
+    let
+        id = "annotaldButton" ++ txt
+    in
+        Html.button [ E.onClick click
+                    , E.onFocus (Msg.Blur id)
+                    , A.style [ ("width", "80%") ]
+                    , A.id id
+                    ]
+            [ text txt ]
 
 view : String -> Html Msg
 view filename =
