@@ -11,6 +11,8 @@ import TreeEdit.Dialog exposing (Dialog(Processing))
 import TreeEdit.Metadata.Type as MetadataType
 import TreeEdit.Model as Model exposing (Model)
 import TreeEdit.Msg as Msg exposing (Msg)
+import TreeEdit.Path as Path exposing (Path)
+import TreeEdit.Selection as Selection
 import TreeEdit.Tree as Tree
 import TreeEdit.Tree.Type as TreeType exposing (Tree)
 import TreeEdit.Tree.Decode exposing (decodeTrees)
@@ -20,28 +22,41 @@ import TreeEdit.Utils as Utils
 
 perform : Model -> Return Msg Model
 perform model =
-    Return.return {model | dialog = Just <| Processing "Validating"} <|
-        RemoteData.Http.post "/validate"
-            Msg.ValidateDone
-            decodeTrees <|
-            E.object [ ("trees",
-                            .get Model.root model |>
-                            .get Tree.children |>
-                            encodeTrees
-                       )
-                     ]
+    let
+        root = (.get Model.root model)
+        sel = model.selected |> Selection.getOne |> Maybe.map Path.root
+        allTrees = root |> .get Tree.children
+        trees = sel |> Maybe.map (flip Tree.get root) |> Maybe.map (Array.repeat 1) |> Maybe.withDefault allTrees
+    in
+        Return.return {model | dialog = Just <| Processing "Validating"} <|
+            RemoteData.Http.post "/validate"
+                (Msg.ValidateDone sel)
+                decodeTrees <|
+                E.object [ ("trees", encodeTrees trees)]
 
-done : Model -> WebData (Array Tree) -> Return Msg Model
-done model webdata =
+done : Model -> Maybe Path -> WebData (Array Tree) -> Return Msg Model
+done model path webdata =
     let
         newModel = { model | dialog = Nothing }
     in
         case webdata of
-            Success trees -> Return.return
-                             (.set Model.root (.ta TreeType.private "wtf" trees) newModel)
-                             <| Utils.cmds [ Msg.Metadata MetadataType.NewSelection
-                                           , Msg.LogMessage "Validate success"
-                                           ]
+            Success trees ->
+                let
+                    newRoot = case path of
+                                  Just p ->
+                                      let
+                                          root = .get Model.root model
+                                          oldTree = Tree.get p root
+                                          newTree = Array.get 0 trees |> Maybe.withDefault oldTree
+                                      in
+                                          Tree.set p newTree root
+                                  Nothing -> .ta TreeType.private "wtf" trees
+                in
+                    Return.return
+                        (.set Model.root newRoot newModel)
+                        <| Utils.cmds [ Msg.Metadata MetadataType.NewSelection
+                                      , Msg.LogMessage "Validate success"
+                                      ]
             f -> Return.return newModel <| Utils.cmd <| Msg.LogMessage <| "Validation failure: " ++ toString f
 
 -- validatorName : Tree -> R.Result String

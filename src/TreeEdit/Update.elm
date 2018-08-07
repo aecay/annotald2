@@ -138,7 +138,7 @@ update msg model uuids =
             Copy _ -> singleton model
             DismissDialog -> singleton { model | dialog = Nothing }
             Validate -> Validate.perform model |> uuidsUntouched
-            ValidateDone webdata -> Validate.done model webdata |> uuidsUntouched
+            ValidateDone idx webdata -> Validate.done model idx webdata |> uuidsUntouched
             Undo -> Undo.undo model |> uuidsUntouched
             Redo -> Undo.redo model |> uuidsUntouched
             Dirty isDirty -> Return.return { model | dirty = isDirty } (Ports.dirty isDirty) |>

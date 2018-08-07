@@ -29,7 +29,7 @@ type Msg = ToggleSelect Path |
     Copy (WebData Clipboard.Response) |
     DismissDialog |
     Validate |
-    ValidateDone (WebData (Array Tree)) |
+    ValidateDone (Maybe Path) (WebData (Array Tree)) |
     -- FixValidator |
     -- FixValidatorDone (WebData ()) |
     Ignore |
