@@ -1,10 +1,11 @@
 module TreeEdit.View exposing ( view
                               , viewRootTree -- For memoization hack
+                              , viewTree -- For static tree viewer
+                              , ViewInfo -- ditto
                               )
 
 import Array.Hamt as Array
 import Dict
-import Guards exposing (..)
 import Html exposing (..)
 import Html.Attributes as Attr
 import Html.Events as Ev
@@ -40,12 +41,6 @@ isIP config label =
     in
         List.any identity <| applyList predicates label
 
-snodeClass : Bool -> Bool -> List String
-snodeClass selected ip  =
-    selected => ["snode", "selected"]
-                      |= ip => ["snode", "ip"]
-                      |= ["snode"]
-
 labelHtml : Tree -> Html Msg
 labelHtml tree =
     let
@@ -62,6 +57,11 @@ type alias ViewInfo =
     { config : Config
     , selected : List Path
     , labelForm : Maybe LabelForm
+    , interactive : Bool
+    , snodeClass: String
+    , ipClass: String
+    , selectedClass: String
+    , wnodeClass : String
     }
 
 snode : ViewInfo -> Path -> Tree -> List (Html Msg) -> Html Msg
@@ -74,18 +74,19 @@ snode info self tree children =
         label = case (selected, info.labelForm) of
                     (True, Just form) -> Html.map Msg.Label <| LabelEdit.view form
                     _ -> labelHtml tree
+        eventHandlers = if info.interactive
+                        then [ onClick <| ToggleSelect self , rightClick ]
+                        else []
+        cssClasses = Attr.classList [ (info.snodeClass, True)
+                                    , (info.selectedClass, selected)
+                                    , (info.ipClass, not selected && isIP_)
+                                    ]
     in
-        div [ Attr.classList [ ("snode", True)
-                             , ("selected", selected)
-                             , ("ip", not selected && isIP_)
-                             ]
-            , onClick <| ToggleSelect self
-            , rightClick
-            ] <| label :: children
+        div (cssClasses :: eventHandlers) <| label :: children
 
-wnode : Tree -> Html Msg
-wnode t = span
-             [ Attr.class "wnode" ]
+wnode : String -> Tree -> Html Msg
+wnode className t = span
+             [ Attr.class className ]
              [text <| terminalString t]
 
 viewTree : ViewInfo -> Path -> Tree -> Html Msg
@@ -93,7 +94,7 @@ viewTree info selfPath tree =
     let
         isSelected = List.member selfPath info.selected
         childHtml = Tree.either
-                    (\_ -> [wnode tree])
+                    (\_ -> [wnode info.wnodeClass tree])
                     (\_ children -> Array.indexedMap (\i c -> viewTree info (Path.childPath i selfPath) c) children |>
                          Array.toList)
                     tree
@@ -106,7 +107,9 @@ viewRootTree config dataPack selfIndex tree =
         -- _ = Debug.log "redraw" (dataPack, selfIndex)
         selected = dataPack |> Maybe.map Tuple.first |> Maybe.withDefault []
         labelForm = dataPack |> Maybe.map Tuple.second |> Maybe.withDefault Nothing
-        info = { config = config, selected = selected, labelForm = labelForm }
+        info = { config = config, selected = selected, labelForm = labelForm, interactive = True
+               , snodeClass = "snode", selectedClass = "selected", ipClass = "ip", wnodeClass = "wnode"
+               }
     in
         viewTree info (Path.singleton selfIndex) tree
 
