@@ -1,12 +1,12 @@
 module TreeEdit.Metadata exposing (view, update)
 
+import Array
 import Dict exposing (Dict)
 import Html as Html exposing (div, text, button, Html, span, ul, li)
 import Html.Attributes as Attr exposing (id)
 import Html.Events exposing (onClick)
 import Json.Decode as D
 import Json.Encode as E
-import Keyboard.Key as K
 import Maybe.Extra as MX
 import Monocle.Lens as Lens
 import RemoteData exposing (RemoteData(..), WebData)
@@ -19,12 +19,14 @@ import Form.Field
 import Form.Validate as V exposing (Validation)
 
 import Maybe.Extra
-import OrderedDict as OD
 import Select
+
+import ThirdParty.KeyboardKey as K
 
 import TreeEdit.Metadata.Type exposing (..)
 import TreeEdit.Metadata.Css as Css
 import TreeEdit.Metadata.Util exposing (..)
+import TreeEdit.OrderedDict as OD
 import TreeEdit.Selection exposing (Selection)
 import TreeEdit.Tree as Tree
 import TreeEdit.Tree.Type exposing (Tree)
@@ -134,7 +136,7 @@ validation =
                      V.andThen (\dict -> V.field str (V.string |> V.maybe |> V.map (update str dict)))
         init = V.succeed Dict.empty
     in
-        List.foldl do init (OD.keys fieldInfo)
+        List.foldl do init <| Array.toList <| OD.keys fieldInfo
 
 field : Model -> String -> Html Msg
 field model name =
@@ -181,7 +183,7 @@ formView : Model -> Html Msg
 formView ({lemmata, form, fieldStates} as model) =
     let
         f name = div [id ("formField-" ++ name)] [field model name]
-        fields = OD.keys fieldInfo |> List.map f
+        fields = OD.keys fieldInfo |> Array.toList |> List.map f
     in
 
         div [ id "metadataForm" ] <|
@@ -195,7 +197,7 @@ formView ({lemmata, form, fieldStates} as model) =
 init : List Lemma -> Metadata -> Tree -> Model
 init lemmata metadata node =
     let
-        fieldNames = OD.keys fieldInfo
+        fieldNames = OD.keys fieldInfo |> Array.toList
     in
         { form = fieldNames |>
                  List.map (\name -> Dict.get (String.toUpper name) metadata |>

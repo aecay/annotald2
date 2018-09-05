@@ -8,7 +8,7 @@ module TreeEdit.Metadata.Type exposing ( Metadata
                                        )
 
 import Dict exposing (Dict)
-import Keyboard.Event exposing (KeyboardEvent)
+import ThirdParty.KeyboardEvent exposing (KeyboardEvent)
 import Form exposing (Form)
 import RemoteData exposing (WebData)
 import Select

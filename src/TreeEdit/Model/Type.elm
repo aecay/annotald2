@@ -2,6 +2,7 @@ module TreeEdit.Model.Type exposing (Model)
 
 import Html exposing (Html)
 import RemoteData exposing (WebData)
+import Random exposing (Seed)
 
 import TreeEdit.Config exposing (Config)
 import TreeEdit.ContextMenu.Type as ContextMenuType
@@ -10,7 +11,7 @@ import TreeEdit.Metadata.Type as Metadata
 import TreeEdit.Selection as Selection
 import TreeEdit.Msg as Msg
 import TreeEdit.Path as Path
-import TreeEdit.Tree.Type exposing (Tree)
+import TreeEdit.Tree.Type exposing (Tree, Forest)
 import TreeEdit.View.LabelEdit.Type exposing (LabelForm)
 
 type alias Model = { selected: Selection.Selection
@@ -18,15 +19,18 @@ type alias Model = { selected: Selection.Selection
                    , contextMenu: Maybe ContextMenuType.Model
                    , fileName : String
                    , metadataForm : Maybe Metadata.Model
-                   , webdata : WebData { root : Tree
+                   , webdata : WebData { root : Forest
                                        , config : Config
                                        , viewFn : (Maybe (List Path.Path, Maybe LabelForm) ->
-                                                       Int -> Tree -> Html Msg.Msg)
+                                                       -- TODO: use proper Id
+                                                       -- type instead of String
+                                                       String -> Tree -> Html Msg.Msg)
                                        , lemmata : List Metadata.Lemma
                                        }
                    , labelForm: Maybe LabelForm
                    , dialog : Maybe Dialog
-                   , undo : List Tree
-                   , redo: List Tree
+                   , undo : List Forest
+                   , redo: List Forest
                    , dirty : Bool
+                   , seed: Seed
                    }

@@ -1,21 +1,15 @@
 module Main exposing (..)
 
-import Platform.Cmd as Cmd
 import Html
-import Html
-import Platform.Cmd as Cmd
 import Platform.Sub as Sub
+import Random
 import Navigation exposing (Location)
 
-import List.Extra
 import Return exposing (Return)
-import UuidStream exposing (UuidStream)
 
 import Route exposing (Route)
 import Page.TreeEdit as TreeEdit
 import Page.FileList as FileList
-
-import TreeEdit.Utils exposing (fromJust) -- FIXME: encapsulation violation
 
 type Page =
     FileList FileList.Model |
@@ -23,34 +17,35 @@ type Page =
 
 type Msg = TreeEditMsg TreeEdit.Msg |
     FileListMsg FileList.Msg |
-    LoadPage (Page, Cmd Msg)
+    LoadPage Route
 
 type alias Model = { page : Page
-                   , uuids : UuidStream String
+                   , seed : Random.Seed
                    }
 
-type alias Flags = { randomness : List Int
+type alias Flags = { randomness : Int
                    }
 
 route : Location -> Msg
-route l =
-    pageInit l |> LoadPage
+route location =
+    Maybe.withDefault (Route.ListFiles) (Route.fromLocation location) |> LoadPage
 
-pageInit : Location -> Return Msg Page
-pageInit location =
-    case Maybe.withDefault (Route.ListFiles) (Route.fromLocation location) of
-        Route.Edit s -> TreeEdit.init s |> Return.mapBoth TreeEditMsg TreeEdit
+pageInit : Route -> Random.Seed -> Return Msg Page
+pageInit route seed =
+    case route of
+        Route.Edit s -> TreeEdit.init s seed |> Return.mapBoth TreeEditMsg TreeEdit
         Route.ListFiles -> FileList.init |> Return.mapBoth FileListMsg FileList
 
 init : Flags -> Location -> Return Msg Model
 init {randomness} location =
     let
-        randomness_ = List.Extra.uncons randomness |> fromJust
-        (page, cmd) = pageInit location
+        seed = Random.initialSeed randomness
+        route = Maybe.withDefault (Route.ListFiles) (Route.fromLocation location)
+        (page, cmd) = pageInit route seed
     in
         Return.return
             { page = page
-            , uuids = uncurry UuidStream.uuidStringStream randomness_
+            , seed = seed
             }
             cmd
 
@@ -59,17 +54,20 @@ update msg model =
     case (msg, model.page) of
         (TreeEditMsg submsg, TreeEdit submodel) ->
             let
-                (return, uuids) = TreeEdit.update submsg submodel model.uuids
+                return = TreeEdit.update submsg submodel
             in
                 Return.mapBoth TreeEditMsg (\x -> { model | page = TreeEdit x
-                                                  , uuids = uuids
+                                                  , seed = x.seed
                                                   })
                     return
         (FileListMsg submsg, FileList submodel) ->
              FileList.update submsg submodel |>
              Return.mapBoth FileListMsg (\x -> { model | page = FileList x})
-        (LoadPage (page, cmd), _) ->
-            Return.return { model | page = page } cmd
+        (LoadPage page, _) ->
+            let
+                (p, cmd) = pageInit page model.seed
+            in
+                Return.return { model | page = p } cmd
         (_, _) ->
             Return.singleton model
 

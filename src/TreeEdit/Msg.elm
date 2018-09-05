@@ -1,7 +1,7 @@
 module TreeEdit.Msg exposing (Msg(..))
 
-import Array.Hamt as Array exposing (Array)
-import Keyboard.Event exposing (KeyboardEvent)
+import Array exposing (Array)
+import ThirdParty.KeyboardEvent exposing (KeyboardEvent)
 import RemoteData exposing (WebData)
 
 import TreeEdit.Config exposing (Config)

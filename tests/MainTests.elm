@@ -3,10 +3,10 @@ module MainTests exposing (..)
 import Test
 import Test.Runner.Html as Runner
 
-import TestIntegration
+--import TestIntegration
 import TestPath
-import TestTreeDecode
-import TestTree
+--import TestTreeDecode
+--import TestTree
 import TestUtils
 
 -- Black magic: this module will be picked up as a test iff it has a top-level
@@ -16,10 +16,12 @@ import TestUtils
 main : Runner.TestProgram
 main =
     let
-        tests = Test.concat [ TestIntegration.suite
-                            , TestPath.suite
-                            , TestTreeDecode.suite
-                            , TestTree.suite
+        tests = Test.concat [
+                 -- TestIntegration.suite
+                            -- ,
+                                TestPath.suite
+                            -- , TestTreeDecode.suite
+                            -- , TestTree.suite
                             , TestUtils.suite
                             ]
     in

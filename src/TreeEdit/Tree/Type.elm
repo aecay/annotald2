@@ -5,6 +5,7 @@ module TreeEdit.Tree.Type exposing ( TraceType(..)
                                    , Label
                                    , Metadata
                                    , Tree
+                                   , Forest
                                    , info
                                    , children
                                    , label
@@ -12,14 +13,16 @@ module TreeEdit.Tree.Type exposing ( TraceType(..)
                                    , metadata
                                    , private
                                    , constants
+                                   , root
                                    )
 
-import Array.Hamt as Array exposing (Array)
+import Array exposing (Array)
 import Dict exposing (Dict)
 
 import Monocle.Lens as Lens exposing (Lens)
 
 import TreeEdit.Index as Index
+import TreeEdit.OrderedDict exposing (OrderedDict)
 
 type TraceType = Wh | Extraposition | Clitic
 
@@ -46,6 +49,10 @@ type alias Label = String
 type alias Metadata = Dict String String
 
 type alias TreeInfo = MaybeIndex
+
+type alias Id = String
+
+type alias Forest = OrderedDict Id Tree
 
 constants :
     { comment : Tree
@@ -190,3 +197,9 @@ either terminalF nonterminalF tree =
     case tree of
         TerminalOuter terminal -> terminalF terminal
         Nonterminal children info -> nonterminalF info children
+
+root : Id -> Tree
+root id = TerminalOuter <| EmptyCat Star { label = "XXX"
+                                         , metadata = Dict.fromList [ ("ID", id) ]
+                                         , index = Nothing
+                                         }

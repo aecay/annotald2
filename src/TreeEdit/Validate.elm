@@ -1,6 +1,6 @@
 module TreeEdit.Validate exposing (perform, done)
 
-import Array.Hamt as Array exposing (Array)
+import Array exposing (Array)
 import Json.Encode as E
 
 import RemoteData exposing (RemoteData(..), WebData)
@@ -11,6 +11,7 @@ import TreeEdit.Dialog exposing (Dialog(Processing))
 import TreeEdit.Metadata.Type as MetadataType
 import TreeEdit.Model as Model exposing (Model)
 import TreeEdit.Msg as Msg exposing (Msg)
+import TreeEdit.OrderedDict as OD
 import TreeEdit.Path as Path exposing (Path)
 import TreeEdit.Selection as Selection
 import TreeEdit.Tree as Tree
@@ -25,7 +26,8 @@ perform model =
     let
         root = (.get Model.root model)
         sel = model.selected |> Selection.getOne |> Maybe.map Path.root
-        allTrees = root |> .get Tree.children
+        allTrees : Array Tree
+        allTrees = root |> OD.values
         trees = sel |> Maybe.map (flip Tree.get root) |> Maybe.map (Array.repeat 1) |> Maybe.withDefault allTrees
     in
         Return.return {model | dialog = Just <| Processing "Validating"} <|
@@ -50,7 +52,7 @@ done model path webdata =
                                           newTree = Array.get 0 trees |> Maybe.withDefault oldTree
                                       in
                                           Tree.set p newTree root
-                                  Nothing -> .ta TreeType.private "wtf" trees
+                                  Nothing -> Tree.forestFromList <| Array.toList trees -- TODO: toList is bogus
                 in
                     Return.return
                         (.set Model.root newRoot newModel)

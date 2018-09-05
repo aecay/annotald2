@@ -1,173 +1,158 @@
-module TreeEdit.Path exposing ( Path(..)
+module TreeEdit.Path exposing ( Path
                               , PathFragment
                               , singleton
                               , childPath
                               , root
                               , parent
-                              , splitCommon
+                              -- , splitCommon
                               , join
-                              , join3
                               , isFragEmpty
-                              , shiftOne
+                              -- , shiftOne
                               , foot
                               , allCombos
-                              , toFragment
+                              -- , toFragment
                               , internals
                               , advance
-                              , encode
+                              , commonPrefix
+                              , intFromFrag
+                              , daughterOf
+                              , subtract
+                              , behead
+                              , decompose
                               )
-
-import Json.Encode as E
 
 import List.Extra
 
-import TreeEdit.Utils as Utils exposing (fromJust)
+import TreeEdit.Utils exposing (findSuffix)
 
-type Path = Path Int (List Int) | RootPath
+-- TODO: import type defs from tree, use Id type
+type Path = Path String (List Int)
 
-type PathFragment = PF (List Int)
+type PathFragment = Children (List Int)
 
-internals : { fromList : List Int -> Path
-            , pf : List Int -> PathFragment
-            , toList : Path -> List Int
-            }
+internals :
+    { fragmentChildren : PathFragment -> Maybe (List Int)
+    , path : String -> List Int -> Path
+    }
 internals =
     let
-        toList p =
-            case p of
-                RootPath -> []
-                Path x y -> x :: y
+        fragmentChildren f = case f of
+                                 Children l -> Just l
     in
-        { fromList = fromList
-        , pf = PF
-        , toList = toList
+        { path = Path
+        , fragmentChildren = fragmentChildren
         }
 
 childPath : Int -> Path -> Path
 childPath idx path =
     case path of
-        RootPath -> Path idx []
-        Path foot leg -> Path idx (foot :: leg)
+        Path id children -> Path id <| idx :: children
 
-singleton : Int -> Path
-singleton idx =
-    Path idx []
+singleton : String -> Path
+singleton id = Path id []
 
 root : Path -> Path
 root path =
     case path of
-        RootPath -> RootPath
-        Path foot leg ->
-            case leg of
-                [] -> singleton foot
-                otherwise -> root (parent path)
+        Path id _ -> Path id []
 
-parent : Path -> Path
+decompose : Path -> (String, List Int)
+decompose (Path id children) = (id, children)
+
+parent : Path -> Maybe Path
 parent path =
     case path of
-        RootPath -> Debug.crash "Can't get the parent of the root!"
-        Path _ [] -> RootPath
-        Path _ (l :: ls) -> Path l ls
+        Path _ [] -> Nothing
+        Path id (_ :: rest) -> Just <| Path id rest
 
-toList : Path -> List Int
-toList path =
-    case path of
-        RootPath -> []
-        Path foot leg -> foot :: leg
-
-fromList : List Int -> Path
-fromList l =
-    case l of
-        [] -> RootPath
-        l :: ls -> Path l ls
-
-toFragment : Path -> PathFragment
-toFragment = PF << toList
-
-foot : Path -> Int
+foot : Path -> Maybe Int
 foot p =
     case p of
-        RootPath -> Debug.crash "Root has no foot"
-        Path foot _ -> foot
+        Path _ [] -> Nothing
+        Path _ (foot :: _) -> Just foot
 
 join : Path -> PathFragment -> Path
-join path (PF frag) =
+join path fragment =
     case path of
-        RootPath -> fromList frag
-        Path pfoot pleg -> case frag of
-                         [] -> path
-                         ffoot :: fleg -> Path ffoot (fleg ++ (pfoot :: pleg))
+        Path id children ->
+            case fragment of
+                Children c -> Path id <| c ++ children
 
-join3 : Path -> Int -> PathFragment -> Path
-join3 path step (PF frag) =
-    case path of
-        RootPath -> join (singleton step) (PF frag)
-        Path foot leg -> case frag of
-                         [] -> Path step (foot :: leg)
-                         ffoot :: fleg -> Path ffoot (fleg ++ (step :: foot :: leg))
+intFromFrag : PathFragment -> Maybe Int
+intFromFrag frag =
+    case frag of
+        Children (x :: []) -> Just x
+        _ -> Nothing
 
-
-type alias SplitResult = { common : Path
-                         , sibFrom : Maybe Int
-                         , sibTo : Maybe Int
-                         , tailFrom : PathFragment
-                         , tailTo : PathFragment
-                         , fragFrom : PathFragment
-                         , fragTo : PathFragment
-                         }
-splitCommon : Path -> Path -> SplitResult
-splitCommon p1 p2 =
-    let
-        go p1 p2 accum =
+behead : PathFragment -> Maybe (Int, PathFragment)
+behead f =
+    case f of
+        Children x ->
             let
-                res from to = { common = fromList <| List.reverse accum
-                              , sibFrom = from
-                              , sibTo = to
-                              , tailFrom = PF <| List.reverse <| Maybe.withDefault [] <| List.tail p1
-                              , tailTo = PF <| List.reverse <| Maybe.withDefault [] <| List.tail p2
-                              , fragFrom = PF <| List.reverse p1
-                              , fragTo = PF <| List.reverse p2
-                              }
+                head = List.Extra.last x
+                path = List.Extra.init x |> Maybe.map Children
             in
-                case (p1, p2) of
-                    (h1 :: t1, h2 :: t2) -> if h1 == h2
-                                            then go t1 t2 <| accum ++ [h1]
-                                            else res (Just h1) (Just h2)
-                    (x1, x2) -> res (List.head x1) (List.head x2)
-    in
-        go (List.reverse (toList p1)) (List.reverse (toList p2)) []
+                Maybe.map2 (,) head path
 
 isFragEmpty : PathFragment -> Bool
-isFragEmpty frag = frag == PF []
+isFragEmpty p =
+    case p of
+        Children [] -> True
+        Children _ -> False
 
-shiftOne : Path -> PathFragment -> (Path, PathFragment)
-shiftOne p (PF pf) =
-    case pf of
-        [] -> (p, PF pf) -- TODO: this is a bogus case, should be a crash
-        otherwise ->
-            case p of
-                RootPath -> (Path (List.Extra.last pf |> fromJust) [],
-                             PF (List.Extra.init pf |> fromJust))
-                Path h2 t2 -> (Path (List.Extra.last pf |> fromJust) (h2 :: t2),
-                               PF (List.Extra.init pf |> fromJust))
+-- shiftOne : Path -> PathFragment -> (Path, PathFragment)
+-- shiftOne p (PF pf) =
+--     case pf of
+--         [] -> (p, PF pf) -- TODO: this is a bogus case, should be a crash
+--         otherwise ->
+--             case p of
+--                 [] -> ( [List.Extra.last pf |> fromJust], PF (List.Extra.init pf |> fromJust) )
+--                 l -> ((List.Extra.last pf |> fromJust) :: l,
+--                           PF (List.Extra.init pf |> fromJust))
 
 allCombos : Path -> PathFragment -> List Path
-allCombos path1 frag1 =
-    let
-        go path frag accum = case shiftOne path frag of
-                                 (p, PF []) -> p :: accum
-                                 (p, pf) -> go p pf (p :: accum)
-    in
-        case frag1 of
-            PF [] -> [] -- TODO: testing the base case twice = code smell
-            otherwise -> go path1 frag1 []
+allCombos path frag =
+    case frag of
+        Children c ->
+            let
+                tails = List.Extra.tails c
+            in
+                List.map (join path << Children) tails
+
+daughterOf : Path -> Path -> Bool
+daughterOf x y =
+    case x of
+        Path id children -> case y of
+                                Path id2 children2 -> (id == id2 &&
+                                                           List.Extra.isSuffixOf children children2 &&
+                                                           List.length children < List.length children2)
+
+subtract : Path -> Path -> Maybe PathFragment
+subtract parent child =
+    if not <| daughterOf parent child
+    then Nothing
+    else
+        case parent of
+            Path _ children ->
+                case child of
+                    Path _ children2 ->
+                        let
+                            len = List.length children
+                            len2 = List.length children2
+                        in
+                            List.take (len2 - len) children2 |> Children |> Just
 
 advance : Path -> Path
 advance p =
     case p of
-        RootPath -> RootPath
-        Path h t -> Path (h+1) t
+        Path _ [] -> Debug.crash "can't advance a bare ID path"
+        Path id (h :: t) -> Path id (h+1 :: t)
 
-encode : Path -> E.Value
-encode path =
-    toList path |> List.reverse |> List.map E.int |> E.list
+commonPrefix : Path -> Path -> Maybe Path
+commonPrefix x y =
+    case (x, y) of
+        (Path id1 children1, Path id2 children2) ->
+            if id1 /= id2
+            then Nothing
+            else
+                Just <| Path id1 <| findSuffix children1 children2

@@ -1,20 +1,19 @@
 module TreeEdit.Action exposing ( Action
-                                , SimpleAction
                                 , actions
-                                , asAction
                                 , doMove
+                                , doMoveToRoot
                                 , leafBeforeInner -- For ContextMenu TODO:
                                                   -- consolidate with createLeaf
                                 , finishLabelEdit
                                 , toggleDashTag
-                        )
+                                )
 
 -- This module contains the types and functions for creating *actions*, or
 -- functions that respond to user input.
 
 -- Standard library
 
-import Array.Hamt as Array exposing (Array)
+import Array exposing (Array)
 import Dict exposing (Dict)
 import Dom
 import Maybe exposing (withDefault)
@@ -23,11 +22,9 @@ import Task
 -- Third party
 
 import List.Extra exposing (zip)
-import Maybe.Extra
 import Monocle.Common exposing ((<|>), (=>), maybe)
 import Monocle.Lens as Lens
 import Monocle.Optional as Optional exposing (fromLens)
-import UuidStream exposing (UuidStream)
 
 -- Annotald packages
 
@@ -36,11 +33,12 @@ import TreeEdit.Model as Model
 import TreeEdit.Model.Type exposing (Model)
 import TreeEdit.Msg as Msg
 import TreeEdit.Msg exposing (Msg(Undo, Redo))
+import TreeEdit.OrderedDict as OD
 import TreeEdit.Path as Path exposing (Path)
 import TreeEdit.Result as R exposing (Result(..))
 import TreeEdit.Selection as Selection
 import TreeEdit.Tree as Tree
-import TreeEdit.Tree.Type as TreeType exposing (Tree)
+import TreeEdit.Tree.Type as TreeType exposing (Tree, Forest)
 import TreeEdit.Utils as Utils exposing (maybeAndThen2, o)
 import TreeEdit.View.LabelEdit as LabelEdit
 
@@ -48,22 +46,7 @@ type alias Result = R.Result Model
 
 -- The rest of the file
 
-type alias SimpleAction = Model -> Result
-type alias Action = UuidStream String -> Model -> (Result, UuidStream String)
-
-asAction : SimpleAction -> Action
-asAction f =
-    let
-        action uuids model = (f model, uuids)
-    in
-        action
-
-asActionWithArg : (a -> SimpleAction) -> a -> Action
-asActionWithArg f =
-    let
-        action arg uuids model = (f arg model, uuids)
-    in
-        action
+type alias Action = Model -> Result
 
 actions :
     { changeLabel : List String -> Action
@@ -78,20 +61,15 @@ actions :
     , undo : Action
     }
 actions =
-    -- Simple actions
-    { clearSelection = asAction clearSelection
-    , coIndex = asAction coIndex
-    , editLabel = asAction editLabel
-    , undo = asAction undo
-    , redo = asAction redo
-    -- Simple actions that take an argument
-    -- , toggleDashTag = asActionwithArg toggleDashTag TODO: receives path as
-    -- argument, for a proper action it should get it from the model
-    , changeLabel = asActionWithArg changeLabel
-    , leafAfter = asActionWithArg leafAfter
-    , createParent = asActionWithArg createParent
-    , leafBefore = asActionWithArg leafBefore
-    -- Full actions
+    { clearSelection = clearSelection
+    , coIndex = coIndex
+    , editLabel = editLabel
+    , undo = undo
+    , redo = redo
+    , changeLabel = changeLabel
+    , leafAfter = leafAfter
+    , createParent = createParent
+    , leafBefore = leafBefore
     , deleteNode = deleteNode
     }
 
@@ -100,7 +78,7 @@ doAt path f model =
     Lens.modify (Model.root <|> (Tree.path path)) f model |>
     R.succeed
 
-clearSelection : SimpleAction
+clearSelection : Action
 clearSelection m = R.succeed { m | selected = Selection.empty }
 
 changeLabel : List String -> Model -> Result
@@ -216,19 +194,51 @@ removeIndexAt : Path -> Model -> Model
 removeIndexAt path =
     .set (Model.root <|> (Tree.path path) <|> Tree.index) Nothing
 
-incrementIndicesBy : Int -> Path -> Tree -> Tree
-incrementIndicesBy inc path tree =
+incrementIndicesBy : Int -> Path -> Forest -> Forest
+incrementIndicesBy inc path trees =
     Optional.modify ((o Tree.index) => maybe => (o Index.number)) ((+) inc) |>
     Tree.map |>
-    (\x -> Lens.modify (Tree.path path) x tree)
+    (\x -> Lens.modify (Tree.path path) x trees)
 
-doMove : Path -> Path -> UuidStream String -> Model -> (Result, UuidStream String)
-doMove src dest uuids model =
+-- TODO: use Id type instead of String
+newRootTree : Int -> Model -> (Model, String)
+newRootTree index model =
+    let
+        (newModel, newId) = Model.freshUuid model
+        newTree = TreeType.root newId
+        newModel2 = Lens.modify Model.root (OD.insertAt index newId newTree) newModel
+    in
+        (newModel2, newId)
+
+doMoveToRoot : Path -> Model -> Result
+doMoveToRoot src model =
+    let
+        forest = .get Model.root model
+        root = Path.root src
+        frag = Path.subtract root src |> Utils.fromJust
+        first = Tree.allFirst root frag forest
+        last = Tree.allLast root frag forest
+        (id, _) = Path.decompose root
+        index = OD.elemIndex id forest |> Utils.fromJust
+        go i =
+            let
+                (newModel, newId) = newRootTree i model
+            in
+                doMove src (Path.singleton newId) newModel
+    in
+        if first
+        then go index
+        else
+            if last
+            then go <| index + 1
+            else R.fail "cannot move to root from middle"
+
+doMove : Path -> Path -> Model -> Result
+doMove src dest model =
     let
         srcRoot = Path.root src
         destRoot = Path.root dest
         rootTree = .get Model.root model
-        (newId, newStream) = UuidStream.consume uuids
         -- If we are moving withing the same root tree, then do nothing
         -- special.  If we are moving a tree up to the root level, then give
         -- it an ID.  If we are moving a tree from one root tree into another,
@@ -236,42 +246,45 @@ doMove src dest uuids model =
         newRoot = if srcRoot == destRoot
                   then rootTree
                   else
-                      if destRoot == Path.RootPath
-                      then Lens.modify ((Tree.path src) <|> Tree.metadata)
-                          (Dict.insert "ID" newId)
-                          rootTree
-                      else
-                          let
-                              inc = (Tree.get destRoot rootTree) |>
-                                    Tree.highestIndex
-                          in
-                              incrementIndicesBy inc srcRoot rootTree
+                      let
+                          inc = (Tree.get destRoot rootTree) |>
+                                Tree.highestIndex
+                      in
+                          incrementIndicesBy inc srcRoot rootTree
         res = Tree.moveTo src dest newRoot
         newRoot1 = R.map Tuple.first res
         newSel = R.map Tuple.second res
     in
         R.modify Model.root (always newRoot1) model |>
-        R.andThen (R.modify Model.selected (always <| R.map Selection.one newSel)) |>
-        flip (,) newStream
+        R.andThen (R.modify Model.selected (always <| R.map Selection.one newSel))
 
 createParent2 : String -> Model -> Path -> Path -> Result
 createParent2 label model one two =
     let
         parent1 = Path.parent one
         parent2 = Path.parent two
-        (foot1, foot2) = Utils.sort2 (Path.foot one) (Path.foot two)
     in
         if parent1 /= parent2
         then R.fail "parents are different for createParent2"
-        else doAt parent1 (Lens.modify Tree.children (\c ->
-                                                          let
-                                                              (x, y, z) = Utils.splice foot1 (foot2+1) c
-                                                            in
-                                                                Array.append x <|
-                                                                Array.append (Array.repeat 1
-                                                                                  (.ta TreeType.private label y))
-                                                                z))
-            model |> R.map ((.set Model.selected) (Selection.one <| Path.childPath foot1 parent1))
+        else
+            case (parent1, parent2) of
+                (Nothing, Nothing) -> Debug.crash "unimplemented" -- TODO
+                (Just p1, Just p2) ->
+                    let
+                        (foot1, foot2) = Utils.sort2
+                                         (Path.foot one |> Utils.fromJust)
+                                         (Path.foot two |> Utils.fromJust)
+                    in
+                        doAt p1 (Lens.modify Tree.children
+                                     (\c ->
+                                          let
+                                              (x, y, z) = Utils.splice foot1 (foot2+1) c
+                                          in
+                                              Array.append x <|
+                                              Array.append (Array.repeat 1
+                                                                (.ta TreeType.private label y)) z))
+                            model |> R.map ((.set Model.selected) (Selection.one <| Path.childPath foot1 p1))
+                _ -> Debug.crash "impossible" -- Guaranteed by parent1 /= parent2 check above
 
 createParent : String -> Model -> Result
 createParent label model =
@@ -309,14 +322,14 @@ doMovement model dest src =
              R.map (.set Model.selected <| Selection.one dest)
         else R.fail "Can't make movement trace across different root nodes"
 
-leafBeforeInner : Tree -> Path -> Tree -> R.Result Tree
-leafBeforeInner newLeaf path tree =
+leafBeforeInner : Tree -> Path -> Forest -> R.Result Forest
+leafBeforeInner newLeaf path trees =
     let
-        parent = Path.parent path
-        foot = Path.foot path
+        parent = Path.parent path |> Utils.fromJust
+        foot = Path.foot path |> Utils.fromJust
         update c = Utils.insert foot newLeaf c
     in
-        Lens.modify ((Tree.path parent) <|> Tree.children) update tree |>
+        Lens.modify ((Tree.path parent) <|> Tree.children) update trees |>
         R.succeed -- TODO: bogus succeed
 
 createLeaf : Tree -> Model -> Path -> Result
@@ -338,42 +351,44 @@ leafAfter newLeaf model =
 
 
 deleteNode : Action
-deleteNode uuids model =
+deleteNode model =
     let
         root = .get Model.root model
-        delete : Path -> R.Result Tree
+        delete : Path -> R.Result Forest
         delete path =
             let
-                n = Tree.get path root
-                children_ = .get Tree.children n
-                children = if Path.parent path == Path.RootPath
-                           then children_ -- TODO: add IDs to all the new children
-                           else children_
+                parent_ = Path.parent path
             in
-                case children |> Array.length of
-                    0 ->
+                case parent_ of
+                    Nothing -> Debug.crash "TODO: not implemented"
+                    -- TODO: add Ids to new children, insert in root in proper place
+                    Just parent ->
                         let
-                            isEmpty = Tree.isEmpty n
-                            hasSiblings = path |>
-                                          Path.parent |>
-                                          flip Tree.get root |>
-                                          .get Tree.children |>
-                                          (\x -> Array.length x >= 1)
+                            n = Tree.get path root
+                            children = .get Tree.children n
                         in
-                            case (isEmpty, hasSiblings) of
-                                (False, _) -> R.fail "Cannot delete a non-empty terminal"
-                                (True, False) -> R.fail "Cannot delete an only child"
-                                (True, True) -> R.succeed <| Tree.deleteAt path (.get Model.root model)
+                            case children |> Array.length of
+                                0 ->
+                                    let
+                                        isEmpty = Tree.isEmpty n
+                                        hasSiblings = parent |>
+                                                      flip Tree.get root |>
+                                                      .get Tree.children |>
+                                                      (\x -> Array.length x >= 1)
+                                    in
+                                        case (isEmpty, hasSiblings) of
+                                            (False, _) -> R.fail "Cannot delete a non-empty terminal"
+                                            (True, False) -> R.fail "Cannot delete an only child"
+                                            (True, True) -> R.succeed <| Tree.deleteAt path (.get Model.root model)
 
-                    _ ->
-                        Tree.deleteAt path root |>
-                        Tree.insertManyAt path children |>
-                        R.succeed
+                                _ ->
+                                    Tree.deleteAt path root |>
+                                    Tree.insertManyAt path children |>
+                                    R.succeed
     in
-        R.succeed model |>
+        R.succeed model |> -- TODO: why this succeed?
         Selection.withOne model.selected (delete >> R.map (flip (.set Model.root) model)) |>
-        R.andThen clearSelection |>
-        flip (,) uuids
+        R.andThen clearSelection
 
 
 editLabel : Model -> Result
@@ -381,11 +396,9 @@ editLabel model =
     let
         selected : Maybe Path.Path
         selected = model |> .get Model.selected |> Selection.getOne
-        root : Maybe Tree
-        root = model |> .get Model.root |> Just
+        root = model |> .get Model.root
         label : R.Result String
-        label = Maybe.map Tree.get selected |> Maybe.Extra.andMap root |> Maybe.map (.get Tree.label) |> R.liftVal "editLabel"
-        initForm = R.map LabelEdit.init label
+        label = Maybe.map (\x -> Tree.get x root) selected |> Maybe.map (.get Tree.label) |> R.liftVal "editLabel"
     in
         R.map (\l -> { model | labelForm = Just <| LabelEdit.init l}) label |>
         R.do (Dom.focus "labelEditor" |> Task.onError (always <| Task.succeed ()) |> Task.perform (always Msg.Ignore))

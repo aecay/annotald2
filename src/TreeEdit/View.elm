@@ -2,21 +2,21 @@ module TreeEdit.View exposing ( view
                               , viewRootTree -- For memoization hack
                               )
 
-import Array.Hamt as Array
+import Array
 import Dict
-import Guards exposing (..)
 import Html exposing (..)
 import Html.Attributes as Attr
 import Html.Events as Ev
+import Html.Keyed as Keyed
 import Html.Lazy exposing (lazy3)
 import Json.Decode as Json
-import Maybe.Extra exposing (isJust)
 import RemoteData exposing (RemoteData(..))
-import Toolkit.Helpers exposing (applyList)
 
 import TreeEdit.Config exposing (Config)
 import TreeEdit.Dialog as Dialog
+import TreeEdit.Model as Model
 import TreeEdit.Model.Type exposing (Model)
+import TreeEdit.OrderedDict as OD
 import TreeEdit.Tree as Tree
 import TreeEdit.Tree.Type exposing (Tree, TreeInfo)
 import TreeEdit.Tree.View exposing (labelString, terminalString)
@@ -35,28 +35,21 @@ import TreeEdit.ContextMenu as ContextMenu
 
 isIP : Config -> String -> Bool
 isIP config label =
-    let
-        predicates = List.map String.startsWith config.ipLabels
-    in
-        List.any identity <| applyList predicates label
-
-snodeClass : Bool -> Bool -> List String
-snodeClass selected ip  =
-    selected => ["snode", "selected"]
-                      |= ip => ["snode", "ip"]
-                      |= ["snode"]
+    List.any (flip String.startsWith label) config.ipLabels
 
 labelHtml : Tree -> Html Msg
 labelHtml tree =
     let
         metadata = .get Tree.metadata tree
-        hasCorrection = metadata |> Dict.get "OLD-TAG" |> isJust
-        hasError = metadata |> Dict.get "VALIDATION-ERROR" |> isJust
+        hasCorrection = case metadata |> Dict.get "OLD-TAG" of
+                            Nothing -> span [] []
+                            Just _ -> span [Attr.style Css.correctionFlag] [text "CORR"]
+        hasError = case metadata |> Dict.get "VALIDATION-ERROR" of
+                       Nothing -> span [] []
+                       Just _ -> span [Attr.style Css.correctionFlag] [text "ERR"]
         label = labelString tree
     in
-        span [] <| [text label] ++
-            if hasCorrection then [span [Attr.style Css.correctionFlag] [text "CORR"]] else [] ++
-            if hasError then [span [Attr.style Css.correctionFlag] [text "ERR"]] else []
+        span [] [text label, hasCorrection, hasError]
 
 type alias ViewInfo =
     { config : Config
@@ -91,7 +84,6 @@ wnode t = span
 viewTree : ViewInfo -> Path -> Tree -> Html Msg
 viewTree info selfPath tree =
     let
-        isSelected = List.member selfPath info.selected
         childHtml = Tree.either
                     (\_ -> [wnode tree])
                     (\_ children -> Array.indexedMap (\i c -> viewTree info (Path.childPath i selfPath) c) children |>
@@ -100,10 +92,10 @@ viewTree info selfPath tree =
     in
         snode info selfPath tree childHtml
 
-viewRootTree : Config -> Maybe (List Path, Maybe LabelForm) -> Int -> Tree -> Html Msg
+viewRootTree : Config -> Maybe (List Path, Maybe LabelForm) -> String -> Tree -> Html Msg
 viewRootTree config dataPack selfIndex tree =
     let
-        -- _ = Debug.log "redraw" (dataPack, selfIndex)
+        _ = Debug.log "redraw" selfIndex
         selected = dataPack |> Maybe.map Tuple.first |> Maybe.withDefault []
         labelForm = dataPack |> Maybe.map Tuple.second |> Maybe.withDefault Nothing
         info = { config = config, selected = selected, labelForm = labelForm }
@@ -121,34 +113,36 @@ viewRootTree config dataPack selfIndex tree =
 -- Nothing if 1) nothing is selected or 2) the selection is not inside the
 -- current tree.  There might be further performance optimizations we could
 -- make here, but for now it's Good Enough™
-viewRoot : Model -> Tree -> (Maybe (List Path, Maybe LabelForm) -> Int -> Tree -> Html Msg) -> List (Html Msg)
-viewRoot model root vrt =
+viewRoot : Model -> (Maybe (List Path, Maybe LabelForm) -> String -> Tree -> Html Msg) -> List (String, Html Msg)
+viewRoot model vrt =
     let
+        root = .get Model.root model
         selectedTrees = Selection.get model.selected
         selectedRoots = (List.map Path.root selectedTrees)
         labelForm = model.labelForm
+        viewChild (id, c) =
+            let
+                data = if List.member (Path.singleton id) selectedRoots
+                       then Just (selectedTrees, labelForm)
+                       else Nothing
+            in
+                (id, lazy3 vrt data id c)
     in
         root |>
-        (.get Tree.children) |>
-        Array.indexedMap (\i c ->
-                              let
-                                  data = if List.member (Path.singleton i) selectedRoots
-                                         then Just (selectedTrees, labelForm)
-                                         else Nothing
-                              in
-                                  lazy3 vrt data i c) |>
+        OD.toArray |>
+        Array.map viewChild |>
         Array.toList
 
-wrapSn0 : List (Html Msg) -> Html Msg
+wrapSn0 : List (String, Html Msg) -> Html Msg
 wrapSn0 nodes =
     let
         rightClick = Ev.onWithOptions "contextmenu" blockAll <|
                      Json.map (\_ -> RightClickRoot) decodeMouse
     in
         nodes |>
-        div [ Attr.id "sn0"
-            , rightClick
-            ]
+        Keyed.node "div" [ Attr.id "sn0"
+                         , rightClick
+                         ]
 
 view : Model -> Html Msg
 view model =
@@ -159,7 +153,7 @@ view model =
             NotAsked -> loading
             Loading -> loading
             Failure e -> div [] [ text <| "error " ++ toString e ]
-            Success {root, viewFn} ->
+            Success {viewFn} ->
                 div [] [ model.dialog |> Maybe.map Dialog.view |> Maybe.withDefault (div [] [])
                        , div [ Attr.style Css.toolbar ]
                            [ ToolBar.view model.fileName
@@ -168,6 +162,6 @@ view model =
                        , div [ Attr.style Css.messages ]
                            [ div [ Attr.style Css.titlebar ] [ text "Messages" ]
                            , text model.lastMessage ]
-                       , viewRoot model root viewFn |> wrapSn0
+                       , viewRoot model viewFn |> wrapSn0
                        , map Msg.Context <| ContextMenu.view model
                        ]

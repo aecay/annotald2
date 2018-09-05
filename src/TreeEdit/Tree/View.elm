@@ -3,7 +3,7 @@ module TreeEdit.Tree.View exposing ( labelString
                                    , toPenn
                                    )
 
-import Array.Hamt as Array
+import Array
 import Dict
 
 import TreeEdit.Tree as Tree

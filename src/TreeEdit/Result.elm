@@ -25,11 +25,11 @@ import Cmd.Extra exposing (perform) -- TODO: ideally we would not import this he
 import Maybe.Extra
 import Monocle.Lens exposing (Lens)
 import Return
-import Toolkit.Helpers exposing (uncurry3)
 
 import TreeEdit.Msg exposing (Msg(Dirty))
 import TreeEdit.Model as Model
 import TreeEdit.Model.Type exposing (Model)
+import TreeEdit.Utils exposing (uncurry3)
 
 type alias Message = String
 

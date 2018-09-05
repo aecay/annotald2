@@ -20,11 +20,8 @@
   <body><div id="main"></div>
     <script>
       var node = document.getElementById('main');
-      var random = new Int32Array(9); // Size should be 2^n+1; see
-      // <http://package.elm-lang.org/packages/Zinggi/elm-random-pcg-extended/2.1.0/Random-Pcg-Extended#initialSeed>
-      window.crypto.getRandomValues(random);
       var app = Elm.Main.embed(node, {
-          randomness : Array.from(random)
+          randomness : Math.floor(Math.random() * 2^32);
       });
       // We need to hack around the fact that it isnʼt easy to preventDefault
       // from Elm.

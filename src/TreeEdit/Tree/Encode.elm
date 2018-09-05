@@ -1,16 +1,20 @@
-module TreeEdit.Tree.Encode exposing (encodeTrees, encodeTree)
+module TreeEdit.Tree.Encode exposing (encodeTrees, encodeTree, encodeForest)
 
-import Array.Hamt as Array exposing (Array)
+import Array exposing (Array)
 import Dict
 import Json.Encode as E exposing (Value)
 
+import TreeEdit.OrderedDict as OD
 import TreeEdit.Tree as Tree
-import TreeEdit.Tree.Type exposing (Tree, TraceType(..), Terminal(..))
+import TreeEdit.Tree.Type exposing (Tree, TraceType(..), Terminal(..), Forest)
 import TreeEdit.Tree.View exposing (terminalString)
 import TreeEdit.Index as Index exposing (Index)
 
 array_ : (a -> Value) -> Array a -> Value
 array_ fn l = E.list <| Array.toList <| Array.map fn l
+
+encodeForest : Forest -> Value
+encodeForest = OD.values >> Array.map encodeTree >> Array.toList >> E.list
 
 encodeTrees : Array Tree -> Value
 encodeTrees trees = array_ encodeTree trees

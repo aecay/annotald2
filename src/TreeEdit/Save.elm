@@ -10,8 +10,7 @@ import Return exposing (Return, singleton, command)
 import TreeEdit.Dialog exposing (Dialog(Processing))
 import TreeEdit.Model as Model exposing (Model)
 import TreeEdit.Msg exposing (Msg(SaveFailure, SaveSuccess, LogMessage, Dirty))
-import TreeEdit.Tree as Tree
-import TreeEdit.Tree.Encode exposing (encodeTrees)
+import TreeEdit.Tree.Encode exposing (encodeForest)
 import TreeEdit.Utils as Utils exposing (message, fromJust)
 
 perform : Model -> Return Msg Model
@@ -29,7 +28,7 @@ perform model =
                 handle
                 (D.succeed ())
                 (E.object [ ("filename", E.string model.fileName)
-                          , ("trees", encodeTrees <| .get Tree.children root)
+                          , ("trees", encodeForest root)
                           ])
 
 success : Model -> Return Msg Model

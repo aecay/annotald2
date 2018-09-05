@@ -22,7 +22,6 @@ import Set exposing (Set)
 import Form
 import Form.Field as Field
 import Form.Input as Input exposing (Input)
-import Guards exposing (..)
 import Select
 
 import TreeEdit.Metadata.Css as Css
@@ -89,9 +88,12 @@ formatters =
                 empty = Html.i [ Attr.style Css.textFieldAbsent ] [ text <| "not present" ]
                 dictLink = Html.span [] <| List.intersperse (text ", ") (pieces value)
             in
-                   value == ""                    => empty
-                |= String.startsWith "[de]" value => dictLink
-                |=                                   text value
+                if value == ""
+                then empty
+                else
+                    if String.startsWith "[de]" value
+                    then dictLink
+                    else text value
 
         validationError str =
             String.split "\n" str |>

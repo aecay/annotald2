@@ -9,16 +9,21 @@ module TreeEdit.Utils exposing ( fromJust
                                , maybeAndThen2 -- TODO: remove?
                                , o
                                , removeAt
+                               , findSuffix
+                               , internals
+                               , uncurry3
                                )
 
 import Debug
 import List
 
-import Array.Hamt as Array exposing (Array)
+import Array exposing (Array)
 import Cmd.Extra
 import Monocle.Lens exposing (Lens)
 import Monocle.Optional as Optional exposing (Optional)
 import Return exposing (ReturnF)
+
+internals = { findPrefix = findPrefix }
 
 -- Zero-based indexing, returns items [i,j)
 splice : Int -> Int -> Array a -> (Array a, Array a, Array a)
@@ -71,3 +76,23 @@ o = Optional.fromLens
 removeAt : Int -> Array a -> Array a
 removeAt idx a =
     Array.append (Array.slice 0 idx a) (Array.slice (idx+1) (Array.length a) a)
+
+findSuffix : List a -> List a -> List a
+findSuffix x y = List.reverse <| findPrefix (List.reverse x) (List.reverse y)
+
+findPrefix : List a -> List a -> List a
+findPrefix x y =
+    let
+        go x y acc =
+            case (x, y) of
+                ([], _) -> List.reverse acc
+                (_, []) -> List.reverse acc
+                (xh :: xt, yh :: yt) -> if xh == yh
+                                        then go xt yt (xh :: acc)
+                                        else List.reverse acc
+    in
+        go x y []
+
+uncurry3 : (a -> b -> c -> d) -> (a, b, c) -> d
+uncurry3 f (a, b, c) =
+  f a b c

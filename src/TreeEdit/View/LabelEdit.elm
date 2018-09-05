@@ -4,7 +4,6 @@ import Form exposing (FieldState)
 import Form.Field as Field
 import Form.Input as Input
 import Form.Validate as V exposing (Validation)
-import Guards exposing (..)
 import Html as Html exposing (Html)
 import Html.Attributes as Attr
 import Return exposing (Return)
@@ -42,6 +41,7 @@ finish form =
             let
                 l = String.toUpper newlabel
             in
-                String.any Tree.illegalLabelChar l => R.fail "Illegal characters in label"
-                |= R.succeed l
+                if String.any Tree.illegalLabelChar l
+                then R.fail "Illegal characters in label"
+                else R.succeed l
         _ -> R.fail "no label form"

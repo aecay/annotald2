@@ -2,7 +2,7 @@ module TreeEdit.Tree.Decode exposing (decodeTrees, decodeTree)
 
 import TreeEdit.Tree.Type exposing (..)
 
-import Array.Hamt as Array exposing (Array)
+import Array exposing (Array)
 
 import TreeEdit.Index as Index
 
