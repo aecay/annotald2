@@ -3,7 +3,7 @@ module TestUtils exposing (..)
 import Test exposing (..)
 import Expect
 
-import Array.Hamt as Array exposing (Array)
+import Array exposing (Array)
 
 import TreeEdit.Utils exposing (..)
 

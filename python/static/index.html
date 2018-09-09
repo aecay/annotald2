@@ -20,8 +20,10 @@
   <body><div id="main"></div>
     <script>
       var node = document.getElementById('main');
-      var app = Elm.Main.embed(node, {
-          randomness : Math.floor(Math.random() * 2^32);
+      var app = Elm.Main.init({
+          flags : {
+              randomness : Math.floor(Math.random() * 2^32)
+          }
       });
       // We need to hack around the fact that it isnʼt easy to preventDefault
       // from Elm.

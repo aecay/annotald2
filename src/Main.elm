@@ -1,92 +1,143 @@
-module Main exposing (..)
+module Main exposing (Flags, Model, Msg(..), Page(..), init, main, pageInit, subscriptions, update, view)
 
-import Html
+import Browser exposing (UrlRequest(..), Document)
+import Browser.Navigation as Nav exposing (Key)
+import Html exposing (Html)
 import Platform.Sub as Sub
 import Random
-import Navigation exposing (Location)
+import Url exposing (Url)
 
 import Return exposing (Return)
 
-import Route exposing (Route)
-import Page.TreeEdit as TreeEdit
 import Page.FileList as FileList
+import Page.TreeEdit as TreeEdit
+import Route exposing (Route)
 
-type Page =
-    FileList FileList.Model |
-    TreeEdit TreeEdit.Model
 
-type Msg = TreeEditMsg TreeEdit.Msg |
-    FileListMsg FileList.Msg |
-    LoadPage Route
+type Page
+    = FileList FileList.Model
+    | TreeEdit TreeEdit.Model
 
-type alias Model = { page : Page
-                   , seed : Random.Seed
-                   }
 
-type alias Flags = { randomness : Int
-                   }
+type Msg
+    = TreeEditMsg TreeEdit.Msg
+    | FileListMsg FileList.Msg
+    | UrlRequested UrlRequest
+    | UrlChanged Url
 
-route : Location -> Msg
-route location =
-    Maybe.withDefault (Route.ListFiles) (Route.fromLocation location) |> LoadPage
+
+type alias Model =
+    { page : Page
+    , seed : Random.Seed
+    , key : Key
+    }
+
+
+type alias Flags =
+    { randomness : Int
+    }
+
 
 pageInit : Route -> Random.Seed -> Return Msg Page
-pageInit route seed =
-    case route of
-        Route.Edit s -> TreeEdit.init s seed |> Return.mapBoth TreeEditMsg TreeEdit
-        Route.ListFiles -> FileList.init |> Return.mapBoth FileListMsg FileList
+pageInit rte seed =
+    case rte of
+        Route.Edit s ->
+            TreeEdit.init s seed |> Return.mapBoth TreeEditMsg TreeEdit
 
-init : Flags -> Location -> Return Msg Model
-init {randomness} location =
+        Route.ListFiles ->
+            FileList.init |> Return.mapBoth FileListMsg FileList
+
+
+init : Flags -> Url -> Key -> Return Msg Model
+init { randomness } url key =
     let
         seed = Random.initialSeed randomness
-        route = Maybe.withDefault (Route.ListFiles) (Route.fromLocation location)
-        (page, cmd) = pageInit route seed
+        rte = Route.fromUrl url
+        ( page, cmd ) = pageInit rte seed
     in
-        Return.return
-            { page = page
-            , seed = seed
-            }
-            cmd
+    Return.return
+        { page = page
+        , seed = seed
+        , key = key
+        }
+        cmd
+
 
 update : Msg -> Model -> Return Msg Model
 update msg model =
-    case (msg, model.page) of
-        (TreeEditMsg submsg, TreeEdit submodel) ->
+    case msg of
+        TreeEditMsg submsg ->
+            case model.page of
+                TreeEdit submodel ->
+                    let
+                        return = TreeEdit.update submsg submodel
+                    in
+                        Return.mapBoth TreeEditMsg
+                            (\x ->
+                                 { model
+                                     | page = TreeEdit x
+                                     , seed = x.seed
+                                 }
+                            )
+                            return
+                _ -> Debug.todo "crash"
+
+        FileListMsg submsg ->
+            case model.page of
+                FileList submodel ->
+                    FileList.update (Nav.pushUrl model.key) submsg submodel
+                        |> Return.mapBoth FileListMsg (\x -> { model | page = FileList x })
+                _ -> Debug.todo "crash"
+
+        UrlRequested request ->
+            case request of
+                Internal url ->
+                    Return.return model (Nav.pushUrl model.key <| Url.toString url)
+                External _ -> Debug.todo "handle external url request"
+        UrlChanged url ->
             let
-                return = TreeEdit.update submsg submodel
-            in
-                Return.mapBoth TreeEditMsg (\x -> { model | page = TreeEdit x
-                                                  , seed = x.seed
-                                                  })
-                    return
-        (FileListMsg submsg, FileList submodel) ->
-             FileList.update submsg submodel |>
-             Return.mapBoth FileListMsg (\x -> { model | page = FileList x})
-        (LoadPage page, _) ->
-            let
-                (p, cmd) = pageInit page model.seed
+                _ = Debug.log "url" url
+                page = Route.fromUrl url |> Debug.log "route"
+                ( p, cmd ) =
+                    pageInit page model.seed
             in
                 Return.return { model | page = p } cmd
-        (_, _) ->
-            Return.singleton model
 
-view : Model -> Html.Html Msg
+
+entitle : Html Msg -> Document Msg
+entitle h =
+    { title = "Annotald 2.0"
+    , body = [ h ]
+    }
+
+
+view : Model -> Document Msg
 view model =
     case model.page of
-        FileList submodel -> FileList.view submodel |> Html.map FileListMsg
-        TreeEdit submodel -> TreeEdit.view submodel |> Html.map TreeEditMsg
+        FileList submodel ->
+            FileList.view submodel |> Html.map FileListMsg |> entitle
+
+        TreeEdit submodel ->
+            TreeEdit.view submodel |> Html.map TreeEditMsg |> entitle
+
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
     case model.page of
-        FileList submodel -> FileList.subscriptions submodel |> Sub.map FileListMsg
-        TreeEdit submodel -> TreeEdit.subscriptions submodel |> Sub.map TreeEditMsg
+        FileList submodel ->
+            FileList.subscriptions submodel |> Sub.map FileListMsg
+
+        TreeEdit submodel ->
+            TreeEdit.subscriptions submodel |> Sub.map TreeEditMsg
+
 
 main : Program Flags Model Msg
 main =
-    Navigation.programWithFlags route { init = init
-                                      , update = update
-                                      , view = view
-                                      , subscriptions = subscriptions
-                                      }
+    Browser.application
+        { init = init
+        , update = update
+        , view = view
+        , subscriptions = subscriptions
+        , onUrlRequest = UrlRequested
+        , onUrlChange = UrlChanged
+        }

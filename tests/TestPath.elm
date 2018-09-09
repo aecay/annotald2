@@ -37,15 +37,30 @@ suite = describe "Path" <|
                                      then Expect.true "daughter path can be subtracted" (subtract path1 path2 |> isJust)
                                      else Expect.equal Nothing <| subtract path1 path2
             , fuzz (F.tuple ( fuzzPath, F.list <| F.intRange 0 50 )) "subtracting daughter gives back original path" <|
-                \(path, daughters) -> Expect.equal (if daughters == [] then Nothing else Just <| List.reverse daughters) <|
+                \(path, daughters) -> Expect.equal (Just <| List.reverse daughters) <|
                                       Maybe.andThen internals.fragmentChildren <|
                                       subtract path <| List.foldl childPath path daughters
             , fuzz (F.tuple ( fuzzPath, F.list <| F.intRange 0 50 )) "subtract -> join is noop" <|
                 \(path, daughters) ->
                     let
                         daughter = List.foldl childPath path daughters
-                        mdaughter = (if daughters == [] then Nothing else Just daughter)
                     in
-                        Expect.equal mdaughter <| Maybe.map (join path) <| subtract path daughter
+                        Expect.equal (Just daughter) <| Maybe.map (join path) <| subtract path daughter
             ]
+            , describe "commonPrefix" <|
+                [ test "basic" <| \() -> Expect.equal (Just <| p [0,1]) <| commonPrefix (p [0,1,2]) (p [0,1,3])
+                , test "identical paths" <| \() -> Expect.equal (Just <| p [0,1]) <| commonPrefix (p [0,1]) (p [0,1])
+                , test "empty prefix" <| \() -> Expect.equal (Just <| p []) <| commonPrefix (p [0,1,2]) (p [3,4,5])
+                , test "left is empty" <| \() -> Expect.equal (Just <| p []) <| commonPrefix (p []) (p [0,1,3])
+                , test "right is empty" <| \() -> Expect.equal (Just <| p []) <| commonPrefix (p [0,1,2]) (p [])
+                ]
+        , describe "calculateMovement" <|
+            [ test "basic" <|
+            \() -> Expect.equal { siblingFrom = (p [0,1,2])
+                                , siblingTo = (p [0,1,3])
+                                , tailFrom = (internals.fragment [3])
+                                , tailTo = (internals.fragment [4])
+                                , adjacency = Right
+                                } <|
+            calculateMovement (p [0, 1, 2, 3]) (p [0, 1, 3, 4])]
         ]

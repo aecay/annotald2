@@ -1,13 +1,17 @@
 -- Source: https://github.com/Gizra/elm-keyboard-event
 -- License: MIT
 
+
 module ThirdParty.KeyboardEvent exposing (KeyboardEvent, decodeKeyboardEvent)
 
-import Json.Decode exposing (Decoder, map, map7, int, field, oneOf, andThen, maybe, succeed, fail, bool, string)
-import ThirdParty.KeyboardKey exposing (Key, fromCode)
+import Json.Decode exposing (Decoder, andThen, bool, fail, field, int, map, map7, maybe, oneOf, string, succeed)
 import String
+import ThirdParty.KeyboardKey exposing (Key, fromCode)
 
-type alias KeyCode = Int
+
+type alias KeyCode =
+    Int
+
 
 type alias KeyboardEvent =
     { altKey : Bool
@@ -18,6 +22,7 @@ type alias KeyboardEvent =
     , repeat : Bool
     , shiftKey : Bool
     }
+
 
 decodeKeyboardEvent : Decoder KeyboardEvent
 decodeKeyboardEvent =
@@ -30,6 +35,7 @@ decodeKeyboardEvent =
         (field "repeat" bool)
         (field "shiftKey" bool)
 
+
 decodeKey : Decoder (Maybe String)
 decodeKey =
     field "key" string
@@ -37,10 +43,12 @@ decodeKey =
             (\key ->
                 if String.isEmpty key then
                     fail "empty key"
+
                 else
                     succeed key
             )
         |> maybe
+
 
 decodeKeyCode : Decoder KeyCode
 decodeKeyCode =
@@ -54,12 +62,14 @@ decodeKeyCode =
         , succeed 0
         ]
 
+
 decodeNonZero : Decoder Int
 decodeNonZero =
     andThen
         (\code ->
             if code == 0 then
                 fail "code was zero"
+
             else
                 succeed code
         )

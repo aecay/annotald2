@@ -1,63 +1,71 @@
 -- Source: https://github.com/Zinggi/elm-uuid/blob/1.0.0/src/Uuid.elm
 -- License: BSD3
 
+
 module ThirdParty.Uuid exposing (generator)
 
 import Array
 import Bitwise
 import List
+import Random exposing (Generator, int, list, map)
 import String
 
-import Random exposing (Generator, int, map, list)
 
 hexGenerator : Generator Int
-hexGenerator = int 0 15
+hexGenerator =
+    int 0 15
+
 
 generator : Generator String
-generator = map toUuidString (list 31 hexGenerator)
+generator =
+    map toUuidString (list 31 hexGenerator)
+
 
 toUuidString : List Int -> String
 toUuidString thirtyOneHexDigits =
     String.concat
-        [ thirtyOneHexDigits |> List.take 8 |> (List.map mapToHex) |> String.fromList
+        [ thirtyOneHexDigits |> List.take 8 |> List.map mapToHex |> String.fromList
         , "-"
-        , thirtyOneHexDigits |> List.drop 8 |> List.take 4 |> (List.map mapToHex) |> String.fromList
+        , thirtyOneHexDigits |> List.drop 8 |> List.take 4 |> List.map mapToHex |> String.fromList
         , "-"
         , "4"
-        , thirtyOneHexDigits |> List.drop 12 |> List.take 3 |> (List.map mapToHex) |> String.fromList
+        , thirtyOneHexDigits |> List.drop 12 |> List.take 3 |> List.map mapToHex |> String.fromList
         , "-"
-        , thirtyOneHexDigits |> List.drop 15 |> List.take 1 |> (List.map limitDigitRange8ToB) |> (List.map mapToHex) |> String.fromList
-        , thirtyOneHexDigits |> List.drop 16 |> List.take 3 |> (List.map mapToHex) |> String.fromList
+        , thirtyOneHexDigits |> List.drop 15 |> List.take 1 |> List.map limitDigitRange8ToB |> List.map mapToHex |> String.fromList
+        , thirtyOneHexDigits |> List.drop 16 |> List.take 3 |> List.map mapToHex |> String.fromList
         , "-"
-        , thirtyOneHexDigits |> List.drop 19 |> List.take 12 |> (List.map mapToHex) |> String.fromList
+        , thirtyOneHexDigits |> List.drop 19 |> List.take 12 |> List.map mapToHex |> String.fromList
         ]
 
+
 limitDigitRange8ToB : Int -> Int
-limitDigitRange8ToB digit = Bitwise.or (Bitwise.and digit 3) 8
+limitDigitRange8ToB digit =
+    Bitwise.or (Bitwise.and digit 3) 8
+
 
 hexDigits : Array.Array Char
-hexDigits = Array.fromList [ '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f' ]
+hexDigits =
+    Array.fromList [ '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f' ]
+
 
 mapToHex : Int -> Char
-mapToHex index = flip Array.get hexDigits index |> Maybe.withDefault 'x'
+mapToHex index =
+    Array.get index hexDigits |> Maybe.withDefault 'x'
+
+
 
 -- Copyright (c) 2015, Daniel Bachler
 -- All rights reserved.
-
 -- Redistribution and use in source and binary forms, with or without
 -- modification, are permitted provided that the following conditions are met:
-
 -- * Redistributions of source code must retain the above copyright notice, this
 --   list of conditions and the following disclaimer.
-
 -- * Redistributions in binary form must reproduce the above copyright notice,
 --   this list of conditions and the following disclaimer in the documentation
 --   and/or other materials provided with the distribution.
-
 -- * Neither the name of elm-mimetype nor the names of its
 --   contributors may be used to endorse or promote products derived from
 --   this software without specific prior written permission.
-
 -- THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
 -- AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 -- IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE

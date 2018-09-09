@@ -1,28 +1,55 @@
-module Route exposing (Route(..), goTo, fromLocation)
-import UrlParser as Url exposing ((</>), Parser, oneOf, parseHash, s, string)
-import Navigation exposing (Location)
+module Route exposing
+    ( Route(..)
+    , fromUrl
+    , toString
+    )
 
-type Route = Edit String |
-    ListFiles
+import Set
+import Url exposing (Url)
+import Parser exposing
+    ( Parser
+    , oneOf
+    , end
+    , keyword
+    , symbol
+    , variable
+    , succeed
+    , (|=)
+    , (|.)
+    )
+
+
+type Route
+    = Edit String
+    | ListFiles
+
+
+route : Parser Route
+route =
+    oneOf
+        [ succeed ListFiles |. end
+        , succeed ListFiles |. keyword "list-files"
+        , Parser.succeed Edit
+          |. keyword "edit"
+          |. symbol "/"
+          |= variable { start = Char.isAlphaNum
+                      , inner = \c -> Char.isAlphaNum c || List.member c [ '-', '.', '_' ]
+                      , reserved = Set.empty
+                      }
+        ]
+
+handleFragment : Maybe String -> Route
+handleFragment f =
+    f |> Maybe.withDefault "" |> Parser.run route |> Result.withDefault ListFiles
+
+
+fromUrl : Url -> Route
+fromUrl u =
+    u.fragment
+        |> handleFragment
 
 toString : Route -> String
 toString r =
-    let pieces =
-            case r of
-                Edit s -> ["edit", s]
-                ListFiles -> ["list-files"]
-    in
-        "#/" ++ String.join "/" pieces
-
-route : Parser (Route -> a) a
-route = oneOf
-        [ Url.map ListFiles (s "")
-        , Url.map ListFiles (s "list-files")
-        , Url.map Edit (s "edit" </> string)
-        ]
-
-fromLocation : Location -> Maybe Route
-fromLocation = parseHash route
-
-goTo : Route -> Cmd a
-goTo r = Navigation.modifyUrl <| toString r
+    case r of
+        Edit file -> "#edit/" ++ file
+        ListFiles -> "#list-files"

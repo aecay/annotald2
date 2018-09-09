@@ -1,8 +1,16 @@
-module TreeEdit.View.Css exposing (..)
+module TreeEdit.View.Css exposing (Style, correctionFlag, messages, titlebar, toolbar)
 
+import Html exposing (Attribute)
+import Html.Attributes exposing (style)
+
+import TreeEdit.Msg exposing (Msg)
 import TreeEdit.View.Theme exposing (theme)
 
-type alias Style = List (String, String)
+
+type alias Style =
+    List (Attribute Msg)
+
+
 
 -- ip : Style
 -- ip = [ ("border-top-color", "black")
@@ -11,10 +19,8 @@ type alias Style = List (String, String)
 --      , ("border-bottom-width", "1px")
 --      , ("background-color", theme.salmon)
 --      ]
-
 -- selected : Style
 -- selected = [ ("background-color", theme.blue) ]
-
 -- snode : Style
 -- snode = [ ("margin-left", "20px")
 --         , ("border3", "1px solid " ++ theme.silver)
@@ -26,31 +32,39 @@ type alias Style = List (String, String)
 --         , ("cursor", "pointer")
 --         ]
 
+
 toolbar : Style
-toolbar = [ ("top", "30px")
-          , ("left", "0px")
-          , ("margin-left", "5px")
-          , ("width", "15%")
-          , ("position", "fixed")
-          ]
+toolbar =
+    [ style "top" "30px"
+    , style "left" "0px"
+    , style "margin-left" "5px"
+    , style "width" "15%"
+    , style "position" "fixed"
+    ]
+
 
 messages : Style
-messages = [ ("bottom", "30px")
-           , ("left", "0px")
-           , ("margin-left", "5px")
-           , ("width", "15%")
-           , ("background-color", theme.offWhite2)
-           , ("position", "fixed")
-           ]
+messages =
+    [ style "bottom" "30px"
+    , style "left" "0px"
+    , style "margin-left" "5px"
+    , style "width" "15%"
+    , style "background-color" theme.offWhite2
+    , style "position" "fixed"
+    ]
+
 
 titlebar : Style
-titlebar = [ ("background-color", theme.darkGrey)
-           , ("color", "white")
-           , ("width", "100%")
-           , ("height", "16px")
-           , ("font-weight", "bold")
-           , ("text-align", "center")
-           ]
+titlebar =
+    [ style "background-color" theme.darkGrey
+    , style "color" "white"
+    , style "width" "100%"
+    , style "height" "16px"
+    , style "font-weight" "bold"
+    , style "text-align" "center"
+    ]
+
+
 
 -- sn0 : Style
 -- sn0 = [ ("background-color", theme.tan)
@@ -60,10 +74,8 @@ titlebar = [ ("background-color", theme.darkGrey)
 --       -- In order for the trees to shrink to the correct width
 --       , ("display", "inline-block")
 --       ]
-
 -- rootSnode : Style
 -- rootSnode = [ ("border", "2px solid black") ]
-
 -- wnode : Style
 -- wnode = [ ("margin-left", "20px")
 --         , ("padding-left", "4px")
@@ -73,11 +85,13 @@ titlebar = [ ("background-color", theme.darkGrey)
 --         , ("color", "black")
 --         ]
 
+
 correctionFlag : Style
-correctionFlag = [ ("border", "1px solid #C17900")
-                 , ("background-color", "#FCD271")
-                 , ("color", "black")
-                 , ("fontSize", "6px")
-                 , ("padding", "1px")
-                 , ("verticalAlign", "text-top")
-                 ]
+correctionFlag =
+    [ style "border" "1px solid #C17900"
+    , style "background-color" "#FCD271"
+    , style "color" "black"
+    , style "fontSize" "6px"
+    , style "padding" "1px"
+    , style "verticalAlign" "text-top"
+    ]

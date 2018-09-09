@@ -1,0 +1,41 @@
+{
+    "type": "application",
+    "source-directories": [
+        "src/",
+        "elm-form/src/"
+    ],
+    "elm-version": "0.19.0",
+    "dependencies": {
+        "direct": {
+            "Fresheyeball/elm-return": "7.0.0",
+            "GlobalWebIndex/cmd-extra": "1.1.1",
+            "arturopala/elm-monocle": "2.0.0",
+            "elm/browser": "1.0.0",
+            "elm/core": "1.0.0",
+            "elm/html": "1.0.0",
+            "elm/http": "1.0.0",
+            "elm/json": "1.0.0",
+            "elm/parser": "1.1.0",
+            "elm/random": "1.0.0",
+            "elm/regex": "1.0.0",
+            "elm/url": "1.0.0",
+            "elm-community/list-extra": "8.0.0",
+            "elm-community/maybe-extra": "5.0.0",
+            "krisajenkins/remotedata": "5.0.0",
+            "ohanhi/remotedata-http": "3.0.0",
+            "sporto/elm-select": "2.16.0"
+        },
+        "indirect": {
+            "elm/svg": "1.0.0",
+            "elm/time": "1.0.0",
+            "elm/virtual-dom": "1.0.0",
+            "tripokey/elm-fuzzy": "5.2.1"
+        }
+    },
+    "test-dependencies": {
+        "direct": {
+            "elm-explorations/test": "1.1.0"
+        },
+        "indirect": {}
+    }
+}

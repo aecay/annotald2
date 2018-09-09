@@ -3,21 +3,35 @@ module TestTree exposing (..)
 import Test exposing (..)
 import Expect exposing (Expectation)
 
+import Dict
 import Json.Decode as D
 import Tuple
 
 import TreeEdit.Result as R
 import TreeEdit.Tree as T
-import TreeEdit.Tree.Type as TreeType
-import TreeEdit.Path
+import TreeEdit.Tree.Type as TreeType exposing (Tree, Forest)
+import TreeEdit.Path as Path exposing (Path)
 
-p = .fromList TreeEdit.Path.internals
-pf = .pf TreeEdit.Path.internals
+p : List Int -> Path
+p = .path Path.internals "foo"
+pf = .fragment Path.internals
 
 t = .t TreeType.private
 l s = .l TreeType.private s ""
 
-{ allLast, isLastAt, deleteAt, insertAt } = T.internals
+forest : Tree -> Forest
+forest tree =
+    let
+        withId = .set T.metadata (Dict.fromList [("ID", "foo")]) tree
+    in
+        T.forestFromList [ withId ]
+
+
+allLast = .allLast T.internals
+isLastAt = .isLastAt T.internals
+deleteAt = .deleteAt T.internals
+insertAt = .insertAt T.internals
+-- { allLast, isLastAt, deleteAt, insertAt } = T.internals
 
 err : R.Result a -> Expectation
 err x = case x of
@@ -30,7 +44,7 @@ ok val res =
         (R.Result msgs _ wrapped) = res
     in
         case wrapped of
-            Nothing -> Expect.fail <| "Expected a passing result, but failed with messages " ++ toString msgs
+            Nothing -> Expect.fail <| "Expected a passing result, but failed with messages " ++ Debug.toString msgs
             Just v -> Expect.equal v val
 
 -- equalTree : Tree -> Tree -> Expectation
@@ -43,7 +57,7 @@ suite : Test
 suite = describe "Tree"
         [ describe "isLastAt" <|
             [ test "case one" <|
-                  \() -> Expect.equal True <| flip isLastAt (p [0]) <|
+                  \() -> Expect.equal True <| (\x -> isLastAt x (p [0])) <| forest <|
                          t "x"
                              [ t "x"
                                    [ l "x"
@@ -55,7 +69,7 @@ suite = describe "Tree"
                                    ]
                              ]
             , test "case two" <|
-                  \() -> Expect.equal True <| flip isLastAt (p [2,0]) <|
+                  \() -> Expect.equal True <| (\x -> isLastAt x (p [2,0])) <| forest <|
                          t "x"
                              [ t "x"
                                    [ l "x"
@@ -67,7 +81,7 @@ suite = describe "Tree"
                                    ]
                              ]
             , test "case three" <|
-                  \() -> Expect.equal True <| flip isLastAt (p [1, 2, 0]) <|
+                  \() -> Expect.equal True <| (\x -> isLastAt x (p [1, 2, 0])) <| forest <|
                          t "x"
                              [ t "x"
                                    [ l "x"
@@ -79,7 +93,7 @@ suite = describe "Tree"
                                    ]
                              ]
             , test "from the test program" <|
-                \() -> Expect.equal True <| flip isLastAt (p [1, 0]) <|
+                \() -> Expect.equal True <| (\x -> isLastAt x (p [1, 0])) <| forest <|
                        t "IP-MAT"
                            [ t "NP-SBJ"
                                  [ l "the"
@@ -89,7 +103,7 @@ suite = describe "Tree"
             ]
         , describe "allLast" <|
             [ test "works in a basic case" <|
-                  \() -> Expect.equal True <| allLast (p [0]) (pf [1, 2]) <|
+                  \() -> Expect.equal True <| allLast (p [0]) (pf [1, 2]) <| forest <|
                   t "x"
                       [ t "x"
                             [ l "x"
@@ -101,19 +115,7 @@ suite = describe "Tree"
                             ]
                       ]
             , test "detects negatives" <|
-                \() -> Expect.equal False <| allLast (p [0]) (pf [0, 2]) <|
-                       t "x"
-                           [ t "x"
-                                 [ l "x"
-                                 , l "x"
-                                 , t "x"
-                                     [ l "x"
-                                     , l "x"
-                                     ]
-                                 ]
-                           ]
-            , test "works when the list of children is too long" <|
-                \() -> Expect.equal False <| allLast (p [0]) (pf [3, 1, 2]) <|
+                \() -> Expect.equal False <| allLast (p [0]) (pf [0, 2]) <| forest <|
                        t "x"
                            [ t "x"
                                  [ l "x"
@@ -125,7 +127,7 @@ suite = describe "Tree"
                                  ]
                            ]
             , test "a case from below" <|
-                \() -> Expect.equal True <| allLast (p [0]) (pf [2]) <|
+                \() -> Expect.equal True <| allLast (p [0]) (pf [2]) <| forest <|
                        t "x"
                            [ t "y"
                                  [ l "a"
@@ -139,17 +141,19 @@ suite = describe "Tree"
                                ]
                            ]
             , test "from the test program" <|
-                \() -> Expect.equal True <| allLast (p [0]) (pf [1]) <|
+                \() -> Expect.equal True <| allLast (p [0]) (pf [1]) <| forest <|
                        t "IP-MAT"
                            [ t "NP-SBJ"
                                  [ l "the"
                                  , l "dog" ]
                            , l "barked"
                            ]
+            , test "default is true" <|
+                \() -> Expect.equal True <| allLast (p [0]) (pf []) <| forest <| t "foo" [ l "bar" ]
             ]
         , describe "moveTo" <|
             [ test "works in a basic case" <|
-            \() -> ok (t "x"
+            \() -> ok (forest <| t "x"
                        [ t "y"
                              [ l "a"
                              , l "b"
@@ -161,7 +165,7 @@ suite = describe "Tree"
                            , l "3"
                            ]
                        ], p [0,1]) <|
-                   T.moveTo (p [2, 0]) (p [1]) <|
+                   T.moveTo (p [2, 0]) (p [1]) <| forest <|
                        t "x"
                        [ t "y"
                          [ l "a"
@@ -176,7 +180,7 @@ suite = describe "Tree"
                        ]
             , test "refuses illegal movement" <|
                 \() -> err <|
-                       T.moveTo (p [1, 0]) (p [0, 1]) <|
+                       T.moveTo (p [1, 0]) (p [0, 1]) <| forest <|
                            t "x"
                                [ t "y"
                                      [ l "a"
@@ -190,14 +194,14 @@ suite = describe "Tree"
                                    ]
                           ]
             , test "from the test program" <|
-                \() -> ok (t "IP-MAT"
+                \() -> ok (forest <| t "IP-MAT"
                            [ t "NP-SBJ"
                                  [ l "the"
                                  , l "dog"
                                  , l "barked"
                                  ]
                            ]) <| R.map Tuple.first <|
-                       T.moveTo (p [1]) (p [0]) <|
+                       T.moveTo (p [1]) (p [0]) <| forest <|
                            t "IP-MAT"
                                [ t "NP-SBJ"
                                      [ l "the"
@@ -206,7 +210,7 @@ suite = describe "Tree"
                                ]
             , test "disallows moving only child" <|
                 \() -> err <|
-                       T.moveTo (p [0, 1]) (p [3, 0]) <|
+                       T.moveTo (p [0, 1]) (p [3, 0]) <| forest <|
                            t "IP"
                                [ t "NP"
                                      [ l "the"
@@ -219,92 +223,97 @@ suite = describe "Tree"
             ]
             , describe "deleteAt" <|
                 [ test "basic case" <|
-                \() -> Expect.equal (t "IP-MAT"
+                \() -> Expect.equal (forest <| t "IP-MAT"
                                          [ t "NP-SBJ"
                                                [ l "the"
                                                , l "dog"
                                                ]
                                          ]
                                     ) <|
-                             deleteAt (p [1]) (t "IP-MAT"
-                                                [ t "NP-SBJ"
-                                                      [ l "the"
-                                                      , l "dog" ]
-                                                , l "barked"
-                                                ])
+                             deleteAt (p [1]) <| forest <|
+                                 (t "IP-MAT"
+                                      [ t "NP-SBJ"
+                                            [ l "the"
+                                            , l "dog" ]
+                                      , l "barked"
+                                      ])
                 , test "at 0" <|
-                    \() -> Expect.equal (t "foo" [ l "one"
+                    \() -> Expect.equal (forest <| t "foo" [ l "one"
                                                  , l "two"
                                                  ]) <|
-                           deleteAt (p [0]) <| t "foo" [ l "zero"
-                                                       , l "one"
-                                                       , l "two"
-                                                       ]
+                           deleteAt (p [0]) <| forest <|
+                               t "foo" [ l "zero"
+                                       , l "one"
+                                       , l "two"
+                                       ]
                 , test "at end" <|
-                    \() -> Expect.equal (t "foo" [ l "zero"
+                    \() -> Expect.equal (forest <| t "foo" [ l "zero"
                                                      , l "one"
                                                      ]) <|
-                           deleteAt (p [2]) <| t "foo" [ l "zero"
-                                                        , l "one"
-                                                        , l "two"
-                                                        ]
+                           deleteAt (p [2]) <| forest <|
+                               t "foo" [ l "zero"
+                                       , l "one"
+                                       , l "two"
+                                       ]
                 , test "nested at 0" <|
-                    \() -> Expect.equal (t "bar" [ l "a"
+                    \() -> Expect.equal (forest <| t "bar" [ l "a"
                                                  , t "foo" [ l "one"
                                                            , l "two"
                                                            ]
                                                  , l "b"
                                                  ]) <|
-                           deleteAt (p [0, 1]) <| t "bar" [ l "a"
-                                                        , t "foo" [ l "zero"
-                                                                  , l "one"
-                                                                  , l "two"
-                                                                  ]
-                                                        , l "b"
-                                                        ]
+                           deleteAt (p [0, 1]) <| forest <|
+                               t "bar" [ l "a"
+                                       , t "foo" [ l "zero"
+                                                 , l "one"
+                                                 , l "two"
+                                                 ]
+                                       , l "b"
+                                       ]
                 , test "nested at end" <|
-                    \() -> Expect.equal (t "bar" [ l "a"
+                    \() -> Expect.equal (forest <| t "bar" [ l "a"
                                                  , t "foo" [ l "zero"
                                                            , l "one"
                                                            ]
                                                  , l "b"
                                                  ]) <|
-                           deleteAt (p [2, 1]) <| t "bar" [ l "a"
-                                                          , t "foo" [ l "zero"
-                                                                    , l "one"
-                                                                    , l "two"
-                                                                    ]
-                                                          , l "b"
-                                                          ]
+                           deleteAt (p [2, 1]) <| forest <|
+                               t "bar" [ l "a"
+                                       , t "foo" [ l "zero"
+                                                 , l "one"
+                                                 , l "two"
+                                                 ]
+                                       , l "b"
+                                       ]
                 ]
-                , describe "insertAt" <|
-                [ test "at 0" <|
-                  \() -> Expect.equal (t "foo" [ l "zero"
+        , describe "insertAt" <|
+            [ test "at 0" <|
+            \() -> Expect.equal (forest <| t "foo" [ l "zero"
                                                , l "one"
                                                , l "two"
                                                ])  <|
-                      insertAt (p [0]) (l "zero") <|
+                      insertAt (p [0]) (l "zero") <| forest <|
                       t "foo" [ l "one"
                               , l "two"
                               ]
                 , test "at end" <|
-                    \() -> Expect.equal (t "foo" [ l "zero"
+                    \() -> Expect.equal (forest <| t "foo" [ l "zero"
                                                  , l "one"
                                                  , l "two"
                                                  ]) <|
-                           insertAt (p [2]) (l "two") <|
+                           insertAt (p [2]) (l "two") <| forest <|
                                t "foo" [ l "zero"
                                        , l "one"
                                        ]
                 , test "nested at 0" <|
-                    \() -> Expect.equal (t "bar" [ l "a"
+                    \() -> Expect.equal (forest <| t "bar" [ l "a"
                                                  , t "foo" [ l "zero"
                                                            , l "one"
                                                            , l "two"
                                                            ]
                                                  , l "b"
                                                  ]) <|
-                           insertAt (p [0, 1]) (l "zero") <|
+                           insertAt (p [0, 1]) (l "zero") <| forest <|
                                t "bar" [ l "a"
                                        , t "foo" [ l "one"
                                                  , l "two"
@@ -312,14 +321,14 @@ suite = describe "Tree"
                                        , l "b"
                                        ]
                 , test "nested at end" <|
-                    \() -> Expect.equal (t "bar" [ l "a"
+                    \() -> Expect.equal (forest <| t "bar" [ l "a"
                                                  , t "foo" [ l "zero"
                                                            , l "one"
                                                            , l "two"
                                                            ]
                                                  , l "b"
                                                  ]) <|
-                           insertAt (p [2, 1]) (l "two") <|
+                           insertAt (p [2, 1]) (l "two") <| forest <|
                                t "bar" [ l "a"
                                        , t "foo" [ l "zero"
                                                  , l "one"
@@ -327,4 +336,18 @@ suite = describe "Tree"
                                        , l "b"
                                        ]
                 ]
+        , describe "get" <|
+            [ test "basic" <|
+            \() -> Expect.equal (l "zero") <| T.get (p [0]) <|
+                   (forest <| t "foo" [ l "zero"
+                                      , l "one"
+                                      , l "two"
+                                      ])
+            , test "" <|
+            \() ->
+                let
+                    tree = t "foo" [ l "zero" , l "one" , l "two"]
+                in
+                    Expect.equal t  <| T.get (p []) <| forest t
+            ]
         ]
