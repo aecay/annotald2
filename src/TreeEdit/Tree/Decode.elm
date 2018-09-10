@@ -31,16 +31,12 @@ decodeLeaf =
 extractIndex : Dict String String -> ( Dict String String, Maybe Index.Index )
 extractIndex metadata =
     let
-        index =
-            Dict.get "INDEX" metadata
-
-        idxtype =
-            Dict.get "IDX-TYPE" metadata
-
+        index = Dict.get "INDEX" metadata
+        idxtype = Dict.get "IDX-TYPE" metadata
         getInt i =
             i
-                |> Maybe.andThen String.toInt
-                |> Maybe.withDefault 0
+              |> Maybe.andThen String.toInt
+              |> Maybe.withDefault 0
 
         idx =
             case ( index, idxtype ) of
