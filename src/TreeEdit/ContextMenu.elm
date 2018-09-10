@@ -39,7 +39,7 @@ hide m = { m | contextMenu = Nothing }
 
 entry : List (H.Attribute Msg) -> String -> Html Msg
 entry attrs s =
-    H.div (CMCss.entry ++ [ Attr.class "contextMenuEntry" ] ++ attrs) [ H.a [] [ H.text s ] ]
+    H.div (CMCss.entry ++ [ Attr.class "contextMenuEntry" ] ++ attrs) [ H.span [] [ H.text s ] ]
 
 
 leaf :
