@@ -280,15 +280,9 @@ doMoveToRoot src model =
 doMove : Path -> Path -> Model -> Result
 doMove src dest model =
     let
-        srcRoot =
-            Path.root src
-
-        destRoot =
-            Path.root dest
-
-        rootTree =
-            .get Model.root model
-
+        srcRoot = Path.root src
+        destRoot = Path.root dest
+        rootTree = .get Model.root model
         -- If we are moving withing the same root tree, then do nothing
         -- special.  If we are moving a tree up to the root level, then give
         -- it an ID.  If we are moving a tree from one root tree into another,
@@ -296,7 +290,6 @@ doMove src dest model =
         newRoot =
             if srcRoot == destRoot then
                 rootTree
-
             else
                 let
                     inc =
@@ -305,17 +298,12 @@ doMove src dest model =
                 in
                 incrementIndicesBy inc srcRoot rootTree
 
-        res =
-            Tree.moveTo src dest newRoot
-
-        newRoot1 =
-            R.map Tuple.first res
-
-        newSel =
-            R.map Tuple.second res
+        res = Tree.moveTo src dest newRoot
+        newRoot1 = R.map Tuple.first res
+        newSel = R.map Tuple.second res
     in
     R.modify Model.root (always newRoot1) model
-        |> R.andThen (R.modify Model.selected (always <| R.map Selection.one newSel))
+      |> R.andThen (R.modify Model.selected (always <| R.map Selection.one newSel))
 
 
 createParent2 : String -> Model -> Path -> Path -> Result
