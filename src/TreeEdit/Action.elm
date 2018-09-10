@@ -321,7 +321,7 @@ createParent2 label model one two =
     else
         case ( parent1, parent2 ) of
             ( Nothing, Nothing ) ->
-                Debug.todo "unimplemented"
+                Debug.log "unimplemented" () |> always (R.succeed model)
 
             -- TODO
             ( Just p1, Just p2 ) ->
