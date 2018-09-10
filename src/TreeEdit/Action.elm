@@ -35,7 +35,7 @@ import TreeEdit.Result as R exposing (Result(..))
 import TreeEdit.Selection as Selection
 import TreeEdit.Tree as Tree
 import TreeEdit.Tree.Type as TreeType exposing (Forest, Tree)
-import TreeEdit.Utils as Utils exposing (maybeAndThen2, o, and, andO)
+import TreeEdit.Utils as Utils exposing (maybeAndThen2, o, and, andO, fromJust, indexOf)
 import TreeEdit.View.LabelEdit as LabelEdit
 
 
@@ -474,61 +474,57 @@ leafAfter newLeaf model =
 
 deleteNode : Action
 deleteNode model =
-    let
-        root =
-            .get Model.root model
-
-        delete : Path -> R.Result Forest
-        delete path =
-            let
-                parent_ =
-                    Path.parent path
-            in
-            case parent_ of
+    case Selection.getOne model.selected of
+        Nothing -> R.fail "nothing selected"
+        Just sel ->
+            case Path.parent sel of
                 Nothing ->
-                    Debug.todo "TODO: not implemented"
-
-                -- TODO: add Ids to new children, insert in root in proper place
+                    let
+                        forest = .get Model.root model
+                        tree = Tree.get sel forest
+                        -- TODO: eliminate this use of fromJust by making a
+                        -- RootTree type that obligatorily has an ID
+                        id = tree |> .get Tree.metadata |> Dict.get "ID" |> fromJust
+                        idx = indexOf id <| OD.keys forest
+                        children = tree |> .get Tree.children
+                        add : Tree -> Model -> Model
+                        add t m = newRootTree idx m t |> Tuple.first
+                        newForest = OD.remove id forest
+                    in
+                        model
+                          |> .set Model.root newForest
+                          |> (\x -> Array.foldr add x children)
+                          |> clearSelection
                 Just parent ->
                     let
-                        n =
-                            Tree.get path root
-
-                        children =
-                            .get Tree.children n
+                        forest = .get Model.root model
+                        n = Tree.get sel forest
+                        children = .get Tree.children n
                     in
                     case children |> Array.length of
                         0 ->
                             let
-                                isEmpty =
-                                    Tree.isEmpty n
+                                isEmpty = Tree.isEmpty n
 
                                 hasSiblings =
                                     parent
-                                        |> (\a -> Tree.get a root)
-                                        |> .get Tree.children
-                                        |> (\x -> Array.length x >= 1)
+                                      |> (\a -> Tree.get a forest)
+                                      |> .get Tree.children
+                                      |> (\x -> Array.length x >= 1)
                             in
-                            case ( isEmpty, hasSiblings ) of
-                                ( False, _ ) ->
-                                    R.fail "Cannot delete a non-empty terminal"
-
-                                ( True, False ) ->
-                                    R.fail "Cannot delete an only child"
-
-                                ( True, True ) ->
-                                    R.succeed <| Tree.deleteAt path (.get Model.root model)
-
+                            if not isEmpty then
+                                R.fail "Cannot delete a non-empty terminal"
+                            else if not hasSiblings then
+                                R.fail "Cannot delete an only child"
+                            else
+                                Tree.deleteAt sel forest
+                                  |> (\x -> .set Model.root x model)
+                                  |> clearSelection
                         _ ->
-                            Tree.deleteAt path root
-                                |> Tree.insertManyAt path children
-                                |> R.succeed
-    in
-    R.succeed model
-        |> -- TODO: why this succeed?
-           Selection.withOne model.selected (delete >> R.map (\a -> .set Model.root a model))
-        |> R.andThen clearSelection
-
+                            Tree.deleteAt sel forest
+                              |> Tree.insertManyAt sel children
+                              |> (\x -> .set Model.root x model)
+                              |> clearSelection
 
 editLabel : Model -> Result
 editLabel model =
