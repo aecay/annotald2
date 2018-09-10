@@ -46,7 +46,7 @@ import TreeEdit.OrderedDict as OD
 import TreeEdit.Path as Path exposing (Path, Fragment)
 import TreeEdit.Result as R exposing (fail, succeed)
 import TreeEdit.Tree.Type as Type exposing (..)
-import TreeEdit.Utils as Utils exposing (fromJust, o, removeAt, and, andO)
+import TreeEdit.Utils as Utils exposing (fromJust, o, removeAt, and, andO, indexOf)
 
 
 type alias Result a =
@@ -348,20 +348,8 @@ checkRootAdjacency : Forest -> String -> String -> Path.Direction
 checkRootAdjacency forest from to =
     let
         ids = OD.keys forest
-        idxFrom =
-            ids
-                |> Array.indexedMap Tuple.pair
-                |> Array.filter (\x -> Tuple.second x == from)
-                |> Array.get 0
-                |> fromJust
-                |> Tuple.first
-        idxTo =
-            ids
-                |> Array.indexedMap Tuple.pair
-                |> Array.filter (\x -> Tuple.second x == to)
-                |> Array.get 0
-                |> fromJust
-                |> Tuple.first
+        idxFrom = indexOf from ids
+        idxTo = indexOf to ids
         diff = idxFrom - idxTo
     in
         if diff == -1 then

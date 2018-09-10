@@ -18,6 +18,7 @@ module TreeEdit.Utils exposing
     , uncurry3
     , and
     , andO
+    , indexOf
     )
 
 import Array exposing (Array)
@@ -156,3 +157,11 @@ and y x = Lens.compose x y
 
 andO : Optional b c -> Optional a b -> Optional a c
 andO y x = Optional.compose x y
+
+indexOf : comparable -> Array comparable -> Int
+indexOf val array =
+     Array.indexedMap Tuple.pair array
+         |> Array.filter (\x -> Tuple.second x == val)
+         |> Array.get 0
+         |> fromJust
+         |> Tuple.first
