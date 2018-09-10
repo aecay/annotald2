@@ -1,9 +1,8 @@
-module TreeEdit.View exposing
-    ( view
-    ,  viewRootTree
-       -- For memoization hack
-
-    )
+module TreeEdit.View exposing ( view
+                              , viewRootTree -- For memoization hack
+                              , viewTree -- For static tree viewer
+                              , ViewInfo -- ditto
+                              )
 
 import Array
 import Dict
@@ -38,7 +37,6 @@ isIP : Config -> String -> Bool
 isIP config label =
     List.any (\a -> String.startsWith a label) config.ipLabels
 
-
 labelHtml : Tree -> Html Msg
 labelHtml tree =
     let
@@ -71,6 +69,11 @@ type alias ViewInfo =
     { config : Config
     , selected : List Path
     , labelForm : Maybe LabelForm
+    , interactive : Bool
+    , snodeClass: String
+    , ipClass: String
+    , selectedClass: String
+    , wnodeClass : String
     }
 
 
@@ -98,25 +101,21 @@ snode info self tree children =
 
                 _ ->
                     labelHtml tree
+        eventHandlers = if info.interactive
+                        then [ onClick <| ToggleSelect self , rightClick ]
+                        else []
+        cssClasses = Attr.classList
+                     [ ( "snode", True )
+                     , ( "selected", selected )
+                     , ( "ip", not selected && isIP_ )
+                     ]
     in
-    div
-        [ Attr.classList
-            [ ( "snode", True )
-            , ( "selected", selected )
-            , ( "ip", not selected && isIP_ )
-            ]
-        , onClick <| ToggleSelect self
-        , rightClick
-        ]
-    <|
-        label
-            :: children
+    div (cssClasses :: eventHandlers) <| label ::children
 
-
-wnode : Tree -> Html Msg
-wnode t =
+wnode : String -> Tree -> Html Msg
+wnode className t =
     span
-        [ Attr.class "wnode" ]
+        [ Attr.class className ]
         [ text <| terminalString t ]
 
 
@@ -125,7 +124,7 @@ viewTree info selfPath tree =
     let
         childHtml =
             Tree.either
-                (\_ -> [ wnode tree ])
+                (\_ -> [ wnode info.WnodeClass tree ])
                 (\_ children ->
                     Array.indexedMap (\i c -> viewTree info (Path.childPath i selfPath) c) children
                         |> Array.toList
@@ -138,17 +137,13 @@ viewTree info selfPath tree =
 viewRootTree : Config -> Maybe ( List Path, Maybe LabelForm ) -> String -> Tree -> Html Msg
 viewRootTree config dataPack selfIndex tree =
     let
-        _ =
-            Debug.log "redraw" selfIndex
-
-        selected =
-            dataPack |> Maybe.map Tuple.first |> Maybe.withDefault []
-
-        labelForm =
-            dataPack |> Maybe.map Tuple.second |> Maybe.withDefault Nothing
-
-        info =
-            { config = config, selected = selected, labelForm = labelForm }
+        _ = Debug.log "redraw" selfIndex
+        selected = dataPack |> Maybe.map Tuple.first |> Maybe.withDefault []
+        labelForm = dataPack |> Maybe.map Tuple.second |> Maybe.withDefault Nothing
+        info = { config = config, selected = selected, labelForm = labelForm
+               , interactive = True
+               , snodeClass = "snode", selectedClass = "selected", ipClass = "ip", wnodeClass = "wnode"
+               }
     in
     viewTree info (Path.singleton selfIndex) tree
 
