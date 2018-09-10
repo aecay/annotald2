@@ -378,7 +378,6 @@ save metadata model =
                     OD.toList fieldInfo |> List.map getUpdater |> MX.values
             in
             List.foldl (\x y -> x y) (Return.singleton selectedNode) updaters
-                |> Debug.log "after updates"
                 |> Return.map (\newLeaf -> Tree.set selection newLeaf root)
                 |> Return.map (\x -> .set Model.root x model)
 
@@ -472,11 +471,7 @@ update model msg =
                     Return.singleton model
 
         Save ->
-            let
-                _ =
-                    model.metadataForm |> Maybe.map (.form >> Form.getErrors) |> Debug.log "out"
-            in
-            case model.metadataForm |> Maybe.andThen (.form >> Form.getOutput) |> Debug.log "out" of
+            case model.metadataForm |> Maybe.andThen (.form >> Form.getOutput) of
                 Just metadata ->
                     save metadata model
                         |> message (Msg.Metadata NewSelection)

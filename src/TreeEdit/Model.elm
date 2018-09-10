@@ -14,9 +14,11 @@ import Monocle.Optional exposing (Optional)
 import Random exposing (Seed)
 import RemoteData exposing (RemoteData(..), WebData)
 import ThirdParty.Uuid as Uuid
+
 import TreeEdit.Config as Config
 import TreeEdit.Metadata.Type exposing (Lemma)
 import TreeEdit.Model.Type
+import TreeEdit.OrderedDict as OD
 import TreeEdit.Selection as Selection
 import TreeEdit.Tree.Type exposing (Forest)
 import TreeEdit.View.LabelEdit.Type exposing (LabelForm)
@@ -48,11 +50,9 @@ root =
     let
         get m =
             case m.webdata of
-                Success x ->
-                    x.root
-
+                Success x -> x.root
                 _ ->
-                    Debug.todo "Tried to get the root when no data was loaded"
+                    Debug.log "Tried to get the root when no data was loaded" OD.empty
 
         set tree m =
             case m.webdata of
@@ -60,7 +60,7 @@ root =
                     { m | webdata = Success { val | root = tree } }
 
                 _ ->
-                    Debug.todo "Tried to set the root when no data was loaded"
+                    Debug.log "Tried to set the root when no data was loaded" m
     in
     Lens get set
 

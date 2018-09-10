@@ -19,14 +19,9 @@ module TreeEdit.Result exposing
     , map
     ,  modify
        -- , modifyO
-
     , succeed
-    ,  withDefault
-       -- TODO: code smell
-
     )
 
--- TODO: ideally we would not import this here
 
 import Cmd.Extra exposing (perform)
 import Maybe.Extra
@@ -143,16 +138,6 @@ andMap (Result msgsv cmdv val) (Result msgsf cmdf fn) =
 --     case Maybe.map2 List.foldr initval listval of
 --         Just (Result finalmsgs (Just finalval)) -> Result (initmsgs ++ listmsgs ++ finalmsgs) Just finalval
 --         _ ->
-
-
-withDefault : a -> Result a -> a
-withDefault default result =
-    case result of
-        Result _ _ Nothing ->
-            Debug.log ("unwrapping result " ++ Debug.toString result) default
-
-        Result _ _ (Just v) ->
-            Debug.log ("unwrapping result " ++ Debug.toString result) v
 
 
 lift : String -> (a -> Maybe b) -> a -> Result b

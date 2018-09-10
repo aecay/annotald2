@@ -412,7 +412,6 @@ moveTo from to trees =
                             case Path.isFragEmpty tailFrom of
                                 True ->
                                     Path.join siblingFrom tailTo
-                                        |> Debug.log "adjusted"
                                 False ->
                                     to
 

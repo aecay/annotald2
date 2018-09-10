@@ -48,7 +48,7 @@ terminalString : Tree -> String
 terminalString tree =
     let
         nt _ _ =
-            Debug.todo "Can't get the terminalString of a nonterminal"
+            Debug.log "Can't get the terminalString of a nonterminal!" ""
 
         t terminal =
             case terminal of

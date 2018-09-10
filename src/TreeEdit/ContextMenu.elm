@@ -160,10 +160,10 @@ update msg model =
               |> Return.map hide
 
         LeafAfter path l ->
-            Debug.todo "foo"
+            Action.createLeafAfter l model path
+              |> R.handle model
+              |> Return.map hide
 
-        -- TODO: write path+1
-        -- function
         SetLabel path newLabel ->
             modify Model.root
                 (Lens.modify (Tree.path path) (.set Tree.label newLabel) >> R.succeed)

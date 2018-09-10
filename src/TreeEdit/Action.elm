@@ -170,7 +170,7 @@ coIndex2 model path1 path2 =
                             -- Both of the nodes have an index: toggle index type
                             -- TODO: must check that indices are both equal
                             ( Just x, Just y ) ->
-                                case Debug.log "both" ( x.variety, y.variety ) of
+                                case ( x.variety, y.variety ) of
                                     -- Normal coindexing -> gap
                                     ( Index.Normal, Index.Normal ) ->
                                         setIndexVarietyAt path2 Index.Gap model

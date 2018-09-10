@@ -50,12 +50,12 @@ extractIndex metadata =
                 ( Just n, Just "regular" ) ->
                     Just <| Index.normal <| getInt index
 
-                -- TODO: name mismatch
                 ( Nothing, Nothing ) ->
                     Nothing
 
                 _ ->
-                    Debug.todo "bad index 2"
+                    Debug.log "Found a bad index while decoding" metadata
+                      |> always Nothing
     in
     ( metadata |> Dict.remove "INDEX" |> Dict.remove "IDX-TYPE"
     , idx
