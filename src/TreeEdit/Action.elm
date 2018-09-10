@@ -4,15 +4,10 @@ module TreeEdit.Action exposing
     , doMove
     , doMoveToRoot
     , finishLabelEdit
-    , createLeafBefore
-       -- For ContextMenu TODO:
-       -- consolidate with createLeaf
-
-    , toggleDashTag
+    , createLeafBefore -- For ContextMenu
+    , createLeafAfter  -- diito
+    , toggleDashTag    -- ditto
     )
-
--- This module contains the types and functions for creating *actions*, or
--- functions that respond to user input.
 
 import Array exposing (Array)
 import Browser.Dom
