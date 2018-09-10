@@ -251,19 +251,14 @@ setChild i new =
 
 deleteAt : Path -> Forest -> Forest
 deleteAt path_ trees =
-    let
-        parent_ =
-            Path.parent path_
-
-        idx_ =
-            Path.foot path_
-    in
-    case ( parent_, idx_ ) of
-        ( Just parent, Just idx ) ->
-            Lens.modify (path parent |> and children) (removeAt idx) trees
-
-        _ ->
-            trees
+    case path_ of
+        Path.Path id (foot :: rest) ->
+            let
+                parent = (Path.Path id rest)
+            in
+                Lens.modify (path parent |> and children) (removeAt foot) trees
+        Path.Path id [] ->
+            OD.remove id trees
 
 
 insertAt : Path -> Tree -> Forest -> Forest
