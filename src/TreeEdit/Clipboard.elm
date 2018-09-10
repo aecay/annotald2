@@ -6,7 +6,7 @@ import RemoteData.Http as Http
 import TreeEdit.Action exposing (Action)
 import TreeEdit.Clipboard.Type exposing (..)
 import TreeEdit.Model as Model
-import TreeEdit.Msg exposing (Msg(..))
+import TreeEdit.Msg exposing (LoadedMsg(..), Msg(..))
 import TreeEdit.Result as R exposing (Result)
 import TreeEdit.Selection as Selection
 import TreeEdit.Tree as T
@@ -16,17 +16,17 @@ import TreeEdit.Tree.Encode exposing (encodeTree)
 copy : Action
 copy model =
     let
-        selected = .get Model.selected model
+        selected = model.selected
         decoder = D.map3 Response
                   (D.field "penn" D.string)
                   (D.field "deep" D.string)
                   (D.field "text" D.string)
         extract sel =
-            .get Model.root model
+            model.root
                 |> T.get sel
                 |> encodeTree
                 |> (\x -> E.object [ ( "tree", x ) ])
-                |> Http.post "/as_text" Copy decoder
+                |> Http.post "/as_text" (Loaded << Copy) decoder
 
         cmd =
             Selection.perform selected

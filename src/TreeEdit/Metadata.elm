@@ -64,7 +64,7 @@ definitionUpdater _ newDef sel =
         updateCmd def lem =
             Net.post
                 "/dictentry"
-                (always <| Msg.Metadata <| SaveSuccess lem)
+                (always <| Msg.Loaded <| Msg.Metadata <| SaveSuccess lem)
                 (D.succeed ())
                 (E.object
                     [ ( "lemma", E.string lem )
@@ -342,14 +342,11 @@ performUpdate formOut metadataForm fld updater ret =
         ret
 
 
-save : Metadata -> BigModel.Model -> Return Msg.Msg BigModel.Model
+save : Metadata -> BigModel.ForestModel -> Return Msg.Msg BigModel.ForestModel
 save metadata model =
     let
-        root =
-            model |> .get Model.root
-
-        selected =
-            model |> .get Model.selected
+        root = model.root
+        selected = model.selected
     in
     case Selection.first selected of
         Just selection ->
@@ -379,13 +376,13 @@ save metadata model =
             in
             List.foldl (\x y -> x y) (Return.singleton selectedNode) updaters
                 |> Return.map (\newLeaf -> Tree.set selection newLeaf root)
-                |> Return.map (\x -> .set Model.root x model)
+                |> Return.map (\x -> { model | root = x })
 
         _ ->
             Return.singleton model
 
 
-update : BigModel.Model -> Msg -> Return Msg.Msg BigModel.Model
+update : BigModel.ForestModel -> Msg -> Return Msg.Msg BigModel.ForestModel
 update model msg =
     case msg of
         ReceivedDefinition s ->
@@ -447,25 +444,21 @@ update model msg =
 
         Delete fieldName ->
             let
-                root =
-                    model |> .get Model.root
-
-                selected =
-                    model |> .get Model.selected
+                root = model.root
+                selected = model.selected
             in
             case Selection.first selected of
                 Just path ->
                     let
-                        selectedNode =
-                            Tree.get path root
+                        selectedNode = Tree.get path root
                     in
                     selectedNode
-                        |> Lens.modify Tree.metadata (Dict.update (String.toUpper fieldName) (always Nothing))
-                        |> (\newLeaf -> Tree.set path newLeaf root)
-                        |> (\x -> .set Model.root x model)
-                        |> R.succeed
-                        |> R.handle model
-                        |> message (Msg.Metadata NewSelection)
+                      |> Lens.modify Tree.metadata (Dict.update (String.toUpper fieldName) (always Nothing))
+                      |> (\newLeaf -> Tree.set path newLeaf root)
+                      |> (\x -> { model | root = x })
+                      |> R.succeed
+                      |> R.handle model
+                      |> message (Msg.Loaded <| Msg.Metadata NewSelection)
 
                 Nothing ->
                     Return.singleton model
@@ -474,7 +467,7 @@ update model msg =
             case model.metadataForm |> Maybe.andThen (.form >> Form.getOutput) of
                 Just metadata ->
                     save metadata model
-                        |> message (Msg.Metadata NewSelection)
+                        |> message (Msg.Loaded <| Msg.Metadata NewSelection)
                         |> Return.command (TreeEdit.Ports.editing False)
 
                 Nothing ->
@@ -482,15 +475,14 @@ update model msg =
 
         Cancel ->
             Return.singleton model
-                |> message (Msg.Metadata NewSelection)
+                |> message (Msg.Loaded <| Msg.Metadata NewSelection)
                 |> Return.command (TreeEdit.Ports.editing False)
 
         -- TODO: why doesn't it work?
         -- (Cmd.batch [TreeEdit.Ports.editing False, Cmd.Extra.perform <| Msg.Metadata NewSelection])
         NewSelection ->
             let
-                root =
-                    model |> .get Model.root
+                root = model.root
             in
             case Selection.getOne model.selected of
                 Just p ->
@@ -517,26 +509,27 @@ update model msg =
                                 { model
                                     | metadataForm =
                                         Just <|
-                                            init (Model.lemmata model) metadata node
+                                            init model.lemmata metadata node
                                 }
                                 (lem
                                     |> Maybe.map req
                                     |> Maybe.withDefault Cmd.none
-                                    |> Cmd.map Msg.Metadata
+                                    |> Cmd.map (Msg.Loaded << Msg.Metadata)
                                 )
 
                         False ->
                             Return.singleton
                                 { model
                                     | metadataForm =
-                                        Just <| init (Model.lemmata model) metadata node
+                                        Just <| init model.lemmata metadata node
                                 }
 
                 _ ->
                     Return.singleton { model | metadataForm = Nothing }
 
         SaveSuccess lem ->
-            Return.singleton { model | lastMessage = "Saved definition for lemma " ++ lem }
+            Return.singleton model
+              |> message (Msg.LogMessage <| "Saved definition for lemma " ++ lem)
 
         Key { keyCode } ->
             case keyCode of
@@ -564,14 +557,14 @@ update model msg =
                             model.metadataForm |> Maybe.map (\x -> { x | lemmaSelectState = newState })
                     in
                     cmd
-                        |> Cmd.map Msg.Metadata
-                        |> Return.return { model | metadataForm = newForm }
+                      |> Cmd.map (Msg.Loaded << Msg.Metadata)
+                      |> Return.return { model | metadataForm = newForm }
 
                 Nothing ->
                     Return.singleton model
 
 
-view : BigModel.Model -> Html Msg
+view : BigModel.ForestModel -> Html Msg
 view model =
     case model.metadataForm of
         Just m ->

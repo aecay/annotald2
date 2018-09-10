@@ -1,16 +1,11 @@
-module TreeEdit.Dialog exposing (Dialog(..), view)
+module TreeEdit.Dialog exposing (view)
 
 import Html exposing (Html, button, div, img, text, textarea)
 import Html.Attributes as Attr exposing (src, style)
 import Html.Events as E
-import TreeEdit.Clipboard.Type as Clipboard
+import TreeEdit.Dialog.Type exposing (Dialog(..))
 import TreeEdit.Msg exposing (Msg(..))
 import TreeEdit.View.Css as ViewCss
-
-
-type Dialog
-    = Copy Clipboard.Response
-    | Processing String
 
 
 copyField : String -> String -> String -> Html Msg
@@ -19,7 +14,7 @@ copyField contents id btn =
         [ textarea [ Attr.id (id ++ "Source"), Attr.readonly True ] [ text contents ]
         , button
             [ Attr.id id
-            , E.onClick DismissDialog
+            , E.onClick (SetDialog Nothing)
             , Attr.attribute "data-clipboard-target" ("#" ++ id ++ "Source")
             ]
             [ text btn ]

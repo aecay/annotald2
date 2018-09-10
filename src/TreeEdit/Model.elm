@@ -1,12 +1,7 @@
 module TreeEdit.Model exposing
     ( Model
-    , config
     , freshUuid
     , init
-    , labelForm
-    , lemmata
-    , root
-    , selected
     )
 
 import Monocle.Lens exposing (Lens, modify)
@@ -17,7 +12,7 @@ import ThirdParty.Uuid as Uuid
 
 import TreeEdit.Config as Config
 import TreeEdit.Metadata.Type exposing (Lemma)
-import TreeEdit.Model.Type
+import TreeEdit.Model.Type exposing (ForestModel)
 import TreeEdit.OrderedDict as OD
 import TreeEdit.Selection as Selection
 import TreeEdit.Tree.Type exposing (Forest)
@@ -31,86 +26,18 @@ type alias Model =
 init : String -> Seed -> Model
 init filename seed =
     { webdata = NotAsked
-    , selected = Selection.empty
     , lastMessage = "Init"
-    , contextMenu = Nothing
     , fileName = filename
-    , metadataForm = Nothing
-    , labelForm = Nothing
     , dialog = Nothing
-    , undo = []
-    , redo = []
     , dirty = False
     , seed = seed
     }
 
 
-root : Lens Model Forest
-root =
-    let
-        get m =
-            case m.webdata of
-                Success x -> x.root
-                _ ->
-                    Debug.log "Tried to get the root when no data was loaded" OD.empty
-
-        set tree m =
-            case m.webdata of
-                Success val ->
-                    { m | webdata = Success { val | root = tree } }
-
-                _ ->
-                    Debug.log "Tried to set the root when no data was loaded" m
-    in
-    Lens get set
-
-
-config : Model -> Config.Config
-config m =
-    case m.webdata of
-        Success x ->
-            x.config
-
-        _ ->
-            Debug.todo "Tried to get the config when no data was loaded"
-
-
-selected : Lens Model Selection.Selection
-selected =
-    Lens .selected (\s m -> { m | selected = s })
-
-
-labelForm : Optional Model LabelForm
-labelForm =
-    let
-        getOption m =
-            m.labelForm
-
-        set form m =
-            { m | labelForm = Just form }
-    in
-    Optional getOption set
-
-
-lemmata : Model -> List Lemma
-lemmata m =
-    case m.webdata of
-        Success x ->
-            x.lemmata
-
-        _ ->
-            []
-
-
-freshUuid : Model -> ( Model, String )
+freshUuid : ForestModel -> ( ForestModel, String )
 freshUuid m =
     let
         ( newId, newSeed ) =
             Random.step Uuid.generator m.seed
     in
     ( { m | seed = newSeed }, newId )
-
-
-
--- doRoot : (Tree -> R.Result Tree) -> Model -> Model
--- doRoot = R.modify root

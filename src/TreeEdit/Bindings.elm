@@ -35,6 +35,4 @@ bindings =
         , ( ( 0, K.B        ), actions.leafBefore constants.con )
         , ( ( 0, K.L        ), actions.editLabel )
         , ( ( 1, K.C        ), Clipboard.copy )
-        , ( ( 0, K.Z        ), actions.undo )
-        , ( ( 1, K.Z        ), actions.redo )
         ]

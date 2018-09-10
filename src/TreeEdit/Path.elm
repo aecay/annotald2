@@ -1,5 +1,5 @@
 module TreeEdit.Path exposing
-    ( Path
+    ( Path(..)
     , Fragment
     , advance
     , allCombos

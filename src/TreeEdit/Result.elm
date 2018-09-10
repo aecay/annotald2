@@ -26,10 +26,12 @@ module TreeEdit.Result exposing
 import Cmd.Extra exposing (perform)
 import Maybe.Extra
 import Monocle.Lens exposing (Lens)
+import RemoteData exposing (RemoteData(..))
+
 import Return
 import TreeEdit.Model as Model
-import TreeEdit.Model.Type exposing (Model)
-import TreeEdit.Msg exposing (Msg(..))
+import TreeEdit.Model.Type exposing (Model, ForestModel)
+import TreeEdit.Msg exposing (LoadedMsg(..), Msg(..))
 import TreeEdit.Utils exposing (uncurry3)
 
 
@@ -216,22 +218,20 @@ andDo fn result =
             result
 
 
-handle : Model -> Result Model -> Return.Return Msg Model
+handle : ForestModel -> Result ForestModel -> Return.Return Msg ForestModel
 handle model result =
     case result of
         Result msgs cmds (Just newModel) ->
             let
-                oldRoot = .get Model.root model
+                oldRoot = model.root
             in
-            Return.return
-                { newModel
-                    | lastMessage = String.join "\n" msgs
-                    , undo = oldRoot :: model.undo
+                Return.return
+                    { newModel |
+                      undo = oldRoot :: model.undo
                     , redo = []
-                }
-                (Cmd.batch <| perform (Dirty True) :: cmds)
+                    }
+                (Cmd.batch <| perform (Dirty True) :: perform (LogMessage <| String.join "\n" msgs) :: cmds)
 
         Result msgs cmds Nothing ->
-            -- TODO: cmds should always be empty in this case...update: not
-            -- true for undo/redo
-            Return.return { model | lastMessage = String.join "\n" msgs } (Cmd.batch cmds)
+            -- TODO: cmds should always be empty in this case
+            Return.return model (Cmd.batch <| perform (LogMessage <| String.join "\n" msgs) :: cmds)

@@ -10,7 +10,7 @@ import Html exposing (..)
 import Html.Attributes as Attr
 import Html.Events as Ev
 import Html.Keyed as Keyed
-import Html.Lazy exposing (lazy3)
+import Html.Lazy exposing (lazy4)
 import Json.Decode as Json
 import RemoteData exposing (RemoteData(..))
 import TreeEdit.Config exposing (Config)
@@ -18,7 +18,7 @@ import TreeEdit.ContextMenu as ContextMenu
 import TreeEdit.Dialog as Dialog
 import TreeEdit.Metadata as Metadata
 import TreeEdit.Model as Model
-import TreeEdit.Model.Type exposing (Model)
+import TreeEdit.Model.Type exposing (Model, ForestModel)
 import TreeEdit.Msg as Msg exposing (Msg(..))
 import TreeEdit.OrderedDict as OD
 import TreeEdit.Path as Path exposing (Path)
@@ -85,7 +85,7 @@ snode info self tree children =
 
         rightClick =
             Ev.custom "contextmenu" <|
-                Json.map (\x -> { message = RightClick self x
+                Json.map (\x -> { message = (Msg.Loaded <| Msg.RightClick self x)
                                 , preventDefault = True
                                 , stopPropagation = True
                                 })
@@ -97,12 +97,12 @@ snode info self tree children =
         label =
             case ( selected, info.labelForm ) of
                 ( True, Just form ) ->
-                    Html.map Msg.Label <| LabelEdit.view form
+                    Html.map (Msg.Loaded << Msg.Label) <| LabelEdit.view form
 
                 _ ->
                     labelHtml tree
         eventHandlers = if info.interactive
-                        then [ onClick <| ToggleSelect self , rightClick ]
+                        then [ onClick <| Msg.Loaded <| Msg.ToggleSelect self , rightClick ]
                         else []
         cssClasses = Attr.classList
                      [ ( "snode", True )
@@ -110,7 +110,7 @@ snode info self tree children =
                      , ( "ip", not selected && isIP_ )
                      ]
     in
-    div (cssClasses :: eventHandlers) <| label ::children
+    div (cssClasses :: eventHandlers) <| label :: children
 
 wnode : String -> Tree -> Html Msg
 wnode className t =
@@ -137,7 +137,7 @@ viewTree info selfPath tree =
 viewRootTree : Config -> Maybe ( List Path, Maybe LabelForm ) -> String -> Tree -> Html Msg
 viewRootTree config dataPack selfIndex tree =
     let
-        _ = Debug.log "redraw" selfIndex
+        -- _ = Debug.log "redraw" selfIndex
         selected = dataPack |> Maybe.map Tuple.first |> Maybe.withDefault []
         labelForm = dataPack |> Maybe.map Tuple.second |> Maybe.withDefault Nothing
         info = { config = config, selected = selected, labelForm = labelForm
@@ -162,10 +162,11 @@ viewRootTree config dataPack selfIndex tree =
 -- make here, but for now it's Good Enough™
 
 
-viewRoot : Model -> (Maybe ( List Path, Maybe LabelForm ) -> String -> Tree -> Html Msg) -> List ( String, Html Msg )
-viewRoot model vrt =
+viewRoot : ForestModel -> List ( String, Html Msg )
+viewRoot model =
     let
-        root = .get Model.root model
+        root = model.root
+        config = model.config
         selectedTrees = Selection.get model.selected
         selectedRoots = List.map Path.root selectedTrees
         labelForm = model.labelForm
@@ -176,7 +177,7 @@ viewRoot model vrt =
                     then Just ( selectedTrees, labelForm )
                     else Nothing
             in
-            ( id, lazy3 vrt data id c )
+            ( id, lazy4 viewRootTree config data id c )
     in
     root
       |> OD.toArray
@@ -189,7 +190,7 @@ wrapSn0 nodes =
     let
         rightClick =
             Ev.custom "contextmenu" <|
-                Json.map (\_ -> { message = RightClickRoot
+                Json.map (\_ -> { message = Msg.Loaded Msg.RightClickRoot
                                 , preventDefault = True
                                 , stopPropagation = True
                                 })
@@ -218,17 +219,17 @@ view model =
         Failure e ->
             div [] [ text <| "error " ++ Debug.toString e ]
 
-        Success { viewFn } ->
+        Success submodel ->
             div []
                 [ model.dialog |> Maybe.map Dialog.view |> Maybe.withDefault (div [] [])
                 , div Css.toolbar
                     [ ToolBar.view model.fileName
-                    , Metadata.view model |> Html.map Msg.Metadata
+                    , Metadata.view submodel |> Html.map (Msg.Loaded << Msg.Metadata)
                     ]
                 , div Css.messages
                     [ div Css.titlebar [ text "Messages" ]
                     , text model.lastMessage
                     ]
-                , viewRoot model viewFn |> wrapSn0
-                , map Msg.Context <| ContextMenu.view model
+                , viewRoot submodel |> wrapSn0
+                , map (Msg.Loaded << Msg.Context) <| ContextMenu.view submodel
                 ]

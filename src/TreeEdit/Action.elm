@@ -22,7 +22,7 @@ import Monocle.Optional as Optional exposing (fromLens)
 
 import TreeEdit.Index as Index exposing (Variety(..), normal)
 import TreeEdit.Model as Model
-import TreeEdit.Model.Type exposing (Model)
+import TreeEdit.Model.Type exposing (ForestModel)
 import TreeEdit.Msg as Msg exposing (Msg(..))
 import TreeEdit.OrderedDict as OD
 import TreeEdit.Path as Path exposing (Path)
@@ -34,12 +34,9 @@ import TreeEdit.Utils as Utils exposing (maybeAndThen2, o, and, andO, fromJust, 
 import TreeEdit.View.LabelEdit as LabelEdit
 
 
-type alias Result =
-    R.Result Model
+type alias Result = R.Result ForestModel
 
-
-type alias Action =
-    Model -> Result
+type alias Action = ForestModel -> Result
 
 
 actions :
@@ -51,15 +48,11 @@ actions :
     , editLabel : Action
     , leafAfter : Tree -> Action
     , leafBefore : Tree -> Action
-    , redo : Action
-    , undo : Action
     }
 actions =
     { clearSelection = clearSelection
     , coIndex = coIndex
     , editLabel = editLabel
-    , undo = undo
-    , redo = redo
     , changeLabel = changeLabel
     , leafAfter = leafAfter
     , createParent = createParent
@@ -68,27 +61,25 @@ actions =
     }
 
 
-doAt : Path -> (Tree -> Tree) -> Model -> Result
+-- TODO: remove this fn
+doAt : Path -> (Tree -> Tree) -> ForestModel -> Result
 doAt path f model =
-    Lens.modify (Model.root |> and (Tree.path path)) f model
-        |> R.succeed
+    R.succeed { model | root = Lens.modify (Tree.path path) f model.root}
 
 
 clearSelection : Action
-clearSelection m =
-    R.succeed { m | selected = Selection.empty }
+clearSelection m = R.succeed { m | selected = Selection.empty }
 
 
-changeLabel : List String -> Model -> Result
+changeLabel : List String -> ForestModel -> Result
 changeLabel labels model =
     let
-        selected =
-            model |> .get Model.selected |> Selection.getOne
+        selected = model.selected |> Selection.getOne
     in
     case selected of
         Just sel ->
             if
-                Tree.get sel (.get Model.root model)
+                Tree.get sel model.root
                     |> Tree.hasTerminalLabel
             then
                 R.fail "leaf selected"
@@ -118,7 +109,7 @@ changeLabel labels model =
             R.fail "nothing or two things selected"
 
 
-coIndex : Model -> Result
+coIndex : ForestModel -> Result
 coIndex model =
     Selection.perform model.selected
         (R.fail "nothing selected")
@@ -126,18 +117,18 @@ coIndex model =
         (coIndex2 model)
 
 
-coIndex1 : Model -> Path -> Model
+coIndex1 : ForestModel -> Path -> ForestModel
 coIndex1 b a = removeIndexAt a b
 
 
-coIndex2 : Model -> Path -> Path -> Result
+coIndex2 : ForestModel -> Path -> Path -> Result
 coIndex2 model path1 path2 =
     case Path.root path1 == Path.root path2 of
         False -> R.failWarn "Can't coindex nodes in two different roots"
 
         True ->
             let
-                root = .get Model.root model
+                root = model.root
                 tree1 = Tree.get path1 root
                 tree2 = Tree.get path2 root
                 index1 = tree1 |> .get Tree.index
@@ -199,34 +190,35 @@ coIndex2 model path1 path2 =
             helper index1 index2
 
 
-setIndexAt : Path -> Int -> Model -> Model
-setIndexAt path index =
-    .set (Model.root |> and (Tree.path path) |> and Tree.index) (Just <| Index.normal index)
+setIndexAt : Path -> Int -> ForestModel -> ForestModel
+setIndexAt path index model =
+    { model | root = .set (Tree.path path |> and Tree.index) (Just <| Index.normal index) model.root }
 
 
-setIndexVarietyAt : Path -> Index.Variety -> Model -> Model
-setIndexVarietyAt path newVariety =
+
+setIndexVarietyAt : Path -> Index.Variety -> ForestModel -> ForestModel
+setIndexVarietyAt path newVariety model =
     let
         lens =
-            o (Model.root |> and (Tree.path path) |> and Tree.index) |> andO maybe |> andO (o Index.variety)
+            o (Tree.path path |> and Tree.index) |> andO maybe |> andO (o Index.variety)
     in
-    .set lens newVariety
+        { model | root = .set lens newVariety model.root }
 
 
-isGapAt : Path -> Model -> Bool
+
+isGapAt : Path -> ForestModel -> Bool
 isGapAt path model =
     let
-        lens =
-            (Model.root |> and (Tree.path path) |> and Tree.index |> o) |> andO maybe |> andO (o Index.variety)
+        lens = (Tree.path path |> and Tree.index |> o) |> andO maybe |> andO (o Index.variety)
     in
-    .getOption lens model
-        |> Maybe.withDefault Index.Normal
-        |> (==) Index.Gap
+    .getOption lens model.root
+      |> Maybe.withDefault Index.Normal
+      |> (==) Index.Gap
 
 
-removeIndexAt : Path -> Model -> Model
-removeIndexAt path =
-    .set (Model.root |> and (Tree.path path) |> and Tree.index) Nothing
+removeIndexAt : Path -> ForestModel -> ForestModel
+removeIndexAt path model =
+    { model | root = .set (Tree.path path |> and Tree.index) Nothing model.root }
 
 
 incrementIndicesBy : Int -> Path -> Forest -> Forest
@@ -240,20 +232,20 @@ incrementIndicesBy inc path trees =
 -- TODO: use Id type instead of String
 
 
-newRootTree : Int -> Model -> Tree -> (Model, Path)
+newRootTree : Int -> ForestModel -> Tree -> (ForestModel, Path)
 newRootTree index model tree =
     let
         ( newModel, newId ) = Model.freshUuid model
         newTree = tree |> Lens.modify Tree.metadata (Dict.update "ID" (\_ -> Just newId))
-        newModel2 = Lens.modify Model.root (OD.insertAt index newId newTree) newModel
+        newModel2 = { model | root = (OD.insertAt index newId newTree newModel.root) }
     in
         (newModel2, Path.singleton newId)
 
 
-doMoveToRoot : Path -> Model -> Result
+doMoveToRoot : Path -> ForestModel -> Result
 doMoveToRoot src model =
     let
-        forest = .get Model.root model
+        forest = model.root
         root = Path.root src
         frag = Path.subtract root src |> Utils.fromJust
         first = Tree.allFirst root frag forest
@@ -265,9 +257,10 @@ doMoveToRoot src model =
                 tree = Tree.get src forest
                 (newModel, newSel) = newRootTree i model tree
             in
-                newModel
-                  |> Lens.modify Model.root (Tree.deleteAt src)
-                  |> Lens.modify Model.selected (\_ -> Selection.one <| newSel)
+                { newModel |
+                  root = Tree.deleteAt src newModel.root
+                , selected = Selection.one newSel
+                }
     in
     if first then
         go index |> R.succeed
@@ -277,12 +270,12 @@ doMoveToRoot src model =
         R.fail "cannot move to root from middle"
 
 
-doMove : Path -> Path -> Model -> Result
+doMove : Path -> Path -> ForestModel -> Result
 doMove src dest model =
     let
         srcRoot = Path.root src
         destRoot = Path.root dest
-        rootTree = .get Model.root model
+        rootTree = model.root
         -- If we are moving withing the same root tree, then do nothing
         -- special.  If we are moving a tree up to the root level, then give
         -- it an ID.  If we are moving a tree from one root tree into another,
@@ -299,14 +292,11 @@ doMove src dest model =
                 incrementIndicesBy inc srcRoot rootTree
 
         res = Tree.moveTo src dest newRoot
-        newRoot1 = R.map Tuple.first res
-        newSel = R.map Tuple.second res
     in
-    R.modify Model.root (always newRoot1) model
-      |> R.andThen (R.modify Model.selected (always <| R.map Selection.one newSel))
+        R.map (\(nr, sel) -> { model | root = nr, selected = Selection.one sel }) res
 
 
-createParent2 : String -> Model -> Path -> Path -> Result
+createParent2 : String -> ForestModel -> Path -> Path -> Result
 createParent2 label model one two =
     let
         parent1 =
@@ -346,18 +336,14 @@ createParent2 label model one two =
                                     z
                         )
                     )
-                    model
-                    |> R.map (.set Model.selected (Selection.one <| Path.childPath foot1 p1))
+                    { model | selected = Selection.one <| Path.childPath foot1 p1 }
 
             _ ->
+                -- Guaranteed by parent1 /= parent2 check above
                 Debug.todo "impossible"
 
 
-
--- Guaranteed by parent1 /= parent2 check above
-
-
-createParent : String -> Model -> Result
+createParent : String -> ForestModel -> Result
 createParent label model =
     let
         one : Path -> Result
@@ -367,10 +353,10 @@ createParent label model =
     Selection.perform model.selected (R.fail "nothing selected") one (createParent2 label model)
 
 
-doMovement : (Tree -> Model -> Path -> Result) -> Model -> Path -> Path -> Result
+doMovement : (Tree -> ForestModel -> Path -> Result) -> ForestModel -> Path -> Path -> Result
 doMovement insertLeaf model dest src =
     let
-        root = .get Model.root model
+        root = model.root
         indDef =
             root
                 |> Tree.get (Path.root src)
@@ -392,24 +378,24 @@ doMovement insertLeaf model dest src =
         trace : R.Result Tree
         trace =
             m
-                |> R.map (.get Model.root)
-                |> R.andThen (Tree.get src >> R.succeed)
-                |> R.map (\a -> Tree.makeTrace a ind)
+              |> R.map .root
+              |> R.andThen (Tree.get src >> R.succeed)
+              |> R.map (\a -> Tree.makeTrace a ind)
 
         sameRoot = Path.root src == Path.root dest
     in
     if sameRoot then
         R.andThen3 insertLeaf trace m (R.succeed dest)
-            |> R.map (.set Model.selected <| Selection.one dest)
+          |> R.map (\x -> {x | selected = Selection.one dest})
 
     else
         R.fail "Can't make movement trace across different root nodes"
 
 
-createLeaf_ : (Int -> Int) -> Tree -> Model -> Path -> Result
+createLeaf_ : (Int -> Int) -> Tree -> ForestModel -> Path -> Result
 createLeaf_ fn leaf m path =
     let
-        forest = .get Model.root m
+        forest = m.root
         parent = Path.parent path
     in
         case parent of
@@ -429,17 +415,17 @@ createLeaf_ fn leaf m path =
                     update c = Utils.insert (fn foot) leaf c
                 in
                     Lens.modify (Tree.path p |> and Tree.children) update forest
-                      |> (\x -> .set Model.root x m)
+                      |> (\x -> {m | root = x})
                       |> R.succeed
 
-createLeafBefore : Tree -> Model -> Path -> Result
+createLeafBefore : Tree -> ForestModel -> Path -> Result
 createLeafBefore = createLeaf_ identity
 
-createLeafAfter : Tree -> Model -> Path -> Result
+createLeafAfter : Tree -> ForestModel -> Path -> Result
 createLeafAfter = createLeaf_ (\x -> x + 1)
 
 
-leafBefore : Tree -> Model -> Result
+leafBefore : Tree -> ForestModel -> Result
 leafBefore newLeaf model =
     Selection.perform model.selected
         (R.fail "nothing selected")
@@ -447,7 +433,7 @@ leafBefore newLeaf model =
         (doMovement createLeafBefore model)
 
 
-leafAfter : Tree -> Model -> Result
+leafAfter : Tree -> ForestModel -> Result
 leafAfter newLeaf model =
     Selection.perform model.selected
         (R.fail "nothing selected")
@@ -463,24 +449,23 @@ deleteNode model =
             case Path.parent sel of
                 Nothing ->
                     let
-                        forest = .get Model.root model
+                        forest = model.root
                         tree = Tree.get sel forest
                         -- TODO: eliminate this use of fromJust by making a
                         -- RootTree type that obligatorily has an ID
                         id = tree |> .get Tree.metadata |> Dict.get "ID" |> fromJust
                         idx = indexOf id <| OD.keys forest
                         children = tree |> .get Tree.children
-                        add : Tree -> Model -> Model
+                        add : Tree -> ForestModel -> ForestModel
                         add t m = newRootTree idx m t |> Tuple.first
                         newForest = OD.remove id forest
                     in
-                        model
-                          |> .set Model.root newForest
+                        { model | root = newForest }
                           |> (\x -> Array.foldr add x children)
                           |> clearSelection
                 Just parent ->
                     let
-                        forest = .get Model.root model
+                        forest = model.root
                         n = Tree.get sel forest
                         children = .get Tree.children n
                     in
@@ -500,25 +485,20 @@ deleteNode model =
                             else if not hasSiblings then
                                 R.fail "Cannot delete an only child"
                             else
-                                Tree.deleteAt sel forest
-                                  |> (\x -> .set Model.root x model)
+                                {model | root = Tree.deleteAt sel forest }
                                   |> clearSelection
                         _ ->
                             Tree.deleteAt sel forest
                               |> Tree.insertManyAt sel children
-                              |> (\x -> .set Model.root x model)
+                              |> (\x -> { model | root = x })
                               |> clearSelection
 
-editLabel : Model -> Result
+editLabel : ForestModel -> Result
 editLabel model =
     let
         selected : Maybe Path.Path
-        selected =
-            model |> .get Model.selected |> Selection.getOne
-
-        root =
-            model |> .get Model.root
-
+        selected = model.selected |> Selection.getOne
+        root = model.root
         label : R.Result String
         label =
             Maybe.map (\x -> Tree.get x root) selected |> Maybe.map (.get Tree.label) |> R.liftVal "editLabel"
@@ -527,40 +507,26 @@ editLabel model =
         |> R.do (Browser.Dom.focus "labelEditor" |> Task.onError (always <| Task.succeed ()) |> Task.perform (always Msg.Ignore))
 
 
-finishLabelEdit : Model -> Result
+finishLabelEdit : ForestModel -> Result
 finishLabelEdit model =
     let
-        selected =
-            model |> .get Model.selected |> Selection.first |> R.liftVal "nothing selected"
-
-        root =
-            model |> .get Model.root
-
+        selected = model.selected |> Selection.first |> R.liftVal "nothing selected"
+        root = model.root
         newLabel =
             model.labelForm |> R.liftVal "not editing" |> R.andThen LabelEdit.finish
-
-        changeLbl =
-            newLabel |> R.map (.set Tree.label)
+        changeLbl = newLabel |> R.map (.set Tree.label)
     in
     R.andThen3 doAt selected changeLbl (R.succeed model)
-        |> R.map (\m -> { m | labelForm = Nothing })
+      |> R.map (\m -> { m | labelForm = Nothing })
 
 
-toggleDashTag : String -> Path -> Model -> Result
+toggleDashTag : String -> Path -> ForestModel -> Result
 toggleDashTag tag path model =
     let
-        tree =
-            model |> .get Model.root |> Tree.get path
-
-        labels =
-            tree |> .get Tree.label |> String.split "-"
-
-        contains =
-            labels |> List.any ((==) tag)
-
-        setLabel =
-            .set Tree.label
-
+        tree = model.root |> Tree.get path
+        labels = tree |> .get Tree.label |> String.split "-"
+        contains = labels |> List.any ((==) tag)
+        setLabel = .set Tree.label
         valuePre =
             case contains of
                 True ->
@@ -570,15 +536,5 @@ toggleDashTag tag path model =
                     labels |> (\x -> x ++ [ tag ]) |> String.join "-"
     in
     valuePre
-        |> R.succeed
-        |> R.andThen (\x -> doAt path (setLabel x) model)
-
-
-undo : Model -> Result
-undo _ =
-    R.fail "bogus message" |> R.do (Utils.cmd Undo)
-
-
-redo : Model -> Result
-redo _ =
-    R.fail "bogus message" |> R.do (Utils.cmd Redo)
+      |> R.succeed
+      |> R.andThen (\x -> doAt path (setLabel x) model)

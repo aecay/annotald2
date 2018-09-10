@@ -8,6 +8,7 @@ import Json.Decode as D
 import Route
 import Task
 
+import Cmd.Extra
 import Monocle.Lens as Lens
 import Monocle.Optional exposing (Optional)
 import RemoteData exposing (RemoteData(..))
@@ -19,12 +20,12 @@ import ThirdParty.KeyboardKey as K
 import TreeEdit.Action as Action
 import TreeEdit.Bindings as Bindings
 import TreeEdit.ContextMenu as ContextMenu
-import TreeEdit.Dialog as Dialog
+import TreeEdit.Dialog.Type as Dialog
 import TreeEdit.Metadata as Metadata
 import TreeEdit.Metadata.Type as MetadataType
-import TreeEdit.Model as Model exposing (root, selected)
-import TreeEdit.Model.Type exposing (Model)
-import TreeEdit.Msg as Msg exposing (Msg(..))
+import TreeEdit.Model as Model
+import TreeEdit.Model.Type exposing (Model, ForestModel)
+import TreeEdit.Msg as Msg exposing (Msg(..), LoadedMsg(..))
 import TreeEdit.Ports as Ports
 import TreeEdit.Result as R
 import TreeEdit.Save as Save
@@ -33,6 +34,7 @@ import TreeEdit.Tree as Tree
 import TreeEdit.Undo as Undo
 import TreeEdit.Validate as Validate
 import TreeEdit.View as View
+import TreeEdit.View.LabelEdit.Type as LabelEditType
 import TreeEdit.View.LabelEdit as LabelEdit
 
 
@@ -49,7 +51,7 @@ refracto opt mergeBack fx (( model, cmd ) as return) =
         |> Maybe.withDefault return
 
 
-editingMetadata : Model -> Bool
+editingMetadata : ForestModel -> Bool
 editingMetadata model =
     model.metadataForm
         |> Maybe.map .fieldStates
@@ -58,7 +60,7 @@ editingMetadata model =
         |> List.any ((==) (MetadataType.Visible True))
 
 
-editingLabel : Model -> Bool
+editingLabel : ForestModel -> Bool
 editingLabel model =
     case model.labelForm of
         Just _ ->
@@ -67,103 +69,76 @@ editingLabel model =
         Nothing ->
             False
 
-
-update : Msg -> Model -> Return Msg Model
-update msg model =
+updateForest : LoadedMsg -> ForestModel -> Return Msg ForestModel
+updateForest msg model =
     let
-        disableMouse =
-            editingMetadata model || editingLabel model
-
-        singleton x =
-            Return.singleton x
-
-        newSelection =
-            Return.andThen <| \a -> Metadata.update a MetadataType.NewSelection
+        disableMouse = editingMetadata model || editingLabel model
+        newSelection = Return.andThen <| \a -> Metadata.update a MetadataType.NewSelection
     in
     case msg of
         ToggleSelect z ->
             -- TODO: probably want to name this
             -- something like "click"
             if disableMouse then
-                singleton model
+                Return.singleton model
             else
                 model
-                    |> ContextMenu.hide
-                    |> Lens.modify selected (Selection.updateWith z)
-                    |> singleton
-                    |> newSelection
+                  |> ContextMenu.hide
+                  |> (\x -> { x | selected = Selection.updateWith z x.selected })
+                  |> Return.singleton
+                  |> newSelection
 
         KeyMsg { shiftKey, keyCode } ->
-            (if shiftKey then 1 else 0, keyCode)
-                |> Bindings.get
-                |> Maybe.map (\x -> x model)
-                |> Maybe.withDefault (R.fail "key is not bound")
-                |> R.handle model
-                |> newSelection
+            case keyCode of
+                K.Z ->
+                    if shiftKey
+                    then Undo.redo model
+                          |> Return.map (\x -> { x | selected = Selection.empty})
+                          |> newSelection
+                    else Undo.undo model
+                          |> Return.map (\x -> { x | selected = Selection.empty})
+                          |> newSelection
+                _ ->
+                    (if shiftKey then 1 else 0, keyCode)
+                      |> Bindings.get
+                      |> Maybe.map (\x -> x model)
+                      |> Maybe.withDefault (R.fail "key is not bound")
+                      |> R.handle model
+                      |> newSelection
 
         RightClick path position ->
             if disableMouse then
-                singleton model
-
+                Return.singleton model
             else
                 Selection.perform model.selected
-                    (singleton <| ContextMenu.show position path model)
+                    (Return.singleton <| ContextMenu.show position path model)
                     (\sel ->
-                        if path == sel then
-                            Return.singleton model
-                                |> Return.map (Lens.modify selected (Selection.updateWith sel))
-                                   -- Rightclick on the only selection -> show context menu
-                                |> Return.map (ContextMenu.show position path)
-
-                        else
-                            Action.doMove sel path model |> R.handle model
+                         if path == sel
+                         then
+                             Return.singleton model
+                               |> Return.map (\x -> { x | selected = Selection.updateWith sel x.selected })
+                               -- Rightclick on the only selection -> show context menu
+                               |> Return.map (ContextMenu.show position path)
+                         else
+                             Action.doMove sel path model |> R.handle model
                     )
-                    (\_ _ -> singleton model)
+                    (\_ _ -> Return.singleton model)
 
         -- TODO: support moving multiple nodes
         RightClickRoot ->
             if disableMouse then
-                singleton model
-
+                Return.singleton model
             else
                 Selection.perform model.selected
-                    (singleton model)
+                    (Return.singleton model)
                     (\sel -> Action.doMoveToRoot sel model |> R.handle model)
-                    (\_ _ -> singleton model)
+                    (\_ _ -> Return.singleton model)
 
         Context contextMsg ->
             ContextMenu.update contextMsg model
 
-        LoadedData (Success ( trees, config, lemmata )) ->
-            Return.return
-                { model
-                    | webdata =
-                        Success
-                            { root = Tree.forestFromList <| Array.toList trees
-                            , config = config
-                            , viewFn = View.viewRootTree config
-                            , lemmata = lemmata
-                            }
-                }
-                (Ports.openFile model.fileName)
-
-        LoadedData x ->
-            Debug.log ("fetch error: " ++ Debug.toString x) <| singleton model
-
-        Save ->
-            Save.perform model
-
-        SaveFailure reason ->
-            Save.failure model reason
-
-        SaveSuccess ->
-            Save.success model
-
-        LogMessage m ->
-            singleton { model | lastMessage = m }
-
         CancelContext ->
-            singleton <| ContextMenu.hide model
+            Return.singleton <| ContextMenu.hide model
 
         Metadata submsg ->
             let
@@ -172,26 +147,29 @@ update msg model =
                 Return.return newmodel subcmd
 
         Label submsg ->
-            Return.singleton model
-                |> refracto Model.labelForm Msg.Label (LabelEdit.update submsg)
+            case model.labelForm of
+                Just lf ->
+                    let
+                        newForm : Return LabelEditType.Msg (Maybe LabelEditType.LabelForm)
+                        newForm = LabelEdit.update submsg lf |> Return.map Just
+                    in
+                        Return.mapBoth (Loaded << Label) (\x -> { model | labelForm = x }) newForm
+                Nothing -> Debug.log "received a Label msg when no label form was active" <| Return.singleton model
 
         LabelKey { keyCode } ->
             case keyCode of
                 K.Enter ->
                     R.handle model <| Action.finishLabelEdit model
                 K.Escape ->
-                    singleton { model | labelForm = Nothing }
+                    Return.singleton { model | labelForm = Nothing }
                 _ ->
-                    singleton model
+                    Return.singleton model
 
         Copy (Success text) ->
-            singleton { model | dialog = Just <| Dialog.Copy text }
+            Return.return model <| Cmd.Extra.perform <| SetDialog <| Just <| Dialog.Copy text
 
         Copy _ ->
-            singleton model
-
-        DismissDialog ->
-            singleton { model | dialog = Nothing }
+            Return.singleton model
 
         Validate ->
             Validate.perform model
@@ -201,52 +179,114 @@ update msg model =
 
         Undo ->
             Undo.undo model
-             |> Return.map (Lens.modify Model.selected (\_ -> Selection.empty))
 
 
         Redo ->
             Undo.redo model
+              |> Return.map (\x -> { x | selected = Selection.empty})
+              |> newSelection
 
-        Dirty isDirty ->
-            Return.return { model | dirty = isDirty } (Ports.dirty isDirty)
+update : Msg -> Model -> Return Msg Model
+update msg model =
+    case msg of
+        LoadedData (Success ( trees, config, lemmata )) ->
+            Return.return
+                { model
+                    | webdata =
+                        Success
+                            { root = Tree.forestFromList <| Array.toList trees
+                            , config = config
+                            , lemmata = lemmata
+                            , selected = Selection.empty
+                            , contextMenu = Nothing
+                            , metadataForm = Nothing
+                            , labelForm = Nothing
+                            , undo = []
+                            , redo = []
+                            , seed = model.seed
+                            }
+                }
+                (Ports.openFile model.fileName)
+
+        LoadedData x ->
+            Debug.log ("fetch error: " ++ Debug.toString x) <| Return.singleton model
+
+        LogMessage m ->
+            Return.singleton { model | lastMessage = m }
 
         Blur id ->
             Return.return model (Task.attempt (\_ -> Ignore) <| Browser.Dom.blur id)
 
+        Ignore ->
+            Return.singleton model
+
+        Loaded loadedMsg ->
+            case model.webdata of
+                Success forestModel ->
+                    let
+                        ret = updateForest loadedMsg forestModel
+                    in
+                        ret
+                          |> Return.map (\x -> { model |
+                                                 webdata = Success x
+                                               , seed = x.seed
+                                               })
+                _ -> Debug.log "got a LoadedMsg while no data was loaded" <| Return.singleton model
+
+        SetDialog d ->
+            Return.singleton { model | dialog = d }
+
+        Save ->
+            case model.webdata of
+                Success forestModel ->
+                    Save.perform model.fileName forestModel |>
+                      Return.map (always model) -- TODO: kinda ugly....
+                _ ->
+                    Debug.log "Got command to save when no data was loaded" <| Return.singleton model
+
+        SaveFailure reason ->
+            Save.failure model reason
+
+        SaveSuccess ->
+            Save.success model
+
+        Dirty isDirty ->
+            Return.return { model | dirty = isDirty } (Ports.dirty isDirty)
+
         Exit ->
             if model.dirty then
-                singleton { model | lastMessage = "Cannot exit with unsaved changes" }
-
+                Return.singleton { model | lastMessage = "Cannot exit with unsaved changes" }
             else
                 Return.return model
                     (Cmd.batch
-                        [ -- TODO Route.goTo Route.ListFiles
-                        -- ,
-                            Ports.saveScroll ()
-                        ]
+                         [ -- TODO Route.goTo Route.ListFiles
+                           -- ,
+                               Ports.saveScroll ()
+                         ]
                     )
 
-        Ignore ->
-            singleton model
 
 
 subscriptions : Model -> Sub Msg
 subscriptions m =
-    let
-        keySubMsg =
-            if editingMetadata m
-            then Metadata << MetadataType.Key
-            else
-                if m.labelForm == Nothing
-                then KeyMsg
-                else LabelKey
+    case m.webdata of
+        Success submodel ->
+            let
+                keySubMsg =
+                    if editingMetadata submodel
+                    then Msg.Loaded << Msg.Metadata << MetadataType.Key
+                    else
+                        if submodel.labelForm == Nothing
+                        then Msg.Loaded << Msg.KeyMsg
+                        else Msg.Loaded << Msg.LabelKey
 
-        keySub =
-            Browser.Events.onKeyUp (D.map keySubMsg decodeKeyboardEvent)
+                keySub =
+                    Browser.Events.onKeyUp (D.map keySubMsg decodeKeyboardEvent)
 
-        clickSub =
-            if m.contextMenu == Nothing
-            then Sub.none
-            else Browser.Events.onClick (D.succeed CancelContext)
-    in
-        Sub.batch [ keySub, clickSub ]
+                clickSub =
+                    if submodel.contextMenu == Nothing
+                    then Sub.none
+                    else Browser.Events.onClick (D.succeed <| Loaded <| CancelContext)
+            in
+                Sub.batch [ keySub, clickSub ]
+        _ -> Sub.none

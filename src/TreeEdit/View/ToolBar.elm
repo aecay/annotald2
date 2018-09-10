@@ -55,5 +55,5 @@ view filename =
             -- Undo, redo, exit
             ]
         , box "Tools"
-            [ button "Validate" Msg.Validate ]
+            [ button "Validate" (Msg.Loaded Msg.Validate) ]
         ]

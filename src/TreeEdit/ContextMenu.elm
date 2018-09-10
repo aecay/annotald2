@@ -11,6 +11,7 @@ import Html.Attributes as Attr
 import Json.Decode as D
 
 import Monocle.Lens as Lens
+import RemoteData exposing (RemoteData(..))
 import Return exposing (Return)
 
 import TreeEdit.Action as Action
@@ -28,12 +29,12 @@ import TreeEdit.Tree.View exposing (toPenn)
 import TreeEdit.View.Utils as ViewUtils exposing (onClick)
 
 
-show : Position -> Path -> ModelType.Model -> ModelType.Model
+show : Position -> Path -> ModelType.ForestModel -> ModelType.ForestModel
 show position path m =
     { m | contextMenu = Just { position = position, target = path } }
 
 
-hide : ModelType.Model -> ModelType.Model
+hide : ModelType.ForestModel -> ModelType.ForestModel
 hide m = { m | contextMenu = Nothing }
 
 
@@ -134,7 +135,7 @@ view1 config { position, target } label =
         ]
 
 
-view : ModelType.Model -> Html Msg
+view : ModelType.ForestModel -> Html Msg
 view parent =
     case parent.contextMenu of
         Nothing ->
@@ -146,12 +147,12 @@ view parent =
                     view1
 
                 label =
-                    .get Model.root parent |> Tree.get model.target |> .get Tree.label
+                    parent.root |> Tree.get model.target |> .get Tree.label
             in
-            view1 (Model.config parent) model label
+            view1 parent.config model label
 
 
-update : Msg -> ModelType.Model -> Return Msg.Msg ModelType.Model
+update : Msg -> ModelType.ForestModel -> Return Msg.Msg ModelType.ForestModel
 update msg model =
     case msg of
         LeafBefore path l ->
@@ -165,20 +166,19 @@ update msg model =
               |> Return.map hide
 
         SetLabel path newLabel ->
-            modify Model.root
-                (Lens.modify (Tree.path path) (.set Tree.label newLabel) >> R.succeed)
-                model
-                |> R.handle model
-                |> Return.map hide
+            { model | root = Lens.modify (Tree.path path) (.set Tree.label newLabel) model.root }
+              |> R.succeed
+              |> R.handle model
+              |> Return.map hide
 
         ToggleExtension path ext ->
-            Action.toggleDashTag ext path model |> R.handle model |> Return.map hide
+            Action.toggleDashTag ext path model
+              |> R.handle model
+              |> Return.map hide
 
-        Ignore ->
-            Return.singleton model
+        Ignore -> Return.singleton model
 
-        Hide ->
-            Return.singleton <| hide model
+        Hide -> Return.singleton <| hide model
 
         Show position path ->
             Return.singleton <| show position path model
@@ -186,9 +186,11 @@ update msg model =
 
 subscriptions : ModelType.Model -> Sub Msg
 subscriptions m =
-    case m.contextMenu of
-        Nothing ->
-            Sub.batch []
-
-        Just _ ->
-            Browser.Events.onClick (D.succeed Hide)
+    case m.webdata of
+        Success fm ->
+            case fm.contextMenu of
+                Nothing ->
+                    Sub.none
+                Just _ ->
+                    Browser.Events.onClick (D.succeed Hide)
+        _ -> Sub.none
