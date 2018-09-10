@@ -124,7 +124,7 @@ viewTree info selfPath tree =
     let
         childHtml =
             Tree.either
-                (\_ -> [ wnode info.WnodeClass tree ])
+                (\_ -> [ wnode info.wnodeClass tree ])
                 (\_ children ->
                     Array.indexedMap (\i c -> viewTree info (Path.childPath i selfPath) c) children
                         |> Array.toList
