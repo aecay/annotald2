@@ -165,33 +165,23 @@ viewRootTree config dataPack selfIndex tree =
 viewRoot : Model -> (Maybe ( List Path, Maybe LabelForm ) -> String -> Tree -> Html Msg) -> List ( String, Html Msg )
 viewRoot model vrt =
     let
-        root =
-            .get Model.root model
-
-        selectedTrees =
-            Selection.get model.selected
-
-        selectedRoots =
-            List.map Path.root selectedTrees
-
-        labelForm =
-            model.labelForm
-
+        root = .get Model.root model
+        selectedTrees = Selection.get model.selected
+        selectedRoots = List.map Path.root selectedTrees
+        labelForm = model.labelForm
         viewChild ( id, c ) =
             let
                 data =
-                    if List.member (Path.singleton id) selectedRoots then
-                        Just ( selectedTrees, labelForm )
-
-                    else
-                        Nothing
+                    if List.member (Path.singleton id) selectedRoots
+                    then Just ( selectedTrees, labelForm )
+                    else Nothing
             in
             ( id, lazy3 vrt data id c )
     in
     root
-        |> OD.toArray
-        |> Array.map viewChild
-        |> Array.toList
+      |> OD.toArray
+      |> Array.map viewChild
+      |> Array.toList
 
 
 wrapSn0 : List ( String, Html Msg ) -> Html Msg
