@@ -23,7 +23,6 @@ module TreeEdit.Utils exposing
 
 import Array exposing (Array)
 import Cmd.Extra
-import Debug
 import List
 import Monocle.Lens as Lens exposing (Lens)
 import Monocle.Optional as Optional exposing (Optional)

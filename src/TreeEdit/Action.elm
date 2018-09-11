@@ -25,7 +25,7 @@ import TreeEdit.Model as Model
 import TreeEdit.Model.Type exposing (ForestModel)
 import TreeEdit.Msg as Msg exposing (Msg(..))
 import TreeEdit.OrderedDict as OD
-import TreeEdit.Path as Path exposing (Path)
+import TreeEdit.Path as Path exposing (Path(..))
 import TreeEdit.Result as R exposing (Result(..))
 import TreeEdit.Selection as Selection
 import TreeEdit.Tree as Tree
@@ -246,11 +246,10 @@ doMoveToRoot : Path -> ForestModel -> Result
 doMoveToRoot src model =
     let
         forest = model.root
-        root = Path.root src
-        frag = Path.subtract root src |> Utils.fromJust
+        (Path id frag) = src
+        root = Path.singleton id
         first = Tree.allFirst root frag forest
         last = Tree.allLast root frag forest
-        ( id, _ ) = Path.decompose root
         index = OD.elemIndex id forest |> Utils.fromJust
         go i =
             let
@@ -299,29 +298,23 @@ doMove src dest model =
 createParent2 : String -> ForestModel -> Path -> Path -> Result
 createParent2 label model one two =
     let
-        parent1 =
-            Path.parent one
-
-        parent2 =
-            Path.parent two
+        (Path id1 frag1) = one
+        (Path id2 frag2) = two
     in
-    if parent1 /= parent2 then
+    if id1 /= id2 || List.tail frag1 /= List.tail frag2 then
         R.fail "parents are different for createParent2"
-
     else
-        case ( parent1, parent2 ) of
-            ( Nothing, Nothing ) ->
+        case ( frag1, frag2 ) of
+            ( [], [] ) ->
+                -- TODO
                 Debug.log "unimplemented" () |> always (R.succeed model)
 
-            -- TODO
-            ( Just p1, Just p2 ) ->
+            ( foot1_ :: rest1, foot2_ :: rest2 ) ->
                 let
-                    ( foot1, foot2 ) =
-                        Utils.sort2
-                            (Path.foot one |> Utils.fromJust)
-                            (Path.foot two |> Utils.fromJust)
+                    ( foot1, foot2 ) = Utils.sort2 foot1_ foot2_
+                    parentPath = (Path id1 rest1)
                 in
-                doAt p1
+                doAt parentPath
                     (Lens.modify Tree.children
                         (\c ->
                             let
@@ -336,11 +329,11 @@ createParent2 label model one two =
                                     z
                         )
                     )
-                    { model | selected = Selection.one <| Path.childPath foot1 p1 }
+                    { model | selected = Selection.one <| Path.childPath foot1 parentPath }
 
             _ ->
                 -- Guaranteed by parent1 /= parent2 check above
-                Debug.todo "impossible"
+                R.fail "impossible case in createParent2"
 
 
 createParent : String -> ForestModel -> Result
@@ -396,25 +389,20 @@ createLeaf_ : (Int -> Int) -> Tree -> ForestModel -> Path -> Result
 createLeaf_ fn leaf m path =
     let
         forest = m.root
-        parent = Path.parent path
+        (Path id frag) = path
     in
-        case parent of
-            Nothing ->
+        case frag of
+            [] ->
                 let
-                    ( id, _ ) = Path.decompose path
                     index = OD.elemIndex id forest |> Utils.fromJust
                 in
                     newRootTree (fn index) m leaf |> Tuple.first |> R.succeed
-            Just p ->
+            foot :: rest ->
                 let
-                    -- TODO: can eliminate this fromJust by replacing
-                    -- Path.parent above with destructuring on path:
-                    -- case path of (Path id []) -> ...; (Path id (foot ::
-                    -- rest)) -> let parent = Path id rest in ...
-                    foot = Path.foot path |> Utils.fromJust
+                    parent = Path id rest
                     update c = Utils.insert (fn foot) leaf c
                 in
-                    Lens.modify (Tree.path p |> and Tree.children) update forest
+                    Lens.modify (Tree.path parent |> and Tree.children) update forest
                       |> (\x -> {m | root = x})
                       |> R.succeed
 

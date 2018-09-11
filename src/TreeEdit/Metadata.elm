@@ -190,24 +190,13 @@ field model name =
         contents =
             Form.getFieldAsString name model.form
 
-        ({ editInfo } as infoPre) =
-            OD.get name fieldInfo |> fromJust
-
-        info =
-            if name == "lemma" then
-                { infoPre
-                    | editInfo =
-                        Maybe.map
-                            (\x ->
-                                ( lemmaSelect model
-                                , Tuple.second x
-                                )
-                            )
-                            editInfo
-                }
-
-            else
-                infoPre
+        info = OD.get name fieldInfo
+                 |> fromJust -- TODO: look this up and destructure it higher
+                             -- up the call chain, pass it as an argument here?
+                 |> (\x -> if name == "lemma"
+                           then { x | editInfo = Maybe.map (Tuple.mapFirst (lemmaSelect model)) x.editInfo}
+                           else x
+                    )
 
         editButton n =
             case info.editInfo of

@@ -203,18 +203,16 @@ calculateMovement from to =
     in
         case prefix of
             Nothing ->
-                let
-                    sFrom = root from
-                    sTo = root to
-                    tailFrom = subtract sFrom from |> fromJust
-                    tailTo = subtract sTo to |> fromJust
-                in
-                    { siblingFrom = sFrom
-                    , siblingTo = sTo
-                    , tailFrom = tailFrom
-                    , tailTo = tailTo
-                    , adjacency = checkAdjacent sFrom sTo
-                    }
+                case from of
+                    Path fromId fromPath ->
+                        case to of
+                            Path toId toPath ->
+                                { siblingFrom = Path fromId []
+                                , siblingTo = Path toId []
+                                , tailFrom = fromPath
+                                , tailTo = toPath
+                                , adjacency = No
+                                }
             Just pfx ->
                 let
                     (childFrom, tailFrom) = subtract pfx from |> Maybe.andThen behead |> fromJust
