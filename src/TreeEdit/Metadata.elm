@@ -194,7 +194,7 @@ field model name =
                  |> fromJust -- TODO: look this up and destructure it higher
                              -- up the call chain, pass it as an argument here?
                  |> (\x -> if name == "lemma"
-                           then { x | editInfo = Maybe.map (Tuple.mapFirst (lemmaSelect model)) x.editInfo}
+                           then { x | editInfo = Maybe.map (Tuple.mapFirst (always <| lemmaSelect model)) x.editInfo}
                            else x
                     )
 
