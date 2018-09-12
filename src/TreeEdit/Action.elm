@@ -238,7 +238,7 @@ newRootTree index model tree =
     let
         ( newModel, newId ) = Model.freshUuid model
         newTree = tree |> Lens.modify Tree.metadata (Dict.update "ID" (\_ -> Just newId))
-        newModel2 = { model | root = (OD.insertAt index newId newTree newModel.root) }
+        newModel2 = { newModel | root = (OD.insertAt index newId newTree newModel.root) }
     in
         (newModel2, Path.singleton newId)
 
