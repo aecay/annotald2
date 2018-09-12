@@ -233,7 +233,10 @@ set : Path -> Tree -> Forest -> Forest
 set p newChild trees =
     let
         ( id, cs ) = Path.decompose p
-        nc = innerSet cs newChild <| fromJust <| OD.get id trees
+        nc = OD.get id trees
+           |> fromJust
+           |> innerSet cs newChild
+           |> Lens.modify metadata (Dict.update "ID" (always <| Just id))
     in
     OD.update id (\_ -> Just nc) trees
 
