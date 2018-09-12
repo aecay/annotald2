@@ -424,8 +424,7 @@ moveTo from to trees =
 performMove : Path -> Path -> Forest -> Forest
 performMove from to trees =
     let
-        moved =
-            get from trees
+        moved = get from trees
     in
     deleteAt from trees
         |> insertAt to moved
