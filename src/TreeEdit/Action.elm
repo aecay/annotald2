@@ -450,52 +450,72 @@ deleteNode model =
     case Selection.getOne model.selected of
         Nothing -> R.fail "nothing selected"
         Just sel ->
-            case Path.parent sel of
-                Nothing ->
-                    let
-                        forest = model.root
-                        tree = Tree.get sel forest
-                        -- TODO: eliminate this use of fromJust by making a
-                        -- RootTree type that obligatorily has an ID
-                        id = tree |> .get Tree.metadata |> Dict.get "ID" |> fromJust
-                        idx = indexOf id <| OD.keys forest
-                        children = tree |> .get Tree.children
-                        add : Tree -> ForestModel -> ForestModel
-                        add t m = newRootTree idx m t |> Tuple.first
-                        newForest = OD.remove id forest
-                    in
-                        { model | root = newForest }
-                          |> (\x -> Array.foldr add x children)
-                          |> clearSelection
-                Just parent ->
-                    let
-                        forest = model.root
-                        n = Tree.get sel forest
-                        children = .get Tree.children n
-                    in
-                    case children |> Array.length of
-                        0 ->
-                            let
-                                isEmpty = Tree.isEmpty n
+            let
+                forest = model.root
+                n = Tree.get sel forest
+                children = .get Tree.children n
+            in
+                case children |> Array.length of
+                    0 ->
+                        -- Deleting a terminal
+                        let
+                            isEmpty = Tree.isEmpty n
 
-                                hasSiblings =
-                                    parent
-                                      |> (\a -> Tree.get a forest)
-                                      |> .get Tree.children
-                                      |> (\x -> Array.length x >= 1)
-                            in
+                            hasSiblings =
+                                case sel of
+                                    Path id [] ->
+                                        -- In principle there could be a file
+                                        -- that consists solely of a single
+                                        -- root-level terminal node, but that
+                                        -- would be pretty weird so we don't
+                                        -- handle that case
+                                        True
+                                    Path id (_ :: rest) ->
+                                        Path id rest
+                                          |> (\a -> Tree.get a forest)
+                                          |> .get Tree.children
+                                          |> (\x -> Array.length x >= 1)
+                        in
                             if not isEmpty then
                                 R.fail "Cannot delete a non-empty terminal"
                             else if not hasSiblings then
                                 R.fail "Cannot delete an only child"
                             else
-                                {model | root = Tree.deleteAt sel forest }
+                                { model | root = Tree.deleteAt sel forest }
                                   |> clearSelection
-                        _ ->
-                            Tree.deleteAt sel forest
-                              |> Tree.insertManyAt sel children
-                              |> (\x -> { model | root = x })
-                              |> clearSelection
+                    _ ->
+                        case sel of
+                            Path id [] ->
+                                -- Deleting a root-level nonterminal
+                                case Array.length children of
+                                    1 ->
+                                        -- Special case: preserve the ID
+                                        -- of the sole daughter tree
+                                        let
+                                            child = Array.get 0 children
+                                              |> fromJust
+                                              |> Lens.modify Tree.metadata (Dict.update "ID" (always <| Just id))
+                                        in
+                                            { model |
+                                              root = Tree.set sel child model.root
+                                            } |> clearSelection
+                                    _ ->
+                                        let
+                                            idx = indexOf id <| OD.keys forest
+                                            add : Tree -> ForestModel -> ForestModel
+                                            add t m = newRootTree idx m t |> Tuple.first
+                                            newForest = OD.remove id forest
+                                        in
+                                            { model | root = newForest }
+                                              |> (\x -> Array.foldr add x children)
+                                              |> clearSelection
+                            Path id _ ->
+                                -- Deleting a non-root nonterminal
+                                Tree.deleteAt sel forest
+                                  |> Tree.insertManyAt sel children
+                                  |> (\x -> { model | root = x })
+                                  |> clearSelection
+
 
 editLabel : ForestModel -> Result
 editLabel model =
