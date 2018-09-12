@@ -22,7 +22,7 @@
       var node = document.getElementById('main');
       var app = Elm.Main.init({
           flags : {
-              randomness : Math.floor(Math.random() * 2^32)
+              randomness : Math.floor(Math.random() * Math.pow(2, 32))
           }
       });
       // We need to hack around the fact that it isnʼt easy to preventDefault
