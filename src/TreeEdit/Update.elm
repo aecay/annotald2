@@ -154,7 +154,9 @@ updateForest msg model =
                         newForm = LabelEdit.update submsg lf |> Return.map Just
                     in
                         Return.mapBoth (Loaded << Label) (\x -> { model | labelForm = x }) newForm
-                Nothing -> Debug.log "received a Label msg when no label form was active" <| Return.singleton model
+                Nothing ->
+                    Debug.log "received a Label msg when no label form was active" submsg |>
+                    (always <| Return.singleton model)
 
         LabelKey { keyCode } ->
             case keyCode of
