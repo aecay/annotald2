@@ -67,10 +67,9 @@ get k (OD d l) =
 insertAt : Int -> comparable -> val -> OrderedDict comparable val -> OrderedDict comparable val
 insertAt idx key val (OD d l) =
     if Dict.member key d then
-        OD d l
+        Debug.log "duplicate key" key |> (always <| OD d l)
         -- TODO: seems like an error...or should we move it to this
         -- index?
-
     else
         OD (Dict.insert key val d) (Utils.insert idx key l)
 
