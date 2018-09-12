@@ -50,14 +50,10 @@ finish form =
     case Form.getOutput form of
         Just newlabel ->
             let
-                l =
-                    String.toUpper newlabel
+                l = String.toUpper newlabel
             in
             if String.any Tree.illegalLabelChar l then
                 R.fail "Illegal characters in label"
-
             else
                 R.succeed l
-
-        _ ->
-            R.fail "no label form"
+        _ -> R.fail "no label form"
