@@ -393,8 +393,18 @@ moveTo from to trees =
             Path.Right ->
                 if allFirst siblingTo tailTo trees && allLast siblingFrom tailFrom trees then
                     let
+                        -- Since we delete before we insert, we need to adjust
+                        -- the path where we are going to insert the moved
+                        -- node under certain circumstances.  These are:
+                        -- 1) if we are moving to the right (for leftward
+                        -- movt, the deletion at the source position will not
+                        -- affect the path validity)
+                        -- 2) If we are moving a node into its own sibling
+                        -- (the first part of the conditional test below)
+                        -- 3) The siblings are within the same root-level
+                        -- sentence (the second part of the conditional)
                         adjPath1 =
-                            case Path.isFragEmpty tailFrom of
+                            case Path.isFragEmpty tailFrom && Path.getId siblingTo == Path.getId siblingFrom of
                                 True ->
                                     Path.join siblingFrom tailTo
                                 False ->
