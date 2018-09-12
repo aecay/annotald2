@@ -51,7 +51,7 @@ pageInit rte seed =
 init : Flags -> Url -> Key -> Return Msg Model
 init { randomness } url key =
     let
-        seed = Random.initialSeed randomness
+        seed = Random.initialSeed <| Debug.log "randomness" randomness
         rte = Route.fromUrl url
         ( page, cmd ) = pageInit rte seed
     in
