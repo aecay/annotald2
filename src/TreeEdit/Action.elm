@@ -7,6 +7,7 @@ module TreeEdit.Action exposing
     , createLeafBefore -- For ContextMenu
     , createLeafAfter  -- diito
     , toggleDashTag    -- ditto
+    , move2
     )
 
 import Array exposing (Array)
@@ -526,3 +527,22 @@ toggleDashTag tag path model =
     valuePre
       |> R.succeed
       |> R.andThen (\x -> doAt path (setLabel x) model)
+
+move2 : Path -> Path -> Path -> ForestModel -> Result
+move2 dest first second model =
+    let
+        (Path id1 frag1) = first
+        (Path id2 frag2) = second
+    in
+        if id1 /= id2 then
+            R.fail "unimplemented"
+        else
+            if List.tail frag1 /= List.tail frag2 then
+                R.fail "can't move multiple nodes that are daughters of different parents"
+            else
+                createParent2 "XP" model first second
+                    -- TODO: this is a sort of hacky way of not having to
+                    -- implement path sorting code to decide which of first or
+                    -- second to pass as the argument to doMove...
+                  |> R.andThen (\x -> Selection.withOne x.selected (\y -> doMove y dest x) (R.succeed x))
+                  |> R.andThen deleteNode

@@ -122,7 +122,7 @@ updateForest msg model =
                          else
                              Action.doMove sel path model |> R.handle model
                     )
-                    (\_ _ -> Return.singleton model)
+                    (\a b -> Action.move2 path a b model |> R.handle model)
 
         -- TODO: support moving multiple nodes
         RightClickRoot ->
