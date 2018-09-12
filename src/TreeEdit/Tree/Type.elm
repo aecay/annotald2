@@ -13,8 +13,9 @@ module TreeEdit.Tree.Type exposing
     , info
     , label
     , metadata
-    , private
+    --, private
     , root
+    , either
     )
 
 import Array exposing (Array)
@@ -90,35 +91,47 @@ type alias Forest =
 
 
 constants :
-    { comment : Tree
-    , con : Tree
+    { emptyComment : Tree
+    , con : MaybeIndex -> Tree
+    , pro : MaybeIndex -> Tree
+    , exp : MaybeIndex -> Tree
+    , star : MaybeIndex -> Tree
+    , zero : MaybeIndex -> Tree
+    , ordinary : String -> MaybeIndex -> Tree
+    , wh :  AlwaysIndex -> Tree
+    , extraposition : AlwaysIndex -> Tree
+    , clitic :  AlwaysIndex -> Tree
+    , nonterminal : Array Tree -> MaybeIndex -> Tree
+    , comment : String -> Tree
+    , conSubj : Tree
+    , proSubj : Tree
     , czero : Tree
-    , pro : Tree
     , vb : Tree
     }
 constants =
-    { pro =
-        TerminalOuter <|
-            EmptyCat Pro
-                { label = "NP-SBJ"
-                , metadata = Dict.empty
-                , index = Nothing
-                }
-    , con =
-        TerminalOuter <|
-            EmptyCat Con
-                { label = "NP-SBJ"
-                , metadata = Dict.empty
-                , index = Nothing
-                }
-    , czero =
-        TerminalOuter <|
-            EmptyCat Zero
-                { label = "C"
-                , metadata = Dict.empty
-                , index = Nothing
-                }
-    , comment = TerminalOuter <| Comment "XXX"
+    let
+        pro = TerminalOuter << EmptyCat Pro
+        con = TerminalOuter << EmptyCat Con
+        zero = TerminalOuter << EmptyCat Zero
+    in
+    { pro = pro
+    , proSubj = pro { label = "NP-SBJ"
+                    , metadata = Dict.empty
+                    , index = Nothing
+                    }
+    , con = con
+    , conSubj = con { label = "NP-SBJ"
+                    , metadata = Dict.empty
+                    , index = Nothing
+                    }
+    , exp = TerminalOuter << EmptyCat Exp
+    , star = TerminalOuter << EmptyCat Star
+    , zero = zero
+    , czero = zero { label = "C"
+                   , metadata = Dict.empty
+                   , index = Nothing
+                   }
+    , emptyComment = TerminalOuter <| Comment "XXX"
     , vb =
         TerminalOuter <|
             EmptyCat Star
@@ -126,6 +139,12 @@ constants =
                 , metadata = Dict.empty
                 , index = Nothing
                 }
+    , wh = TerminalOuter << Trace Wh
+    , extraposition = TerminalOuter << Trace Extraposition
+    , clitic = TerminalOuter << Trace Clitic
+    , ordinary = \x y -> TerminalOuter <| Ordinary x y
+    , nonterminal = Nonterminal
+    , comment = TerminalOuter << Comment
     }
 
 
@@ -163,7 +182,6 @@ private =
     , ta = ta
     , l = l
     , makeTrace = trace
-    , either = either
     }
 
 

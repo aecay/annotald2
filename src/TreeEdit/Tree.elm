@@ -103,8 +103,7 @@ info =
 
 
 either : (Terminal -> a) -> (TreeInfo -> Array Tree -> a) -> Tree -> a
-either =
-    .either Type.private
+either = Type.either
 
 
 hasTerminalLabel : Tree -> Bool
@@ -446,16 +445,16 @@ makeTrace x i =
 
         ( newLabel, traceType ) =
             if String.startsWith "W" lbl then
-                ( String.dropLeft 1 lbl, private.wh )
+                ( String.dropLeft 1 lbl, constants.wh )
 
             else if hasDashTag "CL" lbl then
-                ( lbl, private.clitic )
+                ( lbl, constants.clitic )
                 -- TODO: drop the CL dashtag
 
             else
-                ( lbl, private.extraposition )
+                ( lbl, constants.extraposition )
     in
-    private.makeTrace traceType newLabel i
+    traceType { label = newLabel, index = i, metadata = Dict.empty }
 
 
 legalLabelChar : Char -> Bool

@@ -30,7 +30,7 @@ import TreeEdit.Path as Path exposing (Path(..))
 import TreeEdit.Result as R exposing (Result(..))
 import TreeEdit.Selection as Selection
 import TreeEdit.Tree as Tree
-import TreeEdit.Tree.Type as TreeType exposing (Forest, Tree)
+import TreeEdit.Tree.Type as TreeType exposing (Forest, Tree, constants)
 import TreeEdit.Utils as Utils exposing (maybeAndThen2, o, and, andO, fromJust, indexOf)
 import TreeEdit.View.LabelEdit as LabelEdit
 
@@ -325,7 +325,11 @@ createParent2 label model one two =
                             Array.append x <|
                                 Array.append
                                     (Array.repeat 1
-                                        (.ta TreeType.private label y)
+                                        (constants.nonterminal y { label = label
+                                                                 , metadata = Dict.empty
+                                                                 , index = Nothing
+                                                                 }
+                                        )
                                     )
                                     z
                         )

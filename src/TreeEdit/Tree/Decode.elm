@@ -60,61 +60,60 @@ extractIndex metadata =
 
 mungeLeaf : LeafDecoded -> Tree
 mungeLeaf (LeafDecoded label text metadata1) =
-    private.terminalouter <|
-        case label of
-            "CODE" ->
-                private.comment text
+    case label of
+        "CODE" ->
+            constants.comment text
 
-            _ ->
-                let
-                    ( metadata, i ) =
-                        extractIndex metadata1
+        _ ->
+            let
+                ( metadata, i ) =
+                    extractIndex metadata1
 
-                    traceindex : Int
-                    traceindex =
-                        i |> Maybe.map (.get Index.number) |> Maybe.withDefault 1
+                traceindex : Int
+                traceindex =
+                    i |> Maybe.map (.get Index.number) |> Maybe.withDefault 1
 
-                    info =
-                        { label = label
-                        , metadata = metadata
-                        , index = i
-                        }
+                info =
+                    { label = label
+                    , metadata = metadata
+                    , index = i
+                    }
 
-                    traceinfo =
-                        { label = label
-                        , metadata = metadata
-                        , index = traceindex
-                        }
-                in
-                case text of
-                    "*pro*" ->
-                        private.emptycat private.pro info
+                traceinfo =
+                    { label = label
+                    , metadata = metadata
+                    , index = traceindex
+                    }
+            in
+            case text of
+                "*pro*" ->
+                    constants.pro info
 
-                    "*con*" ->
-                        private.emptycat private.con info
+                "*con*" ->
+                    constants.con info
 
-                    "*exp*" ->
-                        private.emptycat private.exp info
+                "*exp*" ->
+                    constants.exp info
 
-                    "*" ->
-                        private.emptycat private.star info
+                "*" ->
+                    constants.star info
 
-                    -- TODO: causes problems if we have legitimately the
-                    -- text "0" in a document
-                    "0" ->
-                        private.emptycat private.zero info
+                -- TODO: causes problems if we have legitimately the
+                -- text "0" in a document
+                "0" ->
+                    constants.zero info
 
-                    "*T*" ->
-                        private.trace private.wh traceinfo
+                "*T*" ->
+                    constants.wh traceinfo
 
-                    "*ICH*" ->
-                        private.trace private.extraposition traceinfo
+                "*ICH*" ->
+                    constants.extraposition traceinfo
 
-                    "*CL*" ->
-                        private.trace private.clitic traceinfo
+                "*CL*" ->
+                    constants.clitic traceinfo
 
-                    _ ->
-                        private.ordinary text info
+                _ ->
+                    constants.ordinary text info
 
 
 type NTDecoded
@@ -142,7 +141,7 @@ mungeNT (NTDecoded label children metadata1) =
             , index = i
             }
     in
-    private.nonterminal children info
+    constants.nonterminal children info
 
 
 decodeTree : Decoder Tree

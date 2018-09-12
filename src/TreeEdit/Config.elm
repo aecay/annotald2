@@ -2,7 +2,7 @@ module TreeEdit.Config exposing (Config, decode)
 
 import Dict
 import Json.Decode as D
-import TreeEdit.Tree.Type exposing (Tree, private)
+import TreeEdit.Tree.Type exposing (Tree, constants)
 
 
 type alias Insertable =
@@ -25,27 +25,26 @@ tree =
                 in
                 case typ of
                     "terminal" ->
-                        D.succeed <| private.ordinary text info
+                        D.succeed <| constants.ordinary text info
 
                     "comment" ->
-                        D.succeed <| private.comment text
+                        D.succeed <| constants.comment text
 
                     "empty-category" ->
                         let
                             ectype =
                                 case text of
-                                    "pro" -> D.succeed private.pro
-                                    "con" -> D.succeed private.con
-                                    "zero" -> D.succeed private.zero
-                                    "exp" -> D.succeed private.exp
+                                    "pro" -> D.succeed constants.pro
+                                    "con" -> D.succeed constants.con
+                                    "zero" -> D.succeed constants.zero
+                                    "exp" -> D.succeed constants.exp
                                     _ -> D.fail <| "Unknown ec type" ++ text
                         in
-                            ectype |> D.map (\a -> private.emptycat a info)
+                            ectype |> D.map (\a -> a info)
 
                     _ ->
                         D.fail <| "Unknown node type " ++ typ
             )
-        |> D.map private.terminalouter
 
 
 insertable : D.Decoder Insertable

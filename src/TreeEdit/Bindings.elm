@@ -32,7 +32,7 @@ bindings =
         , ( ( 0, K.X        ), actions.createParent "XP" )
         , ( ( 0, K.C        ), actions.coIndex )
         , ( ( 0, K.V        ), actions.changeLabel [ "IP-INF", "RRC", "IP-PPL", "IP-SMC" ] )
-        , ( ( 0, K.B        ), actions.leafBefore constants.con )
+        , ( ( 0, K.B        ), actions.leafBefore constants.conSubj )
         , ( ( 0, K.L        ), actions.editLabel )
         , ( ( 1, K.C        ), Clipboard.copy )
         ]
