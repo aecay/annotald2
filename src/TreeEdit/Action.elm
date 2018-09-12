@@ -28,7 +28,7 @@ import TreeEdit.Msg as Msg exposing (Msg(..))
 import TreeEdit.OrderedDict as OD
 import TreeEdit.Path as Path exposing (Path(..))
 import TreeEdit.Result as R exposing (Result(..))
-import TreeEdit.Selection as Selection
+import TreeEdit.Selection as Selection exposing (Selection(..))
 import TreeEdit.Tree as Tree
 import TreeEdit.Tree.Type as TreeType exposing (Forest, Tree, constants)
 import TreeEdit.Utils as Utils exposing (maybeAndThen2, o, and, andO, fromJust, indexOf)
@@ -343,12 +343,23 @@ createParent2 label model one two =
 
 createParent : String -> ForestModel -> Result
 createParent label model =
-    let
-        one : Path -> Result
-        one path =
-            doAt path (\x -> .ta TreeType.private label <| Array.repeat 1 x) model
-    in
-    Selection.perform model.selected (R.fail "nothing selected") one (createParent2 label model)
+    case model.selected of
+        None -> R.fail "nothing selected"
+        One (Path id cs) ->
+            let
+                tree_ = Tree.get (Path id cs) model.root
+                tree = if cs == []
+                       then Lens.modify Tree.metadata (Dict.update "ID" (always Nothing)) tree_
+                       else tree_
+                newTree = constants.nonterminal (Array.repeat 1 tree) { label = label
+                                                                      , metadata = Dict.empty
+                                                                      , index = Nothing
+                                                                      }
+            in
+                Tree.set (Path id cs) newTree model.root
+                  |> (\x -> { model | root = x})
+                  |> R.succeed
+        Two x y -> createParent2 label model x y
 
 
 doMovement : (Tree -> ForestModel -> Path -> Result) -> ForestModel -> Path -> Path -> Result
