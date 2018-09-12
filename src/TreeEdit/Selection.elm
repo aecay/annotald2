@@ -1,5 +1,5 @@
 module TreeEdit.Selection exposing
-    ( Selection
+    ( Selection(..)
     , empty
     , first
     , get
