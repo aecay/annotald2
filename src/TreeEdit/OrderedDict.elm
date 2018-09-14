@@ -15,7 +15,8 @@ module TreeEdit.OrderedDict exposing
 
 import Array exposing (Array)
 import Dict exposing (Dict)
-import TreeEdit.Utils as Utils exposing (fromJust)
+import Maybe.Extra as MX
+import TreeEdit.Utils as Utils
 import Tuple
 
 
@@ -60,8 +61,7 @@ update k fn (OD d l) =
 
 
 get : comparable -> OrderedDict comparable val -> Maybe val
-get k (OD d l) =
-    Dict.get k d
+get k (OD d l) = Dict.get k d
 
 
 insertAt : Int -> comparable -> val -> OrderedDict comparable val -> OrderedDict comparable val
@@ -74,18 +74,30 @@ insertAt idx key val (OD d l) =
         OD (Dict.insert key val d) (Utils.insert idx key l)
 
 
+valuesHelper : Maybe a -> Array a -> Array a
+valuesHelper v a =
+    case v of
+        Nothing -> a
+        Just vv -> Array.push vv a
+
 values : OrderedDict comparable val -> Array val
 values (OD d l) =
-    l |> Array.map (\x -> Dict.get x d |> fromJust)
+    l |> Array.map (\x -> Dict.get x d) |> Array.foldl valuesHelper Array.empty
 
 
 keys : OrderedDict comparable val -> Array comparable
 keys (OD _ l) = l
 
 
+toArrayHelper : (comparable, Maybe val) -> Array (comparable, val) -> Array (comparable, val)
+toArrayHelper (id, v) a =
+    case v of
+        Nothing -> a
+        Just vv -> Array.push (id, vv) a
+
+
 toArray : OrderedDict comparable val -> Array ( comparable, val )
-toArray (OD d l) =
-    Array.map (\x -> (x, Dict.get x d |> fromJust)) l
+toArray (OD d l) = l |> Array.map (\x -> (x, Dict.get x d)) |> Array.foldl toArrayHelper Array.empty
 
 
 toList : OrderedDict comparable val -> List ( comparable, val )

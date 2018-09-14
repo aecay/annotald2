@@ -35,7 +35,7 @@ import TreeEdit.Result as R
 import TreeEdit.Selection as Selection exposing (Selection)
 import TreeEdit.Tree as Tree
 import TreeEdit.Tree.Type exposing (Tree)
-import TreeEdit.Utils exposing (fromJust, message)
+import TreeEdit.Utils exposing (message)
 import TreeEdit.View.Theme exposing (theme)
 
 
@@ -181,18 +181,13 @@ validation =
     List.foldl do ini <| Array.toList <| OD.keys fieldInfo
 
 
-field : Model -> String -> Html Msg
-field model name =
+field : Model -> String -> FieldInfo -> Html Msg
+field model name info_ =
     let
-        state =
-            Dict.get name model.fieldStates |> Maybe.withDefault Hidden
+        state = Dict.get name model.fieldStates |> Maybe.withDefault Hidden
+        contents = Form.getFieldAsString name model.form
 
-        contents =
-            Form.getFieldAsString name model.form
-
-        info = OD.get name fieldInfo
-                 |> fromJust -- TODO: look this up and destructure it higher
-                             -- up the call chain, pass it as an argument here?
+        info = info_
                  |> (\x -> if name == "lemma"
                            then { x | editInfo = Maybe.map (Tuple.mapFirst (always <| lemmaSelect model)) x.editInfo}
                            else x
@@ -245,11 +240,10 @@ field model name =
 formView : Model -> Html Msg
 formView ({ lemmata, form, fieldStates } as model) =
     let
-        f name =
-            div [ id ("formField-" ++ name) ] [ field model name ]
+        f (name, info) =
+            div [ id ("formField-" ++ name) ] [ field model name info ]
 
-        fields =
-            OD.keys fieldInfo |> Array.toList |> List.map f
+        fields = fieldInfo |> OD.toList |> List.map f
     in
     div [ id "metadataForm" ] <|
         fields
@@ -267,8 +261,7 @@ formView ({ lemmata, form, fieldStates } as model) =
 init : List Lemma -> Metadata -> Tree -> Model
 init lemmata metadata node =
     let
-        fieldNames =
-            OD.keys fieldInfo |> Array.toList
+        fieldNames = OD.keys fieldInfo |> Array.toList
     in
     { form =
         fieldNames
@@ -280,19 +273,14 @@ init lemmata metadata node =
             |> MX.values
             |> (\a -> Form.initial a validation)
     , fieldStates =
-        fieldNames
-            |> List.map
-                (\name ->
-                    let
-                        predicate =
-                            OD.get name fieldInfo |> fromJust |> .predicate
-                    in
+        fieldInfo
+          |> OD.toList
+          |> List.map
+                (\(name, info) ->
                     ( name
-                    , if predicate node then
-                        Visible False
-
-                      else
-                        Hidden
+                    , if info.predicate node
+                      then Visible False
+                      else Hidden
                     )
                 )
             |> Dict.fromList
