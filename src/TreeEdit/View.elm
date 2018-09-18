@@ -7,10 +7,11 @@ module TreeEdit.View exposing ( view
 import Array
 import Dict
 import Html exposing (..)
-import Html.Attributes as Attr
+import Html.Attributes as Attr exposing (style, src)
 import Html.Events as Ev
 import Html.Keyed as Keyed
 import Html.Lazy exposing (lazy4)
+import Http exposing (Error(..))
 import Json.Decode as Json
 import RemoteData exposing (RemoteData(..))
 import TreeEdit.Config exposing (Config)
@@ -206,18 +207,39 @@ wrapSn0 nodes =
 view : Model -> Html Msg
 view model =
     let
-        loading =
-            div [] [ text "loading" ]
+        container h = div [style "position" "fixed"
+                          , style "top" "25%"
+                          , style "left" "25%"
+                          , style "width" "50%"
+                          , style "height" "50%"
+                          ]
+                      h
     in
     case model.webdata of
-        NotAsked ->
-            loading
+        NotAsked -> container [ img [ src "/static/loading.svg" ] []
+                              , p [] [text "Waiting to issue web request"]
+                              ]
 
-        Loading ->
-            loading
+        Loading -> container [ img [ src "/static/loading.svg" ] []
+                             , p [] [text <| "Loading file " ++ model.fileName]
+                             ]
 
         Failure e ->
-            div [] [ text <| "error " ++ Debug.toString e ]
+            let
+                errorStr =
+                    case e of
+                        BadUrl s -> "Bad url: " ++ s
+                        Timeout -> "Timeout"
+                        NetworkError -> "Network error"
+                        BadStatus { status, body } -> "HTTP error code " ++
+                                                      String.fromInt status.code ++
+                                                      "; body was " ++ body
+                        BadPayload s { body } ->
+                            "Payload error: " ++ s ++ "; body was " ++ body
+            in
+            container [ p [] [ text <| "Error loading file " ++ model.fileName]
+                      , p [] [ text errorStr]
+                      ]
 
         Success submodel ->
             div []

@@ -191,27 +191,29 @@ updateForest msg model =
 update : Msg -> Model -> Return Msg Model
 update msg model =
     case msg of
-        LoadedData (Success ( trees, config, lemmata )) ->
-            Return.return
-                { model
-                    | webdata =
-                        Success
-                            { root = Tree.forestFromList <| Array.toList trees
-                            , config = config
-                            , lemmata = lemmata
-                            , selected = Selection.empty
-                            , contextMenu = Nothing
-                            , metadataForm = Nothing
-                            , labelForm = Nothing
-                            , undo = []
-                            , redo = []
-                            , seed = model.seed
-                            }
-                }
-                (Ports.openFile model.fileName)
-
         LoadedData x ->
-            Debug.log ("fetch error: " ++ Debug.toString x) <| Return.singleton model
+            case x of
+                NotAsked -> Return.singleton { model | webdata = NotAsked }
+                Loading -> Return.singleton { model | webdata = Loading }
+                Failure e -> Return.singleton { model | webdata = Failure e }
+                Success ( trees, config, lemmata ) ->
+                    Return.return
+                        { model
+                            | webdata =
+                                Success
+                                    { root = Tree.forestFromList <| Array.toList trees
+                                    , config = config
+                                    , lemmata = lemmata
+                                    , selected = Selection.empty
+                                    , contextMenu = Nothing
+                                    , metadataForm = Nothing
+                                    , labelForm = Nothing
+                                    , undo = []
+                                    , redo = []
+                                    , seed = model.seed
+                                    }
+                        }
+                        (Ports.openFile model.fileName)
 
         LogMessage m ->
             Return.singleton { model | lastMessage = m }
