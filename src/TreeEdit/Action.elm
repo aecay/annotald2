@@ -49,6 +49,7 @@ actions :
     , editLabel : Action
     , leafAfter : Tree -> Action
     , leafBefore : Tree -> Action
+    , toggleW : Action
     }
 actions =
     { clearSelection = clearSelection
@@ -59,6 +60,7 @@ actions =
     , createParent = createParent
     , leafBefore = leafBefore
     , deleteNode = deleteNode
+    , toggleW = toggleW
     }
 
 
@@ -581,3 +583,20 @@ move2 dest first second model =
                     -- second to pass as the argument to doMove...
                   |> R.andThen (\x -> Selection.withOne x.selected (\y -> doMove y dest x) (R.succeed x))
                   |> R.andThen deleteNode
+
+toggleWInner : Tree -> Tree
+toggleWInner tree =
+    let
+        label = .get Tree.label tree
+        newLabel = if String.startsWith "W" label
+                   then String.dropLeft 1 label
+                   else "W" ++ label
+    in
+        .set Tree.label newLabel tree
+
+toggleW : ForestModel -> Result
+toggleW model =
+    Selection.perform model.selected
+        (R.fail "nothing selected")
+        (\path -> doAt path toggleWInner model)
+        (\_ _ -> R.fail "two things selected")

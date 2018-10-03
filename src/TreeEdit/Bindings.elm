@@ -18,6 +18,7 @@ get binding =
 bindings : List ( ( Int, K.Key ), Action.Action )
 bindings =
         [ ( ( 0, K.Two      ), actions.changeLabel [ "NP", "NP-POS", "NP-VOC" ] )
+        , ( ( 0, K.Three    ), actions.toggleW )
         , ( ( 0, K.Spacebar ), actions.clearSelection )
         , ( ( 0, K.Q        ), actions.changeLabel [ "CONJP" ] )
         , ( ( 0, K.W        ), actions.changeLabel [ "NP-SBJ", "NP-OB1", "NP-OB2", "NP-PRD" ] )
