@@ -1,6 +1,6 @@
 module Page.TreeEdit exposing (Model, Msg, init, subscriptions, update, view)
 
-import Html
+import Html exposing (Html)
 import Json.Decode as D
 import Random exposing (Seed)
 import Task
@@ -12,26 +12,23 @@ import Return
 import TreeEdit.Config as Config
 import TreeEdit.Model
 import TreeEdit.Model.Type
-import TreeEdit.Msg as Msg
+import TreeEdit.Msg
 import TreeEdit.Tree.Decode exposing (decodeTrees)
 import TreeEdit.Update
 import TreeEdit.View
 
 
-type alias Msg =
-    Msg.Msg
+type alias Msg = TreeEdit.Msg.Msg
 
 
-type alias Model =
-    TreeEdit.Model.Type.Model
+type alias Model = TreeEdit.Model.Type.Model
 
 
-view : TreeEdit.Model.Type.Model -> Html.Html Msg.Msg
-view =
-    TreeEdit.View.view
+view : Model -> Html Msg
+view = TreeEdit.View.view
 
 
-init : String -> Seed -> ( TreeEdit.Model.Type.Model, Cmd Msg )
+init : String -> Seed -> ( Model, Cmd Msg )
 init filename seed =
     let
         treesTask =
@@ -55,17 +52,12 @@ init filename seed =
         jointTask =
             Task.map3 combine treesTask configTask lemmataTask
     in
-    ( TreeEdit.Model.init filename seed, Task.perform Msg.LoadedData jointTask )
+    ( TreeEdit.Model.init filename seed, Task.perform TreeEdit.Msg.LoadedData jointTask )
 
 
-update :
-    Msg.Msg
-    -> TreeEdit.Model.Type.Model
-    -> Return.Return Msg.Msg TreeEdit.Model.Type.Model
-update =
-    TreeEdit.Update.update
+update : (String -> Cmd Msg) -> Msg -> Model -> Return.Return Msg Model
+update = TreeEdit.Update.update
 
 
-subscriptions : TreeEdit.Model.Type.Model -> Sub Msg.Msg
-subscriptions =
-    TreeEdit.Update.subscriptions
+subscriptions : Model -> Sub Msg
+subscriptions = TreeEdit.Update.subscriptions

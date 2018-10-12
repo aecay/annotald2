@@ -188,8 +188,8 @@ updateForest msg model =
               |> Return.map (\x -> { x | selected = Selection.empty})
               |> newSelection
 
-update : Msg -> Model -> Return Msg Model
-update msg model =
+update : (String -> Cmd Msg) -> Msg -> Model -> Return Msg Model
+update goto msg model =
     case msg of
         LoadedData x ->
             case x of
@@ -263,9 +263,8 @@ update msg model =
             else
                 Return.return model
                     (Cmd.batch
-                         [ -- TODO Route.goTo Route.ListFiles
-                           -- ,
-                               Ports.saveScroll ()
+                         [ goto <| Route.toString Route.ListFiles
+                         , Ports.saveScroll ()
                          ]
                     )
 

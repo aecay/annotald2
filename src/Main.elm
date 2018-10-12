@@ -70,7 +70,7 @@ update msg model =
             case model.page of
                 TreeEdit submodel ->
                     let
-                        return = TreeEdit.update submsg submodel
+                        return = TreeEdit.update (Nav.pushUrl model.key) submsg submodel
                     in
                         Return.mapBoth TreeEditMsg
                             (\x ->
