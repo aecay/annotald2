@@ -80,14 +80,22 @@ update msg model =
                                  }
                             )
                             return
-                _ -> Debug.todo "crash"
+                _ ->
+                    let
+                        _ = Debug.log "incongruent message" msg
+                    in
+                        Return.singleton model
 
         FileListMsg submsg ->
             case model.page of
                 FileList submodel ->
                     FileList.update (Nav.pushUrl model.key) submsg submodel
                         |> Return.mapBoth FileListMsg (\x -> { model | page = FileList x })
-                _ -> Debug.todo "crash"
+                _ ->
+                    let
+                        _ = Debug.log "incongruent message" msg
+                    in
+                        Return.singleton model
 
         UrlRequested request ->
             case request of
