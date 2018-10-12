@@ -57,7 +57,13 @@ textFieldAbsent =
 
 editButton : Style
 editButton =
-    [ style "padding" "1px" ]
+    [ style "padding" "2px 5px"
+    , style "margin-left" "8px"
+    , style "border-color" "#999999"
+    , style "border-width" "1px"
+    , style "border-radius" "5px"
+    , style "border-style" "solid"
+    ]
 
 
 textFieldEditBox : Style

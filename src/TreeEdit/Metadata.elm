@@ -206,7 +206,7 @@ field model name info_ =
         deleteButton n =
             button
                 ((onClick <| Delete n) :: Css.editButton)
-                [ text "X" ]
+                [ text "✕" ]
     in
     case state of
         Hidden ->
