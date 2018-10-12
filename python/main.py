@@ -47,7 +47,8 @@ def pre_save_handler(corpus):
                 if key in node.metadata:
                     del node.metadata[key]
 
-        if tree.metadata.id == "MISSING_ID":
+        if tree.metadata.id == "MISSING_ID" or tree.metadata.id is None:
+            print("Save file: adding missing ID!")
             # TODO: won't be reflected in the Elm version -- reload trees after save?
             tree.metadata.id = lovett.util.fresh_id()
 
@@ -119,6 +120,16 @@ class Annotald:
         async with aiofiles.open(path) as fin:
             t = await fin.read()
             corpus = lovett.corpus.from_file(t, Deep)
+            seen_ids = set()
+            for tree in corpus:
+                if tree.metadata.id is None or tree.metadata.id == "MISSING_ID":
+                    # TODO: MISSING_ID is a misfeature of Lovett and should be removed
+                    print("Load file: adding ID!")
+                    tree.metadata.id = lovett.util.fresh_id()
+                if tree.metadata.id in seen_ids:
+                    raise web.HTTPInternalServerError(reason="Duplicate ID %s" % tree.metadata.id)
+                else:
+                    seen_ids.add(tree.metadata.id)
         return web.json_response(text=json.dumps(_Object.corpus(corpus)))
 
     async def save(self, request):
