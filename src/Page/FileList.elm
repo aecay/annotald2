@@ -106,7 +106,7 @@ view model =
                     H.div [] [ H.text "Error fetching file list" ]
 
                 Success files ->
-                    H.div [] <| List.map openLink files
+                    H.div [] <| List.map openLink <| List.sort files
 
 
 update : (String -> Cmd Msg) -> Msg -> Model -> ( Model, Cmd Msg )
