@@ -41,3 +41,4 @@ type Msg
     | SaveSuccess
     | SaveFailure String
     | Dirty Bool
+    | ScrollSaved

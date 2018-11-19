@@ -265,12 +265,9 @@ update goto msg model =
             if model.dirty then
                 Return.singleton { model | lastMessage = "Cannot exit with unsaved changes" }
             else
-                Return.return model
-                    (Cmd.batch
-                         [ goto <| Route.toString Route.ListFiles
-                         , Ports.saveScroll ()
-                         ]
-                    )
+                Return.return model <| Ports.saveScroll True
+        ScrollSaved ->
+            Return.return model <| goto <| Route.toString Route.ListFiles
 
 
 
@@ -295,5 +292,5 @@ subscriptions m =
                     then Sub.none
                     else Browser.Events.onClick (D.succeed <| Loaded <| CancelContext)
             in
-                Sub.batch [ keySub, clickSub ]
+                Sub.batch [ keySub, clickSub, Ports.scrollSaved (\_ -> ScrollSaved) ]
         _ -> Sub.none

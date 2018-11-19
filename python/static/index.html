@@ -53,8 +53,11 @@
           });
       });
 
-      function saveScroll () {
+      function saveScroll (sendExitMsg) {
           localStorage["scroll-" + fileName] = window.pageYOffset;
+          if (sendExitMsg) {
+              app.ports.scrollSaved.send({});
+          }
       }
 
       window.addEventListener("beforeunload", saveScroll);
