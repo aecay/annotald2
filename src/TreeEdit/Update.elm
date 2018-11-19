@@ -23,6 +23,7 @@ import TreeEdit.ContextMenu as ContextMenu
 import TreeEdit.Dialog.Type as Dialog
 import TreeEdit.Metadata as Metadata
 import TreeEdit.Metadata.Type as MetadataType
+import TreeEdit.Metadata.Util exposing (makeLemmata)
 import TreeEdit.Model as Model
 import TreeEdit.Model.Type exposing (Model, ForestModel)
 import TreeEdit.Msg as Msg exposing (Msg(..), LoadedMsg(..))
@@ -197,13 +198,16 @@ update goto msg model =
                 Loading -> Return.singleton { model | webdata = Loading }
                 Failure e -> Return.singleton { model | webdata = Failure e }
                 Success ( trees, config, lemmata ) ->
+                    let
+                        forest = Tree.forestFromList <| Array.toList trees
+                    in
                     Return.return
                         { model
                             | webdata =
                                 Success
-                                    { root = Tree.forestFromList <| Array.toList trees
+                                    { root = forest
                                     , config = config
-                                    , lemmata = lemmata
+                                    , lemmata = makeLemmata lemmata forest
                                     , selected = Selection.empty
                                     , contextMenu = Nothing
                                     , metadataForm = Nothing

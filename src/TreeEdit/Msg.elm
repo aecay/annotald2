@@ -30,7 +30,7 @@ type LoadedMsg =
 
 
 type Msg
-    = LoadedData (WebData ( Array Tree, Config, List Metadata.Lemma ))
+    = LoadedData (WebData ( Array Tree, Config, List String ))
     | LogMessage String
     | Ignore
     | Blur String

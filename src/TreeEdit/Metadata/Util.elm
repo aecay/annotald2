@@ -12,8 +12,10 @@ module TreeEdit.Metadata.Util exposing
     , lemmaSelect
     , lemmaSelectConfig
     , widgets
+    , makeLemmata
     )
 
+import Array
 import Dict
 import Url.Builder exposing (crossOrigin, string)
 import Html as Html exposing (Html, li, text, ul)
@@ -27,8 +29,9 @@ import Select
 
 import TreeEdit.Metadata.Css as Css
 import TreeEdit.Metadata.Type exposing (Lemma, Model, Msg(..))
+import TreeEdit.OrderedDict as OD
 import TreeEdit.Tree as Tree
-import TreeEdit.Tree.Type exposing (Tree)
+import TreeEdit.Tree.Type exposing (Tree, Forest)
 import TreeEdit.View.Theme as Theme
 
 
@@ -204,3 +207,25 @@ widgets =
     { textbox = textbox
     , options = options
     }
+
+normalizeLemma : String -> String
+normalizeLemma =
+    String.replace "\u{0304}" "" >> String.replace "\u{0308}" ""
+
+makeLemmata : List String -> Forest -> List Lemma
+makeLemmata lemmata forest =
+    let
+        getLemma tree = .get Tree.metadata tree |> Dict.get "LEMMA" |> Maybe.withDefault "<<none>>"
+        update tree set = Set.insert (getLemma tree) set
+        forestLemmata = OD.toArray forest
+                          |> Array.map Tuple.second
+                          |> Array.map (Tree.fold update Set.empty)
+                          |> Array.foldl Set.union Set.empty
+                          |> Set.remove "<<none>>"
+        allLemmata = Set.fromList lemmata |> Set.union forestLemmata
+    in
+        allLemmata
+          |> Set.toList
+          |> List.map (\x -> { original = x
+                             , normalized = normalizeLemma x
+                             })

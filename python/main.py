@@ -13,7 +13,6 @@ import sys
 import click
 import aiofiles
 from aiohttp import web
-from unidecode import unidecode
 
 import lovett.corpus
 from lovett.format import Deep, _Object   # TODO: don't use _Object
@@ -111,8 +110,7 @@ class Annotald:
             return web.Response(text=t)
 
     def lemmata(self, request):
-        return web.Response(text=json.dumps([{"original": lemma, "normalized": unidecode(lemma)}
-                                            for lemma in self.dict.keys()]))
+        return web.Response(text=json.dumps([lemma for lemma in self.dict.keys()]))
 
     async def file(self, request):
         name = request.query["name"]

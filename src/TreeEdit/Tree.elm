@@ -17,7 +17,7 @@ module TreeEdit.Tree exposing
     , illegalLabelChar
     , index
     , info
-    ,  insertManyAt
+    , insertManyAt
        -- Action.elm: deleteNode
 
     , internals
@@ -26,6 +26,7 @@ module TreeEdit.Tree exposing
     , label
     , makeTrace
     , map
+    , fold
     , metadata
     , moveTo
     , path

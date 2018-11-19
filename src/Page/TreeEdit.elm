@@ -39,12 +39,7 @@ init filename seed =
 
         lemmataTask =
             getTask (absolute ["lemmata"] [])
-                (D.list
-                    (D.map2 (\x y -> { original = x, normalized = y })
-                        (D.field "original" D.string)
-                        (D.field "normalized" D.string)
-                    )
-                )
+                (D.list D.string)
 
         combine =
             RemoteData.map3 (\a b c -> ( a, b, c ))
