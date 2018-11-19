@@ -1,5 +1,7 @@
 port module TreeView exposing (main)
 
+import Browser
+import Dict
 import Html exposing (Html)
 import Json.Decode as D exposing (decodeString)
 import Platform.Cmd as Cmd
@@ -7,10 +9,11 @@ import Platform.Sub as Sub
 
 import TreeEdit.Path as Path
 import TreeEdit.Tree.Type exposing (Tree)
+import TreeEdit.Tree as Tree
 import TreeEdit.Tree.Decode exposing (decodeTree)
 import TreeEdit.View exposing (viewTree, ViewInfo)
 
-type alias Model = { tree : Result String Tree, viewInfo: ViewInfo }
+type alias Model = { tree : Result D.Error Tree, viewInfo: ViewInfo }
 
 type alias Flags = { tree : String, snodeClass: String, ipClass: String, selectedClass: String, wnodeClass: String }
 
@@ -41,7 +44,7 @@ init {tree, snodeClass, selectedClass, ipClass, wnodeClass} =
 
 port treeChanged : (String -> msg) -> Sub msg
 
-type Msg = TreeChanged (Result String Tree) |
+type Msg = TreeChanged (Result D.Error Tree) |
     Noop
 
 update : Msg -> Model -> (Model, Cmd Msg)
@@ -53,9 +56,21 @@ update msg model =
 view : Model -> Html Msg
 view {tree, viewInfo} =
     case tree of
-        Err msg -> Html.div [] [ Html.text <| "Error deserializing tree: " ++ msg ]
-        Ok tree -> viewTree viewInfo (Path.singleton 0) tree |>
-                   Html.map (\_ -> Noop)
+        Err msg -> Html.div [] [ Html.text <| "Error deserializing tree: " ++ D.errorToString msg ]
+        Ok innerTree ->
+            let
+                go i t = viewTree viewInfo (Path.singleton i) t |>
+                         Html.map (\_ -> Noop)
+                id = .get Tree.metadata innerTree |> Dict.get "ID"
+            in
+                case id of
+                    Just realId -> go realId innerTree
+                    Nothing ->
+                        let
+                            newMetadata = .get Tree.metadata innerTree |> Dict.update "ID" (\_ -> Just "FOO")
+                        in
+                            go "FOO" <| .set Tree.metadata newMetadata innerTree
+
 
 subscriptions : Model -> Sub Msg
 subscriptions _ =
@@ -65,7 +80,7 @@ subscriptions _ =
         treeChanged <| TreeChanged << doTreeChg
 
 main : Program Flags Model Msg
-main = Html.programWithFlags
+main = Browser.element
        { init = init
        , update = update
        , view = view

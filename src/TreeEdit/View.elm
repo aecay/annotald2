@@ -106,9 +106,9 @@ snode info self tree children =
                         then [ onClick <| Msg.Loaded <| Msg.ToggleSelect self , rightClick ]
                         else []
         cssClasses = Attr.classList
-                     [ ( "snode", True )
-                     , ( "selected", selected )
-                     , ( "ip", not selected && isIP_ )
+                     [ ( info.snodeClass, True )
+                     , ( info.selectedClass, selected )
+                     , ( info.ipClass, not selected && isIP_ )
                      ]
     in
     div (cssClasses :: eventHandlers) <| label :: children
