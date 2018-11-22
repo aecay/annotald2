@@ -348,11 +348,11 @@ checkRootAdjacency forest from to =
         ids = OD.keys forest
         idxFrom = indexOf from ids
         idxTo = indexOf to ids
-        diff = idxFrom - idxTo
+        diff = Maybe.map2 (-) idxFrom idxTo
     in
-        if diff == -1 then
+        if diff == Just -1 then
             Path.Right
-        else if diff == 1 then
+        else if diff == Just 1 then
             Path.Left
         else
             Path.No

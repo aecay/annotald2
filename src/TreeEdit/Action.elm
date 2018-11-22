@@ -505,13 +505,18 @@ deleteNode model =
                                     _ ->
                                         let
                                             idx = indexOf id <| OD.keys forest
-                                            add : Tree -> ForestModel -> ForestModel
-                                            add t m = newRootTree idx m t |> Tuple.first
-                                            newForest = OD.remove id forest
                                         in
-                                            { model | root = newForest }
-                                              |> (\x -> Array.foldr add x children)
-                                              |> clearSelection
+                                            case idx of
+                                                Nothing -> R.fail "bad id in deleteNode"
+                                                Just i ->
+                                                    let
+                                                        add : Tree -> ForestModel -> ForestModel
+                                                        add t m = newRootTree i m t |> Tuple.first
+                                                        newForest = OD.remove id forest
+                                                    in
+                                                    { model | root = newForest }
+                                                      |> (\x -> Array.foldr add x children)
+                                                      |> clearSelection
                             Path id _ ->
                                 -- Deleting a non-root nonterminal
                                 Tree.deleteAt sel forest
