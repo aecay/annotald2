@@ -43,6 +43,7 @@ type alias Model =
     , fieldStates : FieldStates
     , lemmaSelectState : Select.State
     , lemmata : List Lemma
+    , lemmaInput : Maybe String
     }
 
 
@@ -57,3 +58,4 @@ type Msg
     | SaveSuccess String
     | Key KeyboardEvent
     | LemmaSelect (Select.Msg Lemma)
+    | LemmaQueryChanged String

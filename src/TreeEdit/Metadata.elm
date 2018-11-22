@@ -286,6 +286,7 @@ init lemmata metadata node =
             |> Dict.fromList
     , lemmaSelectState = Select.newState "lemma"
     , lemmata = lemmata
+    , lemmaInput = Nothing
     }
 
 
@@ -539,6 +540,12 @@ update model msg =
 
                 Nothing ->
                     Return.singleton model
+
+        LemmaQueryChanged newQuery ->
+            let
+                mf = model.metadataForm |> Maybe.map (\x -> { x | lemmaInput = Just newQuery })
+            in
+            Return.singleton { model | metadataForm = mf }
 
 
 view : BigModel.ForestModel -> Html Msg

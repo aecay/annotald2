@@ -170,19 +170,33 @@ lemmaSelectConfig =
             ]
         |> Select.withHighlightedItemStyles [ ( "background-color", .salmon Theme.theme ) ]
         |> Select.withClearStyles [ ( "visibility", "hidden" ) ]
+        |> Select.withOnQuery LemmaQueryChanged
 
+lemmaFromString : String -> String
+lemmaFromString =
+    String.replace "oe" "o\u{0308}" >>
+        String.replace "ue" "u\u{0308}" >>
+        String.replace ":" "\u{0304}"
 
 lemmaSelect : Model -> Form.FieldState () String -> Html Msg
 lemmaSelect model state =
     let
-        value =
-            state.value |> Maybe.withDefault ""
+        value = state.value |> Maybe.withDefault ""
+        values = case model.lemmaInput of
+                     Just q ->
+                         let
+                             lemma = lemmaFromString q
+                             lemmaRecord = { original = lemma , normalized = q }
+                         in
+                              lemmaRecord :: model.lemmata
+                     Nothing -> model.lemmata
 
         initial =
-            List.filter (\{ original } -> original == value) model.lemmata
+            List.filter (\{ original } -> original == value) values
                 |> List.head
+
     in
-    Select.view lemmaSelectConfig model.lemmaSelectState model.lemmata initial
+    Select.view lemmaSelectConfig model.lemmaSelectState values initial
         |> Html.map LemmaSelect
 
 
