@@ -6,6 +6,7 @@ import Json.Decode as D exposing (Decoder, dict, field, int, lazy, list, string)
 import TreeEdit.Index as Index
 import TreeEdit.Tree.Type exposing (..)
 
+import Util exposing (log)
 
 decodeString : Decoder String
 decodeString =
@@ -50,7 +51,7 @@ extractIndex metadata =
                     Nothing
 
                 _ ->
-                    Debug.log "Found a bad index while decoding" metadata
+                    log "Found a bad index while decoding" metadata
                       |> always Nothing
     in
     ( metadata |> Dict.remove "INDEX" |> Dict.remove "IDX-TYPE"

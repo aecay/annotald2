@@ -14,6 +14,7 @@ import TreeEdit.Msg exposing (LoadedMsg(..), Msg(..))
 import TreeEdit.Tree.Encode exposing (encodeForest)
 import TreeEdit.Utils as Utils exposing (message)
 
+import Util exposing (webDataToString)
 
 perform : String -> ForestModel -> Return Msg ForestModel
 perform filename forestModel =
@@ -23,7 +24,7 @@ perform filename forestModel =
         handle d =
             case d of
                 Success _ -> SaveSuccess
-                f -> SaveFailure <| Debug.toString f
+                _ -> SaveFailure <| webDataToString d
     in
         Return.return forestModel <|
             Cmd.batch [ Cmd.Extra.perform <| SetDialog <| Just <| Processing "saving"

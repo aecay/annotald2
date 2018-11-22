@@ -18,6 +18,7 @@ import Dict exposing (Dict)
 import Maybe.Extra as MX
 import TreeEdit.Utils as Utils
 import Tuple
+import Util exposing (log)
 
 
 type OrderedDict comparable value
@@ -67,7 +68,7 @@ get k (OD d l) = Dict.get k d
 insertAt : Int -> comparable -> val -> OrderedDict comparable val -> OrderedDict comparable val
 insertAt idx key val (OD d l) =
     if Dict.member key d then
-        Debug.log "duplicate key" key |> (always <| OD d l)
+        log "duplicate key" key |> (always <| OD d l)
         -- TODO: seems like an error...or should we move it to this
         -- index?
     else

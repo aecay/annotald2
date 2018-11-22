@@ -9,7 +9,7 @@ import Dict
 import TreeEdit.Index as Index
 import TreeEdit.Tree as Tree
 import TreeEdit.Tree.Type exposing (ECType(..), Terminal(..), TraceType(..), Tree)
-
+import Util exposing (log)
 
 isTrace : Tree -> Bool
 isTrace tree =
@@ -48,7 +48,7 @@ terminalString : Tree -> String
 terminalString tree =
     let
         nt _ _ =
-            Debug.log "Can't get the terminalString of a nonterminal!" ""
+            log "Can't get the terminalString of a nonterminal!" ""
 
         t terminal =
             case terminal of

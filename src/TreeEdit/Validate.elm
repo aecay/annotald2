@@ -19,6 +19,7 @@ import TreeEdit.Tree.Encode exposing (encodeTrees)
 import TreeEdit.Tree.Type as TreeType exposing (Tree)
 import TreeEdit.Utils as Utils
 
+import Util exposing (webDataToString)
 
 perform : ForestModel -> Return Msg ForestModel
 perform forestModel =
@@ -68,6 +69,6 @@ done forestModel path webdata =
                     ]
         f ->
             Return.return forestModel <|
-                Utils.cmds [ Msg.LogMessage <| "Validation failure: " ++ Debug.toString f
+                Utils.cmds [ Msg.LogMessage <| "Validation failure: " ++ webDataToString f
                            , Msg.SetDialog Nothing
                            ]

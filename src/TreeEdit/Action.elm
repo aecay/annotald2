@@ -34,6 +34,7 @@ import TreeEdit.Tree.Type as TreeType exposing (Forest, Tree, constants)
 import TreeEdit.Utils as Utils exposing (maybeAndThen2, o, and, andO, fromJust, indexOf)
 import TreeEdit.View.LabelEdit as LabelEdit
 
+import Util exposing (log)
 
 type alias Result = R.Result ForestModel
 
@@ -310,7 +311,7 @@ createParent2 label model one two =
         case ( frag1, frag2 ) of
             ( [], [] ) ->
                 -- TODO
-                Debug.log "unimplemented" () |> always (R.succeed model)
+                log "unimplemented" () |> always (R.succeed model)
 
             ( foot1_ :: rest1, foot2_ :: rest2 ) ->
                 let

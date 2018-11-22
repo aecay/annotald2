@@ -32,7 +32,7 @@ import TreeEdit.View.LabelEdit as LabelEdit
 import TreeEdit.View.LabelEdit.Type exposing (LabelForm)
 import TreeEdit.View.ToolBar as ToolBar
 import TreeEdit.View.Utils exposing (decodeMouse, onClick)
-
+import Util exposing (httpErrorToString)
 
 isIP : Config -> String -> Bool
 isIP config label =
@@ -138,7 +138,6 @@ viewTree info selfPath tree =
 viewRootTree : Config -> Maybe ( List Path, Maybe LabelForm ) -> String -> Tree -> Html Msg
 viewRootTree config dataPack selfIndex tree =
     let
-        -- _ = Debug.log "redraw" selfIndex
         selected = dataPack |> Maybe.map Tuple.first |> Maybe.withDefault []
         labelForm = dataPack |> Maybe.map Tuple.second |> Maybe.withDefault Nothing
         info = { config = config, selected = selected, labelForm = labelForm
@@ -225,20 +224,8 @@ view model =
                              ]
 
         Failure e ->
-            let
-                errorStr =
-                    case e of
-                        BadUrl s -> "Bad url: " ++ s
-                        Timeout -> "Timeout"
-                        NetworkError -> "Network error"
-                        BadStatus { status, body } -> "HTTP error code " ++
-                                                      String.fromInt status.code ++
-                                                      "; body was " ++ body
-                        BadPayload s { body } ->
-                            "Payload error: " ++ s ++ "; body was " ++ body
-            in
             container [ p [] [ text <| "Error loading file " ++ model.fileName]
-                      , p [] [ text errorStr]
+                      , p [] [ httpErrorToString e ]
                       ]
 
         Success submodel ->

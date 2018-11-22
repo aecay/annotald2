@@ -38,6 +38,8 @@ import TreeEdit.View as View
 import TreeEdit.View.LabelEdit.Type as LabelEditType
 import TreeEdit.View.LabelEdit as LabelEdit
 
+import Util exposing (log)
+
 
 -- Function from https://github.com/toastal/return-optics/tree/1.1.1
 -- Original license: BSD
@@ -156,7 +158,7 @@ updateForest msg model =
                     in
                         Return.mapBoth (Loaded << Label) (\x -> { model | labelForm = x }) newForm
                 Nothing ->
-                    Debug.log "received a Label msg when no label form was active" submsg |>
+                    log "received a Label msg when no label form was active" submsg |>
                     (always <| Return.singleton model)
 
         LabelKey { keyCode } ->
@@ -239,7 +241,7 @@ update goto msg model =
                                                  webdata = Success x
                                                , seed = x.seed
                                                })
-                _ -> Debug.log "got a LoadedMsg while no data was loaded" <| Return.singleton model
+                _ -> log "got a LoadedMsg while no data was loaded" <| Return.singleton model
 
         SetDialog d ->
             Return.singleton { model | dialog = d }
@@ -250,7 +252,7 @@ update goto msg model =
                     Save.perform model.fileName forestModel |>
                       Return.map (always model) -- TODO: kinda ugly....
                 _ ->
-                    Debug.log "Got command to save when no data was loaded" <| Return.singleton model
+                    log "Got command to save when no data was loaded" <| Return.singleton model
 
         SaveFailure reason ->
             Save.failure model reason

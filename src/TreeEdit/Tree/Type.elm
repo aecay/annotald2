@@ -23,7 +23,7 @@ import Dict exposing (Dict)
 import Monocle.Lens as Lens exposing (Lens)
 import TreeEdit.Index as Index
 import TreeEdit.OrderedDict exposing (OrderedDict)
-
+import Util exposing (log)
 
 type TraceType
     = Wh
@@ -235,7 +235,7 @@ info =
                     TerminalOuter <| Trace typ newInfo
 
                 TerminalOuter (Comment com) ->
-                    Debug.log "bogus attempt to set info of comment node" <|
+                    log "bogus attempt to set info of comment node" <|
                         TerminalOuter <|
                             Comment com
 

@@ -13,6 +13,7 @@ import Page.FileList as FileList
 import Page.TreeEdit as TreeEdit
 import Route exposing (Route)
 
+import Util exposing (log)
 
 type Page
     = FileList FileList.Model
@@ -51,7 +52,7 @@ pageInit rte seed =
 init : Flags -> Url -> Key -> Return Msg Model
 init { randomness } url key =
     let
-        seed = Random.initialSeed <| Debug.log "randomness" randomness
+        seed = Random.initialSeed
         rte = Route.fromUrl url
         ( page, cmd ) = pageInit rte seed
     in
@@ -82,7 +83,7 @@ update msg model =
                             return
                 _ ->
                     let
-                        _ = Debug.log "incongruent message" msg
+                        _ = log "incongruent message" msg
                     in
                         Return.singleton model
 
@@ -93,7 +94,7 @@ update msg model =
                         |> Return.mapBoth FileListMsg (\x -> { model | page = FileList x })
                 _ ->
                     let
-                        _ = Debug.log "incongruent message" msg
+                        _ = log "incongruent message" msg
                     in
                         Return.singleton model
 
@@ -104,8 +105,8 @@ update msg model =
                 External _ -> Debug.todo "handle external url request"
         UrlChanged url ->
             let
-                _ = Debug.log "url" url
-                page = Route.fromUrl url |> Debug.log "route"
+                _ = log "url" url
+                page = Route.fromUrl url
                 ( p, cmd ) =
                     pageInit page model.seed
             in
