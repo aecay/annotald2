@@ -31,7 +31,7 @@ import TreeEdit.Result as R exposing (Result(..))
 import TreeEdit.Selection as Selection exposing (Selection(..))
 import TreeEdit.Tree as Tree
 import TreeEdit.Tree.Type as TreeType exposing (Forest, Tree, constants)
-import TreeEdit.Utils as Utils exposing (maybeAndThen2, o, and, andO, fromJust, indexOf)
+import TreeEdit.Utils as Utils exposing (maybeAndThen2, o, and, andO, indexOf)
 import TreeEdit.View.LabelEdit as LabelEdit
 
 import Util exposing (log)
@@ -254,7 +254,7 @@ doMoveToRoot src model =
         root = Path.singleton id
         first = Tree.allFirst root frag forest
         last = Tree.allLast root frag forest
-        index = OD.elemIndex id forest |> Utils.fromJust
+        index = OD.elemIndex id forest
         go i =
             let
                 tree = Tree.get src forest
@@ -265,12 +265,15 @@ doMoveToRoot src model =
                 , selected = Selection.one newSel
                 }
     in
-    if first then
-        go index |> R.succeed
-    else if last then
-        go (index + 1) |> R.succeed
-    else
-        R.fail "cannot move to root from middle"
+    case index of
+        Nothing -> R.fail "Bad index in doMoveToRoot"
+        Just i ->
+            if first then
+                go i |> R.succeed
+            else if last then
+                go (i + 1) |> R.succeed
+            else
+                R.fail "cannot move to root from middle"
 
 
 doMove : Path -> Path -> ForestModel -> Result
@@ -413,9 +416,12 @@ createLeaf_ fn leaf m path =
         case frag of
             [] ->
                 let
-                    index = OD.elemIndex id forest |> Utils.fromJust
+                    index = OD.elemIndex id forest
                 in
-                    newRootTree (fn index) m leaf |> Tuple.first |> R.succeed
+                    case index of
+                        Nothing -> R.fail "Bad index in createLeaf_"
+                        Just i ->
+                            newRootTree (fn i) m leaf |> Tuple.first |> R.succeed
             foot :: rest ->
                 let
                     parent = Path id rest
@@ -490,14 +496,11 @@ deleteNode model =
                         case sel of
                             Path id [] ->
                                 -- Deleting a root-level nonterminal
-                                case Array.length children of
-                                    1 ->
-                                        -- Special case: preserve the ID
-                                        -- of the sole daughter tree
+                                case Array.toList children of
+                                    c :: [] ->
+                                        -- Special case: preserve the ID of the sole daughter tree
                                         let
-                                            child = Array.get 0 children
-                                              |> fromJust
-                                              |> Lens.modify Tree.metadata (Dict.update "ID" (always <| Just id))
+                                            child = Lens.modify Tree.metadata (Dict.update "ID" (always <| Just id)) c
                                         in
                                             { model |
                                               root = Tree.set sel child model.root
