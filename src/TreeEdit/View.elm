@@ -225,7 +225,7 @@ view model =
 
         Failure e ->
             container [ p [] [ text <| "Error loading file " ++ model.fileName]
-                      , p [] [ httpErrorToString e ]
+                      , p [] [ text <| httpErrorToString e ]
                       ]
 
         Success submodel ->

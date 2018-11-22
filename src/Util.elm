@@ -2,10 +2,11 @@ module Util
     exposing
     ( httpErrorToString
     , webDataToString
+    , log
     )
 
-import Http
-import RemoteData exposing (WebData)
+import Http exposing (Error(..))
+import RemoteData exposing (WebData, RemoteData(..))
 
 httpErrorToString : Http.Error -> String
 httpErrorToString e =
@@ -22,7 +23,7 @@ httpErrorToString e =
 webDataToString : WebData a -> String
 webDataToString d =
     case d of
-        Success -> "Success"
+        Success _ -> "Success"
         NotAsked -> "Request not yet sent"
         Loading -> "Request still in progress"
         Failure f -> "Error: " ++ httpErrorToString f
