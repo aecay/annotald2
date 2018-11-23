@@ -1,8 +1,11 @@
 module TreeEdit.Clipboard exposing (copy)
 
+import Http
 import Json.Decode as D
 import Json.Encode as E
-import RemoteData.Http as Http
+import Url.Builder exposing (absolute)
+
+import RemoteData
 import TreeEdit.Action exposing (Action)
 import TreeEdit.Clipboard.Type exposing (..)
 import TreeEdit.Model as Model
@@ -21,12 +24,16 @@ copy model =
                   (D.field "penn" D.string)
                   (D.field "deep" D.string)
                   (D.field "text" D.string)
+        url = absolute ["as_text"] []
         extract sel =
             model.root
                 |> T.get sel
                 |> encodeTree
                 |> (\x -> E.object [ ( "tree", x ) ])
-                |> Http.post "/as_text" (Loaded << Copy) decoder
+                |> (\x -> Http.post { url = url
+                                    , body = Http.jsonBody x
+                                    , expect = Http.expectJson (Loaded << Copy << RemoteData.fromResult) decoder
+                                    })
 
         cmd =
             Selection.perform selected

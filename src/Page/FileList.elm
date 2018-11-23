@@ -5,15 +5,18 @@ import Html.Attributes as Attr
 import Html.Events exposing (onClick)
 import Http
 import Json.Decode as D
-import RemoteData exposing (RemoteData(..), WebData)
-import RemoteData.Http exposing (get)
 import Return exposing (return, singleton)
 import Route
-
+import RemoteData exposing (WebData, RemoteData(..))
+import Url.Builder exposing (absolute)
 
 init : ( Model, Cmd Msg )
 init =
-    ( { files = NotAsked, exited = False }, get "/files" GotFiles (D.list D.string) )
+    ( { files = NotAsked, exited = False }
+    , Http.get { url = absolute ["files"] []
+               , expect = Http.expectJson (GotFiles << RemoteData.fromResult) (D.list D.string)
+               }
+    )
 
 
 type alias Model =
@@ -122,10 +125,10 @@ update goto msg model =
                 |> Return.return model
 
         Exit ->
-            let
-                request = Http.post "/exit" Http.emptyBody (D.succeed ())
-            in
-                return model <| Http.send (\_ -> Exited) request
+            return model <| Http.post { url = absolute ["exit"] []
+                                      , body = Http.emptyBody
+                                      , expect = Http.expectWhatever (\_ -> Exited)
+                                      }
 
         Exited ->
             singleton { model | exited = True }

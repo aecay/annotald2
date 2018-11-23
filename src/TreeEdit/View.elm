@@ -13,7 +13,7 @@ import Html.Keyed as Keyed
 import Html.Lazy exposing (lazy4)
 import Http exposing (Error(..))
 import Json.Decode as Json
-import RemoteData exposing (RemoteData(..))
+import RemoteData exposing (httpErrorToString, RemoteData(..))
 import TreeEdit.Config exposing (Config)
 import TreeEdit.ContextMenu as ContextMenu
 import TreeEdit.Dialog as Dialog
@@ -32,7 +32,6 @@ import TreeEdit.View.LabelEdit as LabelEdit
 import TreeEdit.View.LabelEdit.Type exposing (LabelForm)
 import TreeEdit.View.ToolBar as ToolBar
 import TreeEdit.View.Utils exposing (decodeMouse, onClick)
-import Util exposing (httpErrorToString)
 
 isIP : Config -> String -> Bool
 isIP config label =

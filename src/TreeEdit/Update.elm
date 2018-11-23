@@ -11,9 +11,8 @@ import Task
 import Cmd.Extra
 import Monocle.Lens as Lens
 import Monocle.Optional exposing (Optional)
-import RemoteData exposing (RemoteData(..))
 import Return exposing (Return, ReturnF)
-
+import RemoteData exposing (RemoteData(..))
 import ThirdParty.KeyboardEvent exposing (KeyboardEvent, decodeKeyboardEvent)
 import ThirdParty.KeyboardKey as K
 
@@ -196,10 +195,8 @@ update goto msg model =
     case msg of
         LoadedData x ->
             case x of
-                NotAsked -> Return.singleton { model | webdata = NotAsked }
-                Loading -> Return.singleton { model | webdata = Loading }
-                Failure e -> Return.singleton { model | webdata = Failure e }
-                Success ( trees, config, lemmata ) ->
+                Err e -> Return.singleton { model | webdata = Failure e }
+                Ok ( trees, config, lemmata ) ->
                     let
                         forest = Tree.forestFromList <| Array.toList trees
                     in

@@ -2,10 +2,11 @@ module TreeEdit.Validate exposing (done, perform)
 
 import Array exposing (Array)
 import Cmd.Extra
+import Http
 import Json.Encode as E
 import RemoteData exposing (RemoteData(..), WebData)
-import RemoteData.Http
 import Return exposing (Return)
+import Url.Builder exposing (absolute)
 import TreeEdit.Dialog.Type exposing (Dialog(..))
 import TreeEdit.Metadata.Type as MetadataType
 import TreeEdit.Model.Type exposing (Model, ForestModel)
@@ -18,8 +19,6 @@ import TreeEdit.Tree.Decode exposing (decodeTrees)
 import TreeEdit.Tree.Encode exposing (encodeTrees)
 import TreeEdit.Tree.Type as TreeType exposing (Tree)
 import TreeEdit.Utils as Utils
-
-import Util exposing (webDataToString)
 
 perform : ForestModel -> Return Msg ForestModel
 perform forestModel =
@@ -35,10 +34,12 @@ perform forestModel =
     in
         Return.return forestModel <|
             Cmd.batch [ Cmd.Extra.perform <| Msg.SetDialog <| Just <| Processing "Validating"
-                      , RemoteData.Http.post "/validate"
-                          (Msg.Loaded << (Msg.ValidateDone sel))
-                              decodeTrees
-                              (E.object [ ( "trees", encodeTrees trees ) ])
+                      , Http.post { url = absolute ["validate"] []
+                                  , body = Http.jsonBody <| E.object [ ( "trees", encodeTrees trees ) ]
+                                  , expect = Http.expectJson
+                                             (Msg.Loaded << (Msg.ValidateDone sel) << RemoteData.fromResult)
+                                             decodeTrees
+                                  }
                       ]
 
 
@@ -69,6 +70,6 @@ done forestModel path webdata =
                     ]
         f ->
             Return.return forestModel <|
-                Utils.cmds [ Msg.LogMessage <| "Validation failure: " ++ webDataToString f
+                Utils.cmds [ Msg.LogMessage <| "Validation failure: " ++ RemoteData.toString f
                            , Msg.SetDialog Nothing
                            ]

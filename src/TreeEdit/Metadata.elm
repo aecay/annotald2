@@ -5,6 +5,7 @@ import Dict exposing (Dict)
 import Html as Html exposing (Html, button, div, li, span, text, ul)
 import Html.Attributes as Attr exposing (id)
 import Html.Events exposing (onClick)
+import Http
 import Json.Decode as D
 import Json.Encode as E
 import Url.Builder exposing (absolute, string)
@@ -16,10 +17,10 @@ import Form.Init
 import Form.Validate as V exposing (Validation)
 import Maybe.Extra as MX
 import Monocle.Lens as Lens
-import RemoteData exposing (RemoteData(..), WebData)
-import RemoteData.Http as Net
 import Return exposing (Return)
 import Select
+
+import RemoteData exposing (RemoteData(..))
 
 import ThirdParty.KeyboardKey as K
 
@@ -62,15 +63,15 @@ definitionUpdater _ newDef sel =
             .get Tree.metadata sel |> Dict.get "LEMMA"
 
         updateCmd def lem =
-            Net.post
-                "/dictentry"
-                (always <| Msg.Loaded <| Msg.Metadata <| SaveSuccess lem)
-                (D.succeed ())
-                (E.object
-                    [ ( "lemma", E.string lem )
-                    , ( "definition", E.string def )
-                    ]
-                )
+            Http.post { url = absolute ["dictentry"] []
+                      , body = Http.jsonBody (E.object
+                                                  [ ( "lemma", E.string lem )
+                                                  , ( "definition", E.string def )
+                                                  ]
+                                             )
+                      , expect = Http.expectWhatever (always <| Msg.Loaded <| Msg.Metadata <| SaveSuccess lem)
+                      }
+
     in
     Maybe.map2 updateCmd newDef l
         |> Maybe.withDefault Cmd.none
@@ -478,10 +479,11 @@ update model msg =
                                     Dict.get "LEMMA" metadata
 
                                 req x =
-                                    Net.get
-                                        (absolute ["dictentry"] [ string "lemma" x ])
-                                        ReceivedDefinition
-                                        D.string
+                                    Http.get { url = absolute ["dictentry"] [ string "lemma" x ]
+                                             , expect = Http.expectJson
+                                                        (ReceivedDefinition << RemoteData.fromResult)
+                                                        D.string
+                                             }
                             in
                             Return.return
                                 { model
