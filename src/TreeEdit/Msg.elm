@@ -1,6 +1,7 @@
 module TreeEdit.Msg exposing (Msg(..), LoadedMsg(..))
 
 import Array exposing (Array)
+import Http
 import RemoteData exposing (WebData)
 import ThirdParty.KeyboardEvent exposing (KeyboardEvent)
 import TreeEdit.Clipboard.Type as Clipboard
@@ -30,7 +31,7 @@ type LoadedMsg =
 
 
 type Msg
-    = LoadedData (WebData ( Array Tree, Config, List String ))
+    = LoadedData (Result Http.Error ( Array Tree, Config, List String ))
     | LogMessage String
     | Ignore
     | Blur String

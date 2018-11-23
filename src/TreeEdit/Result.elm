@@ -26,7 +26,6 @@ module TreeEdit.Result exposing
 import Cmd.Extra exposing (perform)
 import Maybe.Extra
 import Monocle.Lens exposing (Lens)
-import RemoteData exposing (RemoteData(..))
 
 import Return
 import TreeEdit.Model as Model

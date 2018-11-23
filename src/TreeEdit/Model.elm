@@ -7,9 +7,8 @@ module TreeEdit.Model exposing
 import Monocle.Lens exposing (Lens, modify)
 import Monocle.Optional exposing (Optional)
 import Random exposing (Seed)
-import RemoteData exposing (RemoteData(..), WebData)
+import RemoteData exposing (RemoteData(..))
 import ThirdParty.Uuid as Uuid
-
 import TreeEdit.Config as Config
 import TreeEdit.Metadata.Type exposing (Lemma)
 import TreeEdit.Model.Type exposing (ForestModel)
@@ -17,7 +16,6 @@ import TreeEdit.OrderedDict as OD
 import TreeEdit.Selection as Selection
 import TreeEdit.Tree.Type exposing (Forest)
 import TreeEdit.View.LabelEdit.Type exposing (LabelForm)
-
 
 type alias Model =
     TreeEdit.Model.Type.Model
